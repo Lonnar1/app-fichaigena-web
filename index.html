@@ -34,7 +34,6 @@
   </div>
   <span>FICHA ÍGNEA</span>
 </h1>
-      </h1>
     </div>
 
     <!-- ================= TELA INICIAL ================= -->
@@ -345,7 +344,7 @@
 <div id="modalPerfilOverlay" style="display:none;position:fixed;inset:0;z-index:6700;background:rgba(0,0,0,.8);" onclick="fecharPerfil()"></div>
 <div id="modalPerfil" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6701;width:min(92vw,400px);max-height:88vh;overflow-y:auto;overflow-x:hidden;background:#0e0907;border:1px solid rgba(196,169,91,0.25);border-radius:16px;color:#F8F4E3;font-family:'EB Garamond',serif;">
 <button onclick="fecharPerfil()" style="position:absolute;top:10px;right:10px;z-index:5;background:rgba(0,0,0,.5);border:none;color:#F8F4E3;font-size:18px;width:30px;height:30px;padding:0;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
-  <div id="perfilFundo" style="height:110px;background-size:cover;background-position:center;background-color:#1b120c;border-radius:16px 16px 0 0;position:relative;">
+<div id="perfilFundo" style="height:150px;background-size:cover;background-position:center;background-color:#1b120c;border-radius:16px 16px 0 0;position:relative;">
     <button id="btnMudarFundo" onclick="document.getElementById('inputFundoPerfil').click()" style="display:none;position:absolute;bottom:8px;right:8px;font-size:11px;padding:5px 10px;border-radius:8px;border:1px solid rgba(196,169,91,0.4);background:rgba(0,0,0,.5);color:#E8CC80;cursor:pointer;">Trocar fundo</button>
     <input type="file" id="inputFundoPerfil" accept="image/*" style="display:none;" onchange="uploadImagemPerfil(this, 'fundo')">
   </div>
@@ -357,17 +356,34 @@
       <input type="file" id="inputAvatarPerfil" accept="image/*" style="display:none;" onchange="uploadImagemPerfil(this, 'avatar')">
     </div>
     <div id="perfilNomeTag" style="margin-top:8px;font-family:'Cinzel',serif;color:#E8CC80;font-size:16px;"></div>
+
+<button id="perfilCoresBtn" onclick="document.getElementById('perfilCoresBox').style.display='flex'; document.getElementById('perfilCoresBtn').style.display='none';" style="display:none;position:absolute;top:10px;left:10px;z-index:5;width:30px;height:30px;padding:0;border-radius:50%;background:rgba(0,0,0,.5);border:1px solid rgba(196,169,91,0.4);color:#E8CC80;font-size:13px;cursor:pointer;align-items:center;justify-content:center;pointer-events:auto;">✎</button>    <div id="perfilCoresBox" style="display:none;gap:10px;justify-content:center;align-items:center;margin-top:8px;font-size:11px;color:#9A8A70;pointer-events:auto;flex-wrap:wrap;">
+      Base <input type="color" id="corBaseInput" value="#0e0907" style="width:26px;height:26px;padding:0;border:none;border-radius:6px;cursor:pointer;background:none;">
+      Nome <input type="color" id="corNomeInput" value="#E8CC80" style="width:26px;height:26px;padding:0;border:none;border-radius:6px;cursor:pointer;background:none;">
+      Linha <input type="color" id="corLinhaInput" value="#c4a95b" style="width:26px;height:26px;padding:0;border:none;border-radius:6px;cursor:pointer;background:none;">
+      <button onclick="salvarCoresPerfil()" style="padding:4px 10px;border-radius:6px;border:none;background:#C4A95B;color:#1a0e05;font-weight:bold;font-size:11px;cursor:pointer;">Salvar</button>
+    </div>
   </div>
 
-  <div style="padding:16px;">
-<button id="btnVerMeuPerfil" onclick="abrirPerfil(window.usuarioAtual.uid)" style="display:none;width:100%;margin-bottom:12px;padding:8px;border-radius:8px;border:1px solid rgba(196,169,91,0.3);background:transparent;color:#E8CC80;font-size:12px;cursor:pointer;">← Ver meu perfil</button>
-<div id="perfilBioView" style="background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.15);border-radius:10px;padding:10px 12px;font-size:13px;color:#cdb791;min-height:20px;word-break:break-word;overflow-wrap:anywhere;"></div>    <textarea id="perfilBioEdit" maxlength="200" placeholder="Fale um pouco sobre você..." style="display:none;width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.25);border-radius:10px;padding:10px 12px;font-size:13px;color:#F8F4E3;box-sizing:border-box;min-height:60px;font-family:inherit;"></textarea>
-    <button id="btnSalvarBio" onclick="salvarBioPerfil()" style="display:none;margin-top:6px;width:100%;padding:8px;border-radius:8px;border:none;background:#C4A95B;color:#1a0e05;font-weight:bold;font-size:12px;cursor:pointer;">Salvar bio</button>
+  <div id="perfilBaseWrap" style="padding:16px;">
+<button id="btnVerMeuPerfil" onclick="abrirPerfil(window.usuarioAtual.uid)" style="display:none;width:100%;margin-bottom:12px;padding:8px;border-radius:8px;border:1px solid var(--perfil-linha, rgba(196,169,91,0.3));background:transparent;color:#E8CC80;font-size:12px;cursor:pointer;">← Ver meu perfil</button>
+<div id="perfilBioView" style="background:rgba(255,255,255,0.03);border:1px solid var(--perfil-linha, rgba(196,169,91,0.15));border-radius:10px;padding:10px 12px;font-size:13px;color:var(--perfil-texto, #cdb791);min-height:20px;word-break:break-word;overflow-wrap:anywhere;"></div>    <textarea id="perfilBioEdit" maxlength="200" placeholder="Fale um pouco sobre você..." style="display:none;width:100%;background:rgba(255,255,255,0.03);border:1px solid var(--perfil-linha, rgba(196,169,91,0.25));border-radius:10px;padding:10px 12px;font-size:13px;color:var(--perfil-texto, #F8F4E3);box-sizing:border-box;min-height:60px;font-family:inherit;"></textarea>    <button id="btnSalvarBio" onclick="salvarBioPerfil()" style="display:none;margin-top:6px;width:100%;padding:8px;border-radius:8px;border:none;background:#C4A95B;color:#1a0e05;font-weight:bold;font-size:12px;cursor:pointer;">Salvar bio</button>
 
     <div style="font-size:11px;color:#9A8A70;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px;">Personagens</div>
     <div id="perfilShowcase" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
-    <button id="btnEscolherDestaque" onclick="abrirEscolherDestaque()" style="display:none;margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid rgba(196,169,91,0.3);background:transparent;color:#E8CC80;font-size:12px;cursor:pointer;">Escolher personagens em destaque</button>
+    <button id="btnEscolherDestaque" onclick="abrirEscolherDestaque()" style="display:none;margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid var(--perfil-linha, rgba(196,169,91,0.3));background:transparent;color:#E8CC80;font-size:12px;cursor:pointer;">Escolher personagens em destaque</button>
   </div>
+</div>
+
+
+<!-- ================= PREVIEW FICHA (DESTAQUE) ================= -->
+<div id="modalPreviewFichaOverlay" style="display:none;position:fixed;inset:0;z-index:6850;background:rgba(0,0,0,.8);" onclick="fecharPreviewFicha()"></div>
+<div id="modalPreviewFicha" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6851;width:min(88vw,360px);max-height:80vh;overflow-y:auto;background:#120c09;border:1px solid rgba(196,169,91,0.25);border-radius:14px;padding:20px;color:#F8F4E3;font-family:'EB Garamond',serif;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <span id="previewFichaNome" style="font-family:'Cinzel',serif;color:#E8CC80;font-size:17px;letter-spacing:.02em;"></span>
+    <button onclick="fecharPreviewFicha()" style="background:none;border:none;color:#9A8A70;font-size:18px;cursor:pointer;">✕</button>
+  </div>
+  <div id="previewFichaConteudo" style="font-size:13px;color:#cdb791;display:flex;flex-direction:column;gap:16px;"></div>
 </div>
 
 <!-- ================= ESCOLHER PERSONAGENS DESTAQUE ================= -->
@@ -422,6 +438,27 @@
   <div style="display:flex;gap:10px;">
     <button onclick="window._confirmBonitoResolve && window._confirmBonitoResolve(false)" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(196,169,91,0.3);background:transparent;color:#9A8A70;font-family:'Cinzel',serif;font-size:13px;font-weight:bold;letter-spacing:.03em;cursor:pointer;">Cancelar</button>
     <button onclick="window._confirmBonitoResolve && window._confirmBonitoResolve(true)" style="flex:1;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#e05050,#7B1E28);color:#fff;font-family:'Cinzel',serif;font-weight:bold;font-size:13px;letter-spacing:.03em;cursor:pointer;">Confirmar</button>
+  </div>
+</div>
+
+<!-- ================= ALERTA BONITO ================= -->
+<div id="modalAlertBonitoOverlay" style="display:none;position:fixed;inset:0;z-index:200000;background:rgba(0,0,0,.78);" onclick="window._alertBonitoResolve && window._alertBonitoResolve()"></div>
+<div id="modalAlertBonito" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:200001;width:min(88vw,340px);background:#120c09;border:1px solid rgba(196,169,91,0.3);border-radius:16px;padding:24px 20px 20px;color:#F8F4E3;font-family:'EB Garamond',serif;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+  <div style="font-size:24px;margin-bottom:10px;color:#C4A95B;">⚠</div>
+  <div id="alertBonitoTexto" style="font-size:15px;line-height:1.5;color:#F0E4D0;margin-bottom:22px;"></div>
+  <div style="display:flex;justify-content:center;">
+    <button onclick="window._alertBonitoResolve && window._alertBonitoResolve()" style="min-width:120px;padding:10px 24px;border-radius:10px;border:none;background:linear-gradient(135deg,#e05050,#7B1E28);color:#fff;font-family:'Cinzel',serif;font-weight:bold;font-size:13px;letter-spacing:.03em;cursor:pointer;">OK</button>
+  </div>
+</div>
+
+<!-- ================= PROMPT BONITO ================= -->
+<div id="modalPromptBonitoOverlay" style="display:none;position:fixed;inset:0;z-index:200000;background:rgba(0,0,0,.78);" onclick="window._promptBonitoResolve && window._promptBonitoResolve(null)"></div>
+<div id="modalPromptBonito" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:200001;width:min(88vw,340px);background:#120c09;border:1px solid rgba(196,169,91,0.3);border-radius:16px;padding:24px 20px 20px;color:#F8F4E3;font-family:'EB Garamond',serif;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+  <div id="promptBonitoTexto" style="font-size:15px;line-height:1.5;color:#F0E4D0;margin-bottom:14px;"></div>
+  <input id="promptBonitoInput" type="text" style="width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:18px;border-radius:10px;border:1px solid rgba(196,169,91,0.3);background:#1c130d;color:#F8F4E3;font-family:'EB Garamond',serif;font-size:14px;" />
+  <div style="display:flex;gap:10px;">
+    <button onclick="window._promptBonitoResolve && window._promptBonitoResolve(null)" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(196,169,91,0.3);background:transparent;color:#9A8A70;font-family:'Cinzel',serif;font-size:13px;font-weight:bold;letter-spacing:.03em;cursor:pointer;">Cancelar</button>
+    <button onclick="window._promptBonitoResolve && window._promptBonitoResolve(document.getElementById('promptBonitoInput').value)" style="flex:1;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#e05050,#7B1E28);color:#fff;font-family:'Cinzel',serif;font-weight:bold;font-size:13px;letter-spacing:.03em;cursor:pointer;">OK</button>
   </div>
 </div>
 
@@ -506,9 +543,6 @@
 <!-- ================= GRIMÓRIO ÍGNEO ================= -->
 <div id="masterIgnea" class="container master-page" style="display:none;">
     <div class="simbolos-bg"></div>
-   <header class="master-header-mini">
-  <button class="voltar btn-voltar-modos" onclick="voltarCampanhasMaster()">← Campanhas</button>
-</header>
 
 <div class="grimorio-logo-topo">
   <div class="grimorio-logo-area">
@@ -525,6 +559,9 @@
 </div>
 
   <div class="master-tabs">
+  <button class="master-tab-btn master-tab-voltar" title="Campanhas" onclick="voltarCampanhasMaster()">
+    <span class="tab-icone">←</span><span class="tab-label">Campanhas</span>
+  </button>
   <button class="master-tab-btn active" title="Lore" onclick="trocarAbaMaster('lore', this)">
     <span class="tab-icone"><i class="ti ti-book"></i></span><span class="tab-label">Lore</span>
   </button>
@@ -1071,8 +1108,12 @@
     <!-- ================= FICHA ================= -->
     <div class="container" id="ficha" style="display: none">
       <!-- ABAS -->
-      <div class="tabs">
-        <button class="tab-btn active" onclick="trocarAba('personagem', this)">
+      <!-- ABAS -->
+<div class="tabs">
+  <button class="tab-btn tab-voltar" title="Voltar" onclick="voltarInicio()">
+    <span class="tab-icone">←</span><span class="tab-label">Voltar</span>
+  </button>
+  <button class="tab-btn active" onclick="trocarAba('personagem', this)">
           👤<span class="tab-label">Personagem</span>
         </button>
         <button class="tab-btn" onclick="trocarAba('atributos', this)">
@@ -1086,14 +1127,15 @@
       </div>
 
       <!-- ================= PERSONAGEM ================= -->
-      <div class="aba" id="personagem">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <button class="voltar" onclick="voltarInicio()">← Voltar</button>
-          <button id="btnInboxItens" onclick="abrirInboxItens()" style="position:relative;background:#4a3b31;border:none;color:#f1e6cf;border-radius:10px;padding:8px 12px;cursor:pointer;font-size:13px;">
-            Itens recebidos
-            <span id="badgeInboxItens" style="display:none;position:absolute;top:-6px;right:-6px;background:#b83a2f;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:flex;align-items:center;justify-content:center;">0</span>
-          </button>
-        </div>
+<div class="aba" id="personagem">
+  <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:12px;">
+    <div class="itens-recebidos-align">
+    <button id="btnInboxItens" onclick="abrirInboxItens()" style="position:relative;background:#4a3b31;border:none;color:#f1e6cf;border-radius:10px;padding:8px 12px;cursor:pointer;font-size:13px;white-space:nowrap;">
+      Itens recebidos
+      <span id="badgeInboxItens" style="display:none;position:absolute;top:-6px;right:-6px;background:#b83a2f;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;align-items:center;justify-content:center;">0</span>
+    </button>
+  </div>
+</div>
 
         <div class="personagem-topo">
           <!-- CAMPOS -->
@@ -1201,8 +1243,23 @@
 
           <ul id="listaAliados" class="lista-sempre-visivel"></ul>
         </div>
-      </div>
 
+        <!-- 🔥 LORE -->
+        <div class="secao-toggle">
+          <h2
+            class="titulo-secao titulo-toggle"
+            onclick="toggleSecao('boxLorePersonagem', this)"
+          >
+            <span>Lore</span>
+            <span class="setinha">▼</span>
+          </h2>
+
+          <div id="boxLorePersonagem" class="conteudo-toggle aberto">
+            <textarea id="lorePersonagem" placeholder="História, origem, motivações do seu personagem..." oninput="salvarLorePersonagem()"></textarea>
+          </div>
+        </div>
+      </div>
+      
       <!-- ================= EDITOR DE IMAGEM (GLOBAL) ================= -->
       <div id="editorImagemInline" class="editor-inline fechado">
   <div class="editor-container">
@@ -2470,7 +2527,7 @@ import {
   function mostrarErroLogin(msg) {
     const erro = document.getElementById("loginErro");
     if (erro) erro.textContent = msg;
-    else alert(msg);
+    else alertBonito(msg);
   }
 
   function limparErroLogin() {
@@ -2582,7 +2639,7 @@ import {
   });
 
   if (fichasNuvem.length === 0 && fichasLocais.length > 0) {
-    const confirmar = confirm(
+    const confirmar = await confirmBonito(
       "Encontramos fichas neste dispositivo. Deseja vincular à sua conta?"
     );
 
@@ -2592,7 +2649,7 @@ import {
 
       await salvarFichasNaNuvem();
 
-      alert("Fichas vinculadas com sucesso!");
+      alertBonito("Fichas vinculadas com sucesso!");
     } else {
       personagens = [];
       window.personagens = personagens;
@@ -2930,7 +2987,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
 
     const partes = valor.split("#");
     if (partes.length !== 2 || !partes[0] || !partes[1]) {
-      alert("Digite no formato Nickname#0000.");
+      alertBonito("Digite no formato Nickname#0000.");
       return;
     }
     const nicknameLower = partes[0].trim().toLowerCase();
@@ -2940,19 +2997,19 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
     try {
       const tagSnap = await getDoc(doc(db, "tagsUsuario", `${nicknameLower}#${tag}`));
       if (!tagSnap.exists()) {
-        alert("Nenhum usuário encontrado com esse nome.");
+        alertBonito("Nenhum usuário encontrado com esse nome.");
         return;
       }
       const alvoUid = tagSnap.data().uid;
 
       if (alvoUid === meuUid) {
-        alert("Você não pode adicionar a si mesmo.");
+        alertBonito("Você não pode adicionar a si mesmo.");
         return;
       }
 
       const jaAmigo = await getDoc(doc(db, "usuarios", meuUid, "amigos", alvoUid));
       if (jaAmigo.exists()) {
-        alert("Vocês já são amigos.");
+        alertBonito("Vocês já são amigos.");
         return;
       }
 
@@ -2967,10 +3024,10 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       });
 
       input.value = "";
-      alert("Solicitação enviada!");
+      alertBonito("Solicitação enviada!");
     } catch (e) {
       console.error(e);
-      alert("Erro ao enviar solicitação: " + (e.code || e.message));
+      alertBonito("Erro ao enviar solicitação: " + (e.code || e.message));
     }
   };
 
@@ -3003,7 +3060,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       carregarAmigos();
     } catch (e) {
       console.error(e);
-      alert("Erro: " + (e.code || e.message));
+      alertBonito("Erro: " + (e.code || e.message));
     }
   };
 
@@ -3021,13 +3078,44 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
     });
   };
 
+  window.alertBonito = function (mensagem) {
+    return new Promise(resolve => {
+      document.getElementById("alertBonitoTexto").textContent = mensagem;
+      document.getElementById("modalAlertBonitoOverlay").style.display = "block";
+      document.getElementById("modalAlertBonito").style.display = "block";
+      window._alertBonitoResolve = () => {
+        document.getElementById("modalAlertBonitoOverlay").style.display = "none";
+        document.getElementById("modalAlertBonito").style.display = "none";
+        window._alertBonitoResolve = null;
+        resolve();
+      };
+    });
+  };
+
+  window.promptBonito = function (mensagem, valorPadrao) {
+    return new Promise(resolve => {
+      document.getElementById("promptBonitoTexto").textContent = mensagem;
+      const input = document.getElementById("promptBonitoInput");
+      input.value = valorPadrao != null ? valorPadrao : "";
+      document.getElementById("modalPromptBonitoOverlay").style.display = "block";
+      document.getElementById("modalPromptBonito").style.display = "block";
+      setTimeout(() => input.focus(), 50);
+      window._promptBonitoResolve = (valor) => {
+        document.getElementById("modalPromptBonitoOverlay").style.display = "none";
+        document.getElementById("modalPromptBonito").style.display = "none";
+        window._promptBonitoResolve = null;
+        resolve(valor);
+      };
+    });
+  };
+
   window.abrirAcoesMembro = function (uid, nickname, tag) {
     document.getElementById("acoesMembroNome").textContent = `${nickname}#${tag}`;
 
     document.getElementById("acoesMembroBtnPerfil").onclick = function () {
       fecharAcoesMembro();
       if (typeof window.abrirPerfil === "function") window.abrirPerfil(uid);
-      else alert("Perfil ainda não foi portado pra essa versão.");
+      else alertBonito("Perfil ainda não foi portado pra essa versão.");
     };
 
     document.getElementById("acoesMembroBtnAmizade").onclick = function () {
@@ -3051,7 +3139,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
     try {
       const jaAmigo = await getDoc(doc(db, "usuarios", meuUid, "amigos", alvoUid));
       if (jaAmigo.exists()) {
-        alert("Vocês já são amigos.");
+        alertBonito("Vocês já são amigos.");
         return;
       }
 
@@ -3065,10 +3153,10 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
         criadoEm: new Date().toISOString()
       });
 
-      alert(`Solicitação enviada pra ${alvoNickname}!`);
+      alertBonito(`Solicitação enviada pra ${alvoNickname}!`);
     } catch (e) {
       console.error(e);
-      alert("Erro ao enviar solicitação: " + (e.code || e.message));
+      alertBonito("Erro ao enviar solicitação: " + (e.code || e.message));
     }
   };
 
@@ -3152,7 +3240,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       carregarGrupos();
     } catch (e) {
       console.error(e);
-      alert("Erro: " + (e.code || e.message));
+      alertBonito("Erro: " + (e.code || e.message));
     }
   };
 
@@ -3195,7 +3283,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
   window.confirmarCriarGrupo = async function () {
     const nome = document.getElementById("nomeGrupoInput").value.trim();
     if (!nome) {
-      alert("Digite um nome pro grupo.");
+      alertBonito("Digite um nome pro grupo.");
       return;
     }
 
@@ -3241,7 +3329,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       carregarGrupos();
     } catch (e) {
       console.error(e);
-      alert("Erro ao criar grupo: " + (e.code || e.message));
+      alertBonito("Erro ao criar grupo: " + (e.code || e.message));
     }
   };
 
@@ -3317,7 +3405,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       carregarGrupos();
     } catch (e) {
       console.error(e);
-      alert("Erro: " + (e.code || e.message));
+      alertBonito("Erro: " + (e.code || e.message));
     }
   };
 
@@ -3336,7 +3424,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       await window.abrirDetalheGrupo(grupoId);
     } catch (e) {
       console.error(e);
-      alert("Erro: " + (e.code || e.message));
+      alertBonito("Erro: " + (e.code || e.message));
     }
   };
 
@@ -3357,7 +3445,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       carregarGrupos();
     } catch (e) {
       console.error(e);
-      alert("Erro: " + (e.code || e.message));
+      alertBonito("Erro: " + (e.code || e.message));
     }
   };
 
@@ -3379,7 +3467,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       carregarGrupos();
     } catch (e) {
       console.error(e);
-      alert("Erro: " + (e.code || e.message));
+      alertBonito("Erro: " + (e.code || e.message));
     }
   };
 
@@ -3461,7 +3549,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       carregarGrupos();
     } catch (e) {
       console.error(e);
-      alert("Erro: " + (e.code || e.message));
+      alertBonito("Erro: " + (e.code || e.message));
     }
   };
 
@@ -3470,7 +3558,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
     if (!ficha) return;
 
     if (!ficha.grupoAtivo) {
-      alert("Essa ficha não está vinculada a nenhum grupo. Vá em Amigos → Grupos e escolha essa ficha num grupo primeiro.");
+      alertBonito("Essa ficha não está vinculada a nenhum grupo. Vá em Amigos → Grupos e escolha essa ficha num grupo primeiro.");
       return;
     }
 
@@ -3553,10 +3641,10 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       salvarTudo();
 
       window.fecharDarItem();
-      alert("Item enviado!");
+      alertBonito("Item enviado!");
     } catch (e) {
       console.error(e);
-      alert("Erro ao dar item: " + (e.code || e.message));
+      alertBonito("Erro ao dar item: " + (e.code || e.message));
     }
   };
 
@@ -3565,7 +3653,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
     if (!campanha) return;
 
     if (!campanha.grupoVinculado) {
-      alert("Essa campanha não tem grupo vinculado. Edite a campanha e escolha um grupo primeiro.");
+      alertBonito("Essa campanha não tem grupo vinculado. Edite a campanha e escolha um grupo primeiro.");
       return;
     }
 
@@ -3668,10 +3756,10 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       });
 
       window.fecharDarItemMestre();
-      alert("Item enviado!");
+      alertBonito("Item enviado!");
     } catch (e) {
       console.error(e);
-      alert("Erro ao dar item: " + (e.code || e.message));
+      alertBonito("Erro ao dar item: " + (e.code || e.message));
     }
   };
 
@@ -3743,7 +3831,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
 
       const ficha = (window.personagens || []).find(f => String(f.id) === String(d.fichaDestinoId));
       if (!ficha) {
-        alert("A ficha que devia receber esse item não existe mais na sua conta.");
+        alertBonito("A ficha que devia receber esse item não existe mais na sua conta.");
         await deleteDoc(ref);
         window.renderInboxItens();
         return;
@@ -3764,7 +3852,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       window.renderInboxItens();
     } catch (e) {
       console.error(e);
-      alert("Erro ao aceitar: " + (e.code || e.message));
+      alertBonito("Erro ao aceitar: " + (e.code || e.message));
     }
   };
 
@@ -3795,7 +3883,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       window.renderInboxItens();
     } catch (e) {
       console.error(e);
-      alert("Erro ao recusar: " + (e.code || e.message));
+      alertBonito("Erro ao recusar: " + (e.code || e.message));
     }
   };
 
@@ -3822,6 +3910,21 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       document.getElementById("perfilFundo").style.backgroundImage = d.fotoFundo ? `url('${d.fotoFundo}')` : "none";
       document.getElementById("perfilAvatar").style.backgroundImage = d.fotoPerfil ? `url('${d.fotoPerfil}')` : "none";
 
+      const corBase = d.corBase || "#0e0907";
+      const corNome = d.corNome || "#E8CC80";
+      const corLinha = d.corLinha || "rgba(196,169,91,0.3)";
+
+      const corTexto = corContraste(corBase);
+      document.getElementById("modalPerfil").style.backgroundColor = corBase;
+      document.getElementById("modalPerfil").style.setProperty("--perfil-linha", corLinha);
+      document.getElementById("modalPerfil").style.setProperty("--perfil-texto", corTexto);
+      document.getElementById("perfilNomeTag").style.color = corNome;
+
+      document.getElementById("corBaseInput").value = corBase;
+      document.getElementById("corNomeInput").value = corNome;
+      document.getElementById("corLinhaInput").value = corLinha.startsWith("#") ? corLinha : "#c4a95b";
+      document.getElementById("perfilCoresBtn").style.display = ehMeu ? "flex" : "none";
+      document.getElementById("perfilCoresBox").style.display = "none";
       const bioView = document.getElementById("perfilBioView");
       bioView.textContent = d.bio || (ehMeu ? "Adicione uma bio..." : "Sem bio ainda.");
       document.getElementById("perfilBioEdit").value = d.bio || "";
@@ -3838,20 +3941,21 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       if (destaque.length === 0) {
         showcase.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:#9A8A70;font-size:12px;font-style:italic;padding:10px 0;">Nenhum personagem em destaque.</p>`;
       } else {
-        showcase.innerHTML = destaque.map(f => `
-          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.15);border-radius:10px;overflow:hidden;">
+        window._perfilDestaqueAtual = destaque;
+        showcase.innerHTML = destaque.map((f, i) => `
+          <div onclick="abrirPreviewFicha(${i})" style="cursor:pointer;background:rgba(255,255,255,0.05);border:1px solid var(--perfil-linha, rgba(196,169,91,0.3));border-radius:10px;overflow:hidden;">
             <div style="height:80px;background-image:url('${f.imagem || ""}');background-size:cover;background-position:center;background-color:#1b120c;"></div>
             <div style="padding:8px;">
-              <div style="font-size:12px;font-weight:bold;color:#F8F4E3;">${escapeHtml(f.nome || "Sem nome")}</div>
-              <div style="font-size:11px;color:#9A8A70;">${escapeHtml(f.classe || "")}${f.nivel ? " · Nv " + escapeHtml(String(f.nivel)) : ""}</div>
-              ${!ehMeu && f.publica ? `<button onclick="pegarFichaPublica('${uid}','${f.fichaId}')" style="margin-top:6px;width:100%;padding:5px;border-radius:6px;border:none;background:#C4A95B;color:#1a0e05;font-size:11px;font-weight:bold;cursor:pointer;">Pegar</button>` : ""}
+              <div style="font-size:12px;font-weight:bold;color:var(--perfil-texto, #F8F4E3);">${escapeHtml(f.nome || "Sem nome")}</div>
+              <div style="font-size:11px;color:var(--perfil-texto, #9A8A70);opacity:.75;">${escapeHtml(f.classe || "")}${f.nivel ? " · Nv " + escapeHtml(String(f.nivel)) : ""}</div>
+              ${!ehMeu && f.publica ? `<button onclick="event.stopPropagation(); pegarFichaPublica('${uid}','${f.fichaId}')" style="margin-top:6px;width:100%;padding:5px;border-radius:6px;border:none;background:#C4A95B;color:#1a0e05;font-size:11px;font-weight:bold;cursor:pointer;">Pegar</button>` : ""}
             </div>
           </div>
         `).join("");
       }
     } catch (e) {
       console.error(e);
-      alert("Erro ao carregar perfil: " + (e.code || e.message));
+      alertBonito("Erro ao carregar perfil: " + (e.code || e.message));
     }
   };
 
@@ -3873,7 +3977,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       window.abrirPerfil(window.usuarioAtual.uid);
     } catch (e) {
       console.error(e);
-      alert("Erro ao salvar bio: " + (e.code || e.message));
+      alertBonito("Erro ao salvar bio: " + (e.code || e.message));
     }
   };
 
@@ -3883,7 +3987,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       const base64 = await comprimirImagem(input.files[0]);
       const resultado = await uploadImagemFirebase(base64, tipo);
       if (resultado.erro || !resultado.url) {
-        alert("Não consegui enviar a imagem. Tente outra.");
+        alertBonito("Não consegui enviar a imagem. Tente outra.");
         return;
       }
       const campo = tipo === "fundo" ? "fotoFundo" : "fotoPerfil";
@@ -3891,7 +3995,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       window.abrirPerfil(window.usuarioAtual.uid);
     } catch (e) {
       console.error(e);
-      alert("Erro ao enviar imagem: " + (e.code || e.message));
+      alertBonito("Erro ao enviar imagem: " + (e.code || e.message));
     } finally {
       input.value = "";
     }
@@ -3947,7 +4051,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
   window.salvarDestaquePerfil = async function () {
     const checksExibir = document.querySelectorAll(".checkDestaqueFicha:checked");
     if (checksExibir.length > 4) {
-      alert("Escolha no máximo 4 pra exibir.");
+      alertBonito("Escolha no máximo 4 pra exibir.");
       return;
     }
 
@@ -3960,13 +4064,21 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
 
     const destaque = Array.from(checksExibir).map(chk => {
       const f = fichas[parseInt(chk.dataset.index)];
+      const arma = (f.armas || [])[0];
+      const armadura = (f.armaduras || [])[0];
+      const poderes = (f.poderes || []).slice(0, 3);
       return {
         fichaId: String(f.id),
         nome: f.nome || "",
         classe: f.classe || "",
         nivel: f.nivel || "",
         imagem: f.imagem || "",
-        publica: !!f.publica
+        publica: !!f.publica,
+        previewLore: (f.lore || "").trim().slice(0, 220),
+        previewEquip: arma
+          ? { tipo: "arma", nome: arma.nome || "", extra: arma.dano || "" }
+          : (armadura ? { tipo: "armadura", nome: armadura.nome || "", extra: armadura.ca ? "CA " + armadura.ca : "" } : null),
+        previewPoderes: poderes.map(p => p.nome || "").filter(Boolean)
       };
     });
 
@@ -3978,7 +4090,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       window.abrirPerfil(window.usuarioAtual.uid);
     } catch (e) {
       console.error(e);
-      alert("Erro ao salvar: " + (e.code || e.message));
+      alertBonito("Erro ao salvar: " + (e.code || e.message));
     }
   };
 
@@ -3987,7 +4099,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
     try {
       const snap = await getDoc(doc(db, "usuarios", donoUid, "fichas", fichaId));
       if (!snap.exists()) {
-        alert("Essa ficha não está mais disponível.");
+        alertBonito("Essa ficha não está mais disponível.");
         return;
       }
       const original = snap.data();
@@ -4000,10 +4112,10 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       if (typeof salvarPersonagens === "function") salvarPersonagens();
       if (typeof renderPersonagens === "function") renderPersonagens();
 
-      alert("Ficha copiada! Ela já está na sua lista de personagens.");
+      alertBonito("Ficha copiada! Ela já está na sua lista de personagens.");
     } catch (e) {
       console.error(e);
-      alert("Erro ao copiar ficha: " + (e.code || e.message));
+      alertBonito("Erro ao copiar ficha: " + (e.code || e.message));
     }
   };
 
@@ -4031,7 +4143,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
     personagemAtual = null;
 
   } catch (e) {
-    alert(tratarErroFirebase(e.code));
+    alertBonito(tratarErroFirebase(e.code));
   }
 };
 
