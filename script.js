@@ -755,7 +755,7 @@ const efeitosExaustao = [
 
 function ativarModoExportacao() {
   if (!personagens || personagens.length === 0) {
-    alert("Você ainda não tem fichas para exportar.");
+    alertBonito("Você ainda não tem fichas para exportar.");
     return;
   }
 
@@ -877,7 +877,7 @@ function criarCampanhaMaster() {
   const descricao = document.getElementById("novaCampanhaDescricao").value.trim();
 
   if (!nome) {
-    alert("Digite o nome da campanha.");
+    alertBonito("Digite o nome da campanha.");
     return;
   }
 
@@ -965,7 +965,7 @@ window.salvarEdicaoCampanha = function () {
 
   const nome = document.getElementById("editCampanhaNome").value.trim();
   if (!nome) {
-    alert("Digite o nome da campanha.");
+    alertBonito("Digite o nome da campanha.");
     return;
   }
 
@@ -998,8 +998,8 @@ function entrarCampanhaMaster(index) {
   carregarDadosCampanhaAtual();
 }
 
-function deletarCampanhaMaster(index) {
-  if (!confirm("Deseja deletar esta campanha?")) return;
+async function deletarCampanhaMaster(index) {
+  if (!(await confirmBonito("Deseja deletar esta campanha?"))) return;
 
   campanhasMaster.splice(index, 1);
 
@@ -1168,8 +1168,8 @@ function editarRacaCustom(index) {
   abrirPopupBonusCustom(index);
 }
 
-function deletarRacaCustom(index) {
-  if (!confirm("Deseja deletar essa raça custom?")) return;
+async function deletarRacaCustom(index) {
+  if (!(await confirmBonito("Deseja deletar essa raça custom?"))) return;
 
   const select = document.getElementById("racaSelect");
   const valorAtual = select?.value;
@@ -1269,7 +1269,7 @@ function get(id) {
 
 function exportarFichaAtual() {
   if (personagemAtual === null || personagemAtual === undefined) {
-    alert("Selecione uma ficha primeiro.");
+    alertBonito("Selecione uma ficha primeiro.");
     return;
   }
 
@@ -1485,11 +1485,11 @@ function abrirPopup(titulo, conteudo, usarHTML = false, onEditar = null) {
   popup.style.display = "flex";
 }
 
-function editarQuantidadeSlotsCirculo(circulo) {
+async function editarQuantidadeSlotsCirculo(circulo) {
   if (!gastosCirculos[circulo]) gastosCirculos[circulo] = [];
 
   const atual = gastosCirculos[circulo].length;
-  const resposta = prompt(`Quantas bolinhas no círculo ${circulo}?`, atual);
+  const resposta = await promptBonito(`Quantas bolinhas no círculo ${circulo}?`, atual);
 
   if (resposta === null) return;
 
@@ -2275,11 +2275,10 @@ function renderAliados() {
 
       <div class="item-acoes">
         <div class="acoes-topo">
-          <button type="button" class="btn-editar" onclick="event.stopPropagation(); editarItem(${index})">✏️</button>
+          <button type="button" class="btn-editar" onclick="event.stopPropagation(); editarAliado(${index})">✏️</button>
         </div>
 
-        <button type="button" class="btn-editar" style="color:#C4A95B;" onclick="event.stopPropagation(); window.abrirDarItem('inventario', ${index})">🎁</button>
-        <button type="button" class="item-remover" onclick="event.stopPropagation(); removerItem(${index})">X</button>
+        <button type="button" class="item-remover" onclick="event.stopPropagation(); removerAliado(${index})">X</button>
       </div>
     `;
 
@@ -2313,9 +2312,9 @@ function toggleDominio(index) {
   salvarTudo();
 }
 
-function editarQuantidadePontosDominio() {
+async function editarQuantidadePontosDominio() {
   const atual = dominio.length;
-  const resposta = prompt("Quantos Pontos de Domínio?", atual);
+  const resposta = await promptBonito("Quantos Pontos de Domínio?", atual);
 
   if (resposta === null) return;
 
@@ -2511,9 +2510,9 @@ async function deletarPersonagem(index) {
   if (!personagem) return;
 
   if (
-    !confirm(
+    !(await confirmBonito(
       `Tem certeza que quer excluir "${personagem.nome || "Sem nome"}"?`
-    )
+    ))
   ) {
     return;
   }
@@ -2773,7 +2772,7 @@ function fecharTelaPlanos() {
 }
 
 function assinarPlano(plano) {
-  alert("Em breve! O sistema de pagamento estará disponível no lançamento.");
+  alertBonito("Em breve! O sistema de pagamento estará disponível no lançamento.");
 }
 
 function editarArmadura(index) {
@@ -2913,11 +2912,11 @@ async function salvarEdicaoArmadura(index) {
   fecharPopup();
 }
 
-function removerArmadura(index) {
+async function removerArmadura(index) {
   const armadura = armaduras[index];
   if (!armadura) return;
 
-  const confirmar = confirm(`Remover "${armadura.nome}"?`);
+  const confirmar = await confirmBonito(`Remover "${armadura.nome}"?`);
   if (!confirmar) return;
 
   armaduras.splice(index, 1);
@@ -2947,6 +2946,7 @@ function carregarPersonagem(index) {
   };
   document.getElementById("idade").value = p.idade || "";
   document.getElementById("altura").value = p.altura || "";
+  document.getElementById("lorePersonagem").value = p.lore || "";
   document.getElementById("nivel").value = p.nivel || "";
   document.getElementById("antecedentes").value = p.antecedentes || "";
   document.getElementById("vidaMax").value = p.vidaMax ?? 50;
@@ -3197,7 +3197,7 @@ let editorImg = new Image();
 
 function abrirEditorImagem() {
   if (!imagemBase64) {
-    alert("Escolha uma imagem primeiro.");
+    alertBonito("Escolha uma imagem primeiro.");
     return;
   }
 
@@ -3216,7 +3216,7 @@ function abrirEditorImagem() {
     ativarDragEditorCanvas();
   };
   editorImg.onerror = function () {
-    alert("Não foi possível carregar a imagem para edição. Tente escolher a imagem novamente.");
+    alertBonito("Não foi possível carregar a imagem para edição. Tente escolher a imagem novamente.");
   };
   editorImg.src = imagemOriginalBase64 || imagemBase64;
 
@@ -3592,6 +3592,7 @@ function renderInv() {
           <button type="button" class="btn-editar" onclick="event.stopPropagation(); editarItem(${index})">✏️</button>
         </div>
 
+        <button type="button" class="btn-editar" style="color:#C4A95B;" onclick="event.stopPropagation(); window.abrirDarItem('inventario', ${index})">🎁</button>
         <button type="button" class="item-remover" onclick="event.stopPropagation(); removerItem(${index})">X</button>
       </div>
     `;
@@ -3601,6 +3602,28 @@ function renderInv() {
 
   habilitarArrastarReordenar(ul, inventario, renderInv);
 }
+
+function corContraste(hex) {
+  const c = hex.replace("#", "");
+  const r = parseInt(c.substring(0,2), 16);
+  const g = parseInt(c.substring(2,4), 16);
+  const b = parseInt(c.substring(4,6), 16);
+  const luminancia = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminancia > 0.55 ? "#1a0e05" : "#F8F4E3";
+}
+
+window.salvarCoresPerfil = async function () {
+  const corBase = document.getElementById("corBaseInput").value;
+  const corNome = document.getElementById("corNomeInput").value;
+  const corLinha = document.getElementById("corLinhaInput").value;
+  try {
+    await setDoc(doc(db, "usuarios", window.usuarioAtual.uid), { corBase, corNome, corLinha }, { merge: true });
+    window.abrirPerfil(window.usuarioAtual.uid);
+  } catch (e) {
+    console.error(e);
+    alertBonito("Erro ao salvar cores: " + (e.code || e.message));
+  }
+};
 
 function toggleEditSintoniaItem() {
   const requer = document.getElementById("editItemRequerSintonia");
@@ -3615,6 +3638,59 @@ function toggleEditSintoniaItem() {
     box.style.display = "none";
     if (sintonizado) sintonizado.checked = false;
   }
+}
+
+window.abrirPreviewFicha = function (i) {
+    const f = (window._perfilDestaqueAtual || [])[i];
+    if (!f) return;
+
+    document.getElementById("previewFichaNome").textContent = f.nome || "Sem nome";
+
+    let html = "";
+    if (f.previewLore) {
+      html += `<div style="border-left:2px solid rgba(196,169,91,0.35);padding-left:12px;font-style:italic;color:#cdb791;line-height:1.6;font-size:12.5px;">"${escapeHtml(f.previewLore)}${f.previewLore.length >= 220 ? "..." : ""}"</div>`;
+    }
+    if (f.previewEquip) {
+      const icone = f.previewEquip.tipo === "arma" ? "⚔️" : "🛡️";
+      const rotulo = f.previewEquip.tipo === "arma" ? "Arma" : "Armadura";
+      html += `
+        <div style="display:flex;align-items:flex-start;gap:10px;padding-top:14px;border-top:1px solid rgba(196,169,91,0.12);">
+          <div style="width:30px;height:30px;flex-shrink:0;border-radius:50%;background:rgba(196,169,91,0.1);border:1px solid rgba(196,169,91,0.3);display:flex;align-items:center;justify-content:center;font-size:14px;">${icone}</div>
+          <div>
+            <div style="font-family:'Cinzel',serif;color:#E8CC80;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">${rotulo}</div>
+            <div style="color:#F8F4E3;">${escapeHtml(f.previewEquip.nome)}${f.previewEquip.extra ? ` <span style="color:#9A8A70;">— ${escapeHtml(f.previewEquip.extra)}</span>` : ""}</div>
+          </div>
+        </div>`;
+    }
+    if (f.previewPoderes && f.previewPoderes.length > 0) {
+      html += `
+        <div style="display:flex;align-items:flex-start;gap:10px;padding-top:14px;border-top:1px solid rgba(196,169,91,0.12);">
+          <div style="width:30px;height:30px;flex-shrink:0;border-radius:50%;background:rgba(196,169,91,0.1);border:1px solid rgba(196,169,91,0.3);display:flex;align-items:center;justify-content:center;font-size:14px;">🔥</div>
+          <div>
+            <div style="font-family:'Cinzel',serif;color:#E8CC80;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Poderes</div>
+            <div style="color:#F8F4E3;">${f.previewPoderes.map(p => escapeHtml(p)).join(" · ")}</div>
+          </div>
+        </div>`;
+    }
+    if (!html) {
+      html = `<p style="text-align:center;color:#9A8A70;font-style:italic;">Sem itens pra mostrar ainda.</p>`;
+    }
+
+    document.getElementById("previewFichaConteudo").innerHTML = html;
+    document.getElementById("modalPreviewFichaOverlay").style.display = "block";
+    document.getElementById("modalPreviewFicha").style.display = "block";
+  };
+
+  window.fecharPreviewFicha = function () {
+    document.getElementById("modalPreviewFichaOverlay").style.display = "none";
+    document.getElementById("modalPreviewFicha").style.display = "none";
+  };
+
+  function salvarLorePersonagem() {
+  const p = personagens[personagemAtual];
+  if (!p) return;
+  p.lore = document.getElementById("lorePersonagem").value;
+  salvarTudo();
 }
 
 function verItem(index) {
@@ -3657,11 +3733,11 @@ function verItem(index) {
   abrirPopup(item.nome || "Sem nome", html, true, () => editarItem(index));
 }
 
-function removerItem(index) {
+async function removerItem(index) {
   const item = inventario[index];
   if (!item) return;
 
-  const confirmar = confirm(`Remover "${item.nome}"?`);
+  const confirmar = await confirmBonito(`Remover "${item.nome}"?`);
   if (!confirmar) return;
 
   inventario.splice(index, 1);
@@ -3848,11 +3924,11 @@ function verArma(index) {
   abrirPopup(arma.nome || "Sem nome", html, true, () => editarArma(index));
 }
 
-function removerArma(index) {
+async function removerArma(index) {
   const arma = armas[index];
   if (!arma) return;
 
-  const confirmar = confirm(`Remover "${arma.nome}"?`);
+  const confirmar = await confirmBonito(`Remover "${arma.nome}"?`);
   if (!confirmar) return;
 
   armas.splice(index, 1);
@@ -4083,7 +4159,7 @@ function abrirImportacao() {
   const input = document.getElementById("importarFicha");
 
   if (!input) {
-    alert("Input de importação não encontrado no HTML.");
+    alertBonito("Input de importação não encontrado no HTML.");
     console.error("Elemento #importarFicha não existe.");
     return;
   }
@@ -4113,13 +4189,13 @@ function importarFichaArquivo(e) {
   if (!file) return;
 
   if (!file.name.endsWith(".json")) {
-    alert("Apenas arquivos .json são aceitos.");
+    alertBonito("Apenas arquivos .json são aceitos.");
     e.target.value = "";
     return;
   }
 
   if (file.size > 2 * 1024 * 1024) {
-    alert("Arquivo muito grande. Máximo permitido: 2MB.");
+    alertBonito("Arquivo muito grande. Máximo permitido: 2MB.");
     e.target.value = "";
     return;
   }
@@ -4160,10 +4236,10 @@ function importarFichaArquivo(e) {
         renderPersonagens();
       }
 
-      alert("Ficha importada com sucesso! A imagem precisa ser adicionada separadamente.");
+      alertBonito("Ficha importada com sucesso! A imagem precisa ser adicionada separadamente.");
     } catch (erro) {
       console.error("Erro ao importar ficha:", erro);
-      alert("Arquivo inválido ou corrompido.");
+      alertBonito("Arquivo inválido ou corrompido.");
     }
 
     e.target.value = "";
@@ -4177,7 +4253,7 @@ function exportarFicha(index) {
   const ficha = personagens[index];
 
   if (!ficha) {
-    alert("Ficha não encontrada.");
+    alertBonito("Ficha não encontrada.");
     return;
   }
 
@@ -4208,8 +4284,9 @@ function exportarFicha(index) {
   URL.revokeObjectURL(url);
 }
 
-function colarFicha() {
-  const codigo = prompt("Cole o código:");
+async function colarFicha() {
+  const codigo = await promptBonito("Cole o código:");
+  if (!codigo) return;
   const dados = atob(codigo);
   localStorage.setItem("personagens", dados);
   location.reload();
@@ -4295,11 +4372,11 @@ function verPoder(index) {
   abrirPopup(`${icone} ${poder.nome}`, html, true, null);
 }
 
-function removerPoder(index) {
+async function removerPoder(index) {
   const poder = poderes[index];
   if (!poder) return;
 
-  const confirmar = confirm(`Remover "${poder.nome}"?`);
+  const confirmar = await confirmBonito(`Remover "${poder.nome}"?`);
   if (!confirmar) return;
 
   poderes.splice(index, 1);
@@ -5463,14 +5540,14 @@ function previewImagemMapaMestre() {
 
 async function salvarMapaMestre() {
   const nome = document.getElementById("mapaMasterNome")?.value.trim();
-  if (!nome) { alert("Coloque o nome do mapa."); return; }
+  if (!nome) { alertBonito("Coloque o nome do mapa."); return; }
 
   if (campanhaAtualMaster === null || campanhaAtualMaster === undefined) {
-    alert("Nenhuma campanha selecionada."); return;
+    alertBonito("Nenhuma campanha selecionada."); return;
   }
 
   const campanha = campanhasMaster[campanhaAtualMaster];
-  if (!campanha) { alert("Campanha não encontrada."); return; }
+  if (!campanha) { alertBonito("Campanha não encontrada."); return; }
 
   campanha.mapasMaster ||= [];
   campanha.mapasMaster.push({
@@ -5630,7 +5707,7 @@ async function salvarMonstroMestre() {
   const regiao = document.getElementById("monstroRegiao")?.value.trim();
 
   if (!nome) {
-    alert("Coloque o nome do monstro.");
+    alertBonito("Coloque o nome do monstro.");
     return;
   }
 
@@ -6016,10 +6093,10 @@ async function addMapa() {
   const nome = document.getElementById("mapaNome").value.trim();
   const desc = document.getElementById("mapaDesc").value.trim();
 
-  if (!nome) { alert("Coloque o nome do mapa."); return; }
-  if (!mapaBase64Temp) { alert("Escolha uma imagem para o mapa."); return; }
+  if (!nome) { alertBonito("Coloque o nome do mapa."); return; }
+  if (!mapaBase64Temp) { alertBonito("Escolha uma imagem para o mapa."); return; }
 
-  if (mapas.length >= 15) { alert("Limite de 15 mapas por personagem."); return; }
+  if (mapas.length >= 15) { alertBonito("Limite de 15 mapas por personagem."); return; }
 
   const btn = document.querySelector("#boxMapasForm .inv-add-btn");
   if (btn) { btn.disabled = true; btn.textContent = "..."; }
@@ -6130,7 +6207,7 @@ function editarMapa(index) {
 function salvarEdicaoMapa(index) {
   const nome = document.getElementById("editMapaNome")?.value.trim();
   const desc = document.getElementById("editMapaDesc")?.value.trim();
-  if (!nome) { alert("Nome obrigatório."); return; }
+  if (!nome) { alertBonito("Nome obrigatório."); return; }
   mapas[index].nome = nome;
   mapas[index].desc = desc;
   salvarTudo();
@@ -6138,8 +6215,8 @@ function salvarEdicaoMapa(index) {
   fecharPopup();
 }
 
-function removerMapa(index) {
-  if (!confirm("Remover este mapa?")) return;
+async function removerMapa(index) {
+  if (!(await confirmBonito("Remover este mapa?"))) return;
   mapas.splice(index, 1);
   salvarTudo();
   renderMapas();
@@ -6325,7 +6402,7 @@ function ativarEventosMapaCanvas() {
     }
 
     if (["seta","x","caveira","pergaminho","interrogacao"].includes(mapaFerramentaAtiva)) {
-      if (mapaAnotacoes.length >= 30) { alert("Limite de 30 anotações atingido."); return; }
+      if (mapaAnotacoes.length >= 30) { alertBonito("Limite de 30 anotações atingido."); return; }
       mapaHistorico.push(JSON.parse(JSON.stringify(mapaAnotacoes)));
       const [rx, ry] = mapaCanvasParaRel(x, y);
       mapaAnotacoes.push({ tipo: mapaFerramentaAtiva, x: rx, y: ry, cor: mapaCorAtiva });
@@ -6333,7 +6410,7 @@ function ativarEventosMapaCanvas() {
       return;
     }
     if (mapaFerramentaAtiva === "pincel") {
-      if (mapaAnotacoes.length >= 30) { alert("Limite de 30 anotações atingido."); return; }
+      if (mapaAnotacoes.length >= 30) { alertBonito("Limite de 30 anotações atingido."); return; }
       mapaPintando = true;
       tracoAtual = { tipo: "pincel", pontos: [[x, y]], cor: mapaCorAtiva };
       mapaHistorico.push(JSON.parse(JSON.stringify(mapaAnotacoes)));
@@ -6445,7 +6522,7 @@ function selecionarFerramentaMapa(el) {
 function confirmarTextoMapa() {
   const texto = document.getElementById("mapaTextoValor").value.trim();
   if (!texto) { cancelarTextoMapa(); return; }
-  if (mapaAnotacoes.length >= 30) { alert("Limite de 30 anotações atingido."); cancelarTextoMapa(); return; }
+  if (mapaAnotacoes.length >= 30) { alertBonito("Limite de 30 anotações atingido."); cancelarTextoMapa(); return; }
   mapaHistorico.push(JSON.parse(JSON.stringify(mapaAnotacoes)));
   const [rx, ry] = mapaCanvasParaRel(mapaTextoX, mapaTextoY);
   mapaAnotacoes.push({ tipo: "texto", texto, x: rx, y: ry, cor: mapaCorAtiva });
@@ -6470,7 +6547,7 @@ function salvarAnotacoesMapa() {
   mapas[mapaAtual].anotacoes = JSON.parse(JSON.stringify(mapaAnotacoes));
   salvarTudo();
   renderMapas();
-  alert("Anotações salvas!");
+  alertBonito("Anotações salvas!");
 }
 
 function selecionarRaridade(valor, btn) {
@@ -6481,7 +6558,7 @@ function selecionarRaridade(valor, btn) {
 
 async function excluirEntradaCompendio(tipo, id) {
   const campanha = campanhasMaster[campanhaAtualMaster];
-  if (!confirm("Deseja excluir este item?")) return;
+  if (!(await confirmBonito("Deseja excluir este item?"))) return;
 
   // helper para deletar imagem do Storage
   async function deletarImagem(deleteUrl) {
@@ -6525,6 +6602,11 @@ async function excluirEntradaCompendio(tipo, id) {
     const npc = (campanha.npcs || []).find(n => n.id === id);
     await deletarImagem(npc?.imagemDeleteUrl);
     campanha.npcs = (campanha.npcs || []).filter(n => n.id !== id);
+    salvarCampanhasMaster();
+  } else if (tipo === "mapa") {
+    const mapa = (campanha.mapasMaster || []).find(m => m.id === id);
+    await deletarImagem(mapa?.imagemDeleteUrl);
+    campanha.mapasMaster = (campanha.mapasMaster || []).filter(m => m.id !== id);
     salvarCampanhasMaster();
   }
 
@@ -6940,14 +7022,14 @@ function iniciarDragSheet(e) {
 
 async function salvarBossMestre() {
   const nome = document.getElementById("bossNome")?.value.trim();
-  if (!nome) { alert("Coloque o nome do boss."); return; }
+  if (!nome) { alertBonito("Coloque o nome do boss."); return; }
 
   if (campanhaAtualMaster === null || campanhaAtualMaster === undefined) {
-    alert("Nenhuma campanha selecionada."); return;
+    alertBonito("Nenhuma campanha selecionada."); return;
   }
 
   const campanha = campanhasMaster[campanhaAtualMaster];
-  if (!campanha) { alert("Campanha não encontrada."); return; }
+  if (!campanha) { alertBonito("Campanha não encontrada."); return; }
 
   campanha.bosses ||= [];
   campanha.bosses.push({
@@ -6994,14 +7076,14 @@ async function salvarBossMestre() {
 
 async function salvarItemMestre() {
   const nome = document.getElementById("itemMasterNome")?.value.trim();
-  if (!nome) { alert("Coloque o nome do item."); return; }
+  if (!nome) { alertBonito("Coloque o nome do item."); return; }
 
   if (campanhaAtualMaster === null || campanhaAtualMaster === undefined) {
-    alert("Nenhuma campanha selecionada."); return;
+    alertBonito("Nenhuma campanha selecionada."); return;
   }
 
   const campanha = campanhasMaster[campanhaAtualMaster];
-  if (!campanha) { alert("Campanha não encontrada."); return; }
+  if (!campanha) { alertBonito("Campanha não encontrada."); return; }
 
   campanha.itensMaster ||= [];
   campanha.itensMaster.push({
@@ -7218,7 +7300,7 @@ function enviarMonstroPadraoParaCombate(monstro) {
   salvarCombatesMestreStorage();
   renderCombatesMestre();
 
-  alert(`${monstro.nome} foi enviado para o combate.`);
+  alertBonito(`${monstro.nome} foi enviado para o combate.`);
 }
 
 function fecharSheetMonstro() {
@@ -7314,7 +7396,7 @@ async function excluirMonstroMestre(id) {
   const monstro = monstrosMestre[index];
   if (!monstro) return;
 
-  const confirmar = confirm(`Deseja excluir "${monstro.nome}"?`);
+  const confirmar = await confirmBonito(`Deseja excluir "${monstro.nome}"?`);
   if (!confirmar) return;
 
   // deleta imagem do Storage
@@ -7352,7 +7434,7 @@ function enviarMonstroParaCombate(index) {
   salvarCombatesMestreStorage();
   renderCombatesMestre();
 
-  alert(`${monstro.nome} foi enviado para o combate.`);
+  alertBonito(`${monstro.nome} foi enviado para o combate.`);
 }
 
 function gerarNomeInstanciaCombate(nomeBase) {
@@ -7950,11 +8032,11 @@ function aplicarCuraCombate(index) {
   alterarHpCombate(index, cura);
 }
 
-function removerDoCombate(index) {
+async function removerDoCombate(index) {
   const monstro = combatesMestre[index];
   if (!monstro) return;
 
-  const confirmar = confirm(`Remover "${monstro.nome}" do combate?`);
+  const confirmar = await confirmBonito(`Remover "${monstro.nome}" do combate?`);
   if (!confirmar) return;
 
   combatesMestre.splice(index, 1);
@@ -8063,7 +8145,7 @@ function salvarSessaoLore() {
   const campanha = campanhasMaster[campanhaAtualMaster];
   if (!campanha) return;
   const nome = document.getElementById("sessaoNome")?.value.trim();
-  if (!nome) { alert("Digite o nome da sessão."); return; }
+  if (!nome) { alertBonito("Digite o nome da sessão."); return; }
 
   campanha.sessoes ||= [];
   campanha.sessoes.push({
@@ -8107,7 +8189,7 @@ function salvarEventoLore() {
   const campanha = campanhasMaster[campanhaAtualMaster];
   if (!campanha) return;
   const nome = document.getElementById("eventoNome")?.value.trim();
-  if (!nome) { alert("Digite o nome do evento."); return; }
+  if (!nome) { alertBonito("Digite o nome do evento."); return; }
 
   campanha.eventos ||= [];
   campanha.eventos.push({
@@ -8134,11 +8216,11 @@ function salvarHistoriaPrincipalLore() {
   salvarCampanhasMaster();
 }
 
-function apagarSessaoLore(index) {
+async function apagarSessaoLore(index) {
   const campanha = garantirEstruturaLoreCampanha();
   if (!campanha) return;
 
-  if (!confirm("Apagar esta sessão?")) return;
+  if (!(await confirmBonito("Apagar esta sessão?"))) return;
 
   campanha.loreDados.sessoes.splice(index, 1);
   salvarCampanhasMaster();
@@ -8146,11 +8228,11 @@ function apagarSessaoLore(index) {
 }
 
 
-function apagarEventoLore(index) {
+async function apagarEventoLore(index) {
   const campanha = garantirEstruturaLoreCampanha();
   if (!campanha) return;
 
-  if (!confirm("Apagar este evento?")) return;
+  if (!(await confirmBonito("Apagar este evento?"))) return;
 
   campanha.loreDados.eventos.splice(index, 1);
   salvarCampanhasMaster();
@@ -8731,7 +8813,7 @@ function salvarNPCMundo() {
   if (!campanha) return;
 
   const nome = document.getElementById("mundoNPCNome")?.value.trim();
-  if (!nome) { alert("Digite o nome do NPC."); return; }
+  if (!nome) { alertBonito("Digite o nome do NPC."); return; }
 
   campanha.npcsMundo ||= [];
   campanha.npcsMundo.push({
@@ -8752,10 +8834,10 @@ function salvarNPCMundo() {
 
 async function salvarNPCMestre() {
   const campanha = campanhasMaster[campanhaAtualMaster];
-  if (!campanha) { alert("Nenhuma campanha selecionada."); return; }
+  if (!campanha) { alertBonito("Nenhuma campanha selecionada."); return; }
 
   const nome = document.getElementById("npcNome")?.value.trim();
-  if (!nome) { alert("Digite o nome do NPC."); return; }
+  if (!nome) { alertBonito("Digite o nome do NPC."); return; }
 
   campanha.npcs ||= [];
 
@@ -9098,9 +9180,9 @@ function salvarEdicaoNPCMundo(id) {
   fecharPopup();
 }
 
-function deletarNPCMundo(id) {
+async function deletarNPCMundo(id) {
   const campanha = campanhasMaster[campanhaAtualMaster];
-  if (!campanha || !confirm("Remover este NPC?")) return;
+  if (!campanha || !(await confirmBonito("Remover este NPC?"))) return;
   campanha.npcsMundo = campanha.npcsMundo.filter(n => n.id !== id);
   salvarCampanhasMaster();
   renderNPCsMundo();
@@ -9112,7 +9194,7 @@ function salvarMissaoMundo() {
   if (!campanha) return;
 
   const nome = document.getElementById("mundoMissaoNome")?.value.trim();
-  if (!nome) { alert("Digite o nome da missão."); return; }
+  if (!nome) { alertBonito("Digite o nome da missão."); return; }
 
   campanha.missoes ||= [];
   campanha.missoes.push({
@@ -9307,9 +9389,9 @@ function salvarEdicaoMissaoMundo(id) {
   fecharPopup();
 }
 
-function deletarMissaoMundo(id) {
+async function deletarMissaoMundo(id) {
   const campanha = campanhasMaster[campanhaAtualMaster];
-  if (!campanha || !confirm("Remover esta missão?")) return;
+  if (!campanha || !(await confirmBonito("Remover esta missão?"))) return;
   campanha.missoes = campanha.missoes.filter(m => m.id !== id);
   salvarCampanhasMaster();
   renderMissoesMundo();
@@ -9465,9 +9547,9 @@ function salvarEdicaoEncontroMundo(id) {
   fecharPopup();
 }
 
-function deletarEncontroMundo(id) {
+async function deletarEncontroMundo(id) {
   const campanha = campanhasMaster[campanhaAtualMaster];
-  if (!campanha || !confirm("Remover este encontro?")) return;
+  if (!campanha || !(await confirmBonito("Remover este encontro?"))) return;
   campanha.encontrosPlanejados = campanha.encontrosPlanejados.filter(e => e.id !== id);
   salvarCampanhasMaster();
   renderEncontrosMundo();
