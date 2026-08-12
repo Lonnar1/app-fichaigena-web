@@ -61,7 +61,6 @@ body {
   flex-direction: column;
   align-items: center;
   margin: 0;
-  margin-left: -200px;
 }
 
 .titulo-rpg span {
@@ -81,13 +80,19 @@ body {
 .espada-titulo { width: 320px; max-width: 78vw; opacity: .95; display: block; }
 
 @media (min-width: 660px) {
-  .header-rpg { padding-left: 72px; }
   .espada-titulo { width: 420px; max-width: 55vw; }
   .titulo-rpg span { font-size: 32px; }
+
+  body:has(#ficha[style*="display: block"]) .titulo-rpg {
+    margin-left: 100px;
+  }
 }
 @media (min-width: 1040px) {
-  .header-rpg { padding-left: 220px; }
   .espada-titulo { width: 480px; }
+
+  body:has(#ficha[style*="display: block"]) .titulo-rpg {
+    margin-left: 110px;
+  }
 }
 
 /* ================= TEXTURA DE FUNDO (papéis caindo) ================= */
@@ -103,7 +108,7 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url("img/folhas-bg.png");
+  background-image: url("../img/folhas-bg.png");
   background-repeat: repeat;
   pointer-events: none;
 }
@@ -219,10 +224,26 @@ button {
 button.ghost,
 .voltar,
 .botao-upload,
-.editor-btn-secundario {
+.editor-btn-secundario,
+.btn-voltar-modos,
+.btn-acao-ficha {
   background: var(--j-card);
   color: var(--j-gold);
   border: 1px solid var(--j-line2);
+}
+
+.acoes-ficha-fixas {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+
+.btn-voltar-modos:hover,
+.btn-acao-ficha:hover {
+  background: var(--j-card2);
+  border-color: var(--j-gold);
 }
 
 .j-badge,
@@ -311,7 +332,7 @@ button.ghost,
 
 #ficha.container { max-width: 900px; }
 #loginBox.container { max-width: 420px; }
-#tela-inicial.container { max-width: 960px; }
+#tela-inicial.container { max-width: 960px; padding-bottom: 100px; }
 
 /*
   Centraliza #ficha/#masterIgnea de verdade no espaço à direita do menu
@@ -367,14 +388,13 @@ button.ghost,
 .personagem-campos { display: flex; flex-direction: column; gap: 8px; flex: 1; }
 
 @media (min-width: 660px) {
-  .personagem-topo { display: grid; grid-template-columns: 1fr 220px; gap: 24px; max-width: 1100px; }
+  .personagem-topo { display: grid; grid-template-columns: 1fr 220px; gap: 24px; width: 100%; }
   .personagem-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .linha-nivel-antecedente { grid-column: 1 / -1; display: flex; gap: 12px; }
   .linha-nivel-antecedente input { flex: 1; }
 }
-@media (max-width: 659px) {
-  .linha-nivel-antecedente { display: flex; gap: 8px; }
-  .linha-nivel-antecedente input { flex: 1; }
+@media (min-width: 1400px) {
+  .personagem-campos { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* ================= CARDS DE LISTA (Aliados/Itens/Armas/etc) ================= */
@@ -874,3 +894,4 @@ input[type="file"] { display: none; }
 *::-webkit-scrollbar-corner {
   background: transparent;
 }
+
