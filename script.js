@@ -99,6 +99,361 @@ function habilitarArrastarReordenar(ulEl, arrayRef, aoSoltarCallback) {
   });
 }
 
+
+window._grupoMasterUnsubs = window._grupoMasterUnsubs || [];
+
+window.renderGrupoMaster = async function () {
+  const conteudo = document.getElementById("grupoMasterConteudo");
+  window._grupoMasterUnsubs.forEach(unsub => unsub());
+  window._grupoMasterUnsubs = [];
+
+  const campanha = campanhasMaster[campanhaAtualMaster];
+  const grupoId = campanha?.grupoVinculado;
+
+  if (!grupoId) {
+    conteudo.innerHTML = `<p style="color:#9A8A70;font-size:13px;text-align:center;padding:20px 0;font-style:italic;">Essa campanha não tem um grupo vinculado. Edite a campanha pra escolher um.</p>`;
+    return;
+  }
+
+  conteudo.innerHTML = `<p style="color:#9A8A70;font-size:13px;text-align:center;">Carregando grupo...</p>`;
+
+  const grupoSnap = await getDoc(doc(db, "grupos", grupoId));
+  if (!grupoSnap.exists()) {
+    conteudo.innerHTML = `<p style="color:#e07a7a;font-size:13px;text-align:center;">Esse grupo não existe mais.</p>`;
+    return;
+  }
+  const g = grupoSnap.data();
+  const meuUid = window.usuarioAtual.uid;
+  const alvos = g.membros.filter(m => m.uid !== meuUid && m.fichaId);
+
+  window._grupoMasterAlvos = alvos;
+
+  if (alvos.length === 0) {
+    conteudo.innerHTML = `<p style="color:#9A8A70;font-size:13px;text-align:center;padding:20px 0;font-style:italic;">Nenhum jogador vinculou uma ficha a esse grupo ainda.</p>`;
+    return;
+  }
+
+  conteudo.innerHTML = `
+    <div class="compendio-grid">
+      ${alvos.map(m => `
+        <div id="dashCard-${m.uid}" class="compendio-card" onclick="window.abrirFichaFlutuante('${m.uid}')">
+          <div class="compendio-info">
+            <p style="color:#9A8A70;font-size:11px;">Carregando...</p>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+
+  alvos.forEach(m => {
+    const ref = doc(db, "usuarios", m.uid, "fichas", m.fichaId);
+    const unsub = onSnapshot(ref, snap => {
+      const card = document.getElementById(`dashCard-${m.uid}`);
+      if (!card) return;
+
+      if (!snap.exists()) {
+        card.innerHTML = `<div class="compendio-info"><p style="color:#e07a7a;font-size:11px;">Ficha não encontrada.</p></div>`;
+        return;
+      }
+
+      const f = snap.data();
+      const vidaMax = f.vidaMax || 1;
+      const vidaAtual = f.vidaAtual ?? vidaMax;
+      const pctVida = Math.max(0, Math.min(100, (vidaAtual / vidaMax) * 100));
+      const corVida = pctVida <= 25 ? "#e05050" : pctVida <= 60 ? "#e0b050" : "#6bbf59";
+
+      window._grupoMasterFichaCache = window._grupoMasterFichaCache || {};
+      window._grupoMasterFichaCache[m.uid] = { nome: f.nome, imagem: f.imagem };
+
+      card.style.backgroundImage = `url("${f.imagem || "icon-512.png"}")`;
+      card.innerHTML = `
+        <div class="compendio-info">
+          <small style="opacity:0.7">${escapeHtml(m.nickname)}</small>
+          <strong>${escapeHtml(f.nome || "Sem nome")}</strong>
+          <small>${escapeHtml(f.classe || "")}${f.nivel ? " · Nv " + escapeHtml(String(f.nivel)) : ""}</small>
+          <div style="height:5px;background:rgba(255,255,255,0.25);border-radius:99px;overflow:hidden;margin-top:4px;">
+            <div style="height:100%;width:${pctVida}%;background:${corVida};"></div>
+          </div>
+          <span>HP ${vidaAtual}/${vidaMax}</span>
+        </div>
+      `;
+
+      if (window._fichaFlutuanteUid === m.uid) window._renderFichaFlutuanteConteudo(m, f);
+    }, err => {
+      console.error(err);
+      const card = document.getElementById(`dashCard-${m.uid}`);
+      if (card) card.innerHTML = `<div class="compendio-info"><p style="color:#e05050;font-size:11px;">Sem permissão pra ver essa ficha ainda.</p></div>`;
+    });
+
+    window._grupoMasterUnsubs.push(unsub);
+  });
+};
+
+/* ================= CARD FLUTUANTE DO JOGADOR (visão detalhada do mestre) ================= */
+
+function _fichaDashPillCargas(item) {
+  if (!item.temCargas) return "";
+  const gastas = (item.cargasGastas || []).filter(Boolean).length;
+  const max = item.maxCargas || 0;
+  const restantes = max - gastas;
+  const cor = restantes === 0 ? "#8a2c22" : "#7c6425";
+  return `<span style="display:inline-block;font-size:9.5px;font-weight:bold;padding:2px 8px;border-radius:99px;background:rgba(124,100,37,0.15);border:1px solid ${cor};color:${cor};margin-left:6px;">${restantes}/${max}</span>`;
+}
+
+let _fichaDashContadorLinha = 0;
+function _fichaDashLinha(uid, nome, extra, pill, desc) {
+  const idLinha = `fichaFlutLinha-${uid}-${_fichaDashContadorLinha++}`;
+  return `
+  <div style="padding:8px 0;border-bottom:1px solid rgba(74,55,40,0.12);${desc ? "cursor:pointer;" : ""}" ${desc ? `onclick="window.alternarDescDash('${idLinha}')"` : ""}>
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:13px;color:#2A1A10;font-weight:600;">${escapeHtml(nome)}${extra ? ` <span style="color:#6b5a42;font-weight:normal;font-size:11.5px;">· ${escapeHtml(extra)}</span>` : ""}</span>
+      <span style="flex-shrink:0;">${pill}</span>
+    </div>
+    ${desc ? `<div id="${idLinha}" data-aberto="0" style="font-size:11.5px;color:#5a4a38;margin-top:4px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(desc)}</div>` : ""}  </div>`;
+}
+
+function _fichaDashSecao(titulo, itens) {
+  return `
+  <div style="background:#E8E0CC;border-radius:10px;margin:10px 14px 0;overflow:hidden;border:1px solid rgba(196,169,91,0.25);">
+    <div style="background:#D4C9A8;padding:7px 12px;text-align:center;">
+      <span style="font-size:10px;color:#4A3728;text-transform:uppercase;letter-spacing:1.5px;font-weight:bold;">${titulo}</span>
+    </div>
+    <div style="padding:8px 12px 10px;">
+      ${itens || `<p style="font-size:12px;color:#7A6A50;font-style:italic;padding:4px 0;text-align:center;">Nada aqui.</p>`}
+    </div>
+  </div>`;
+}
+
+window.alternarDescDash = function (idLinha) {
+  const el = document.getElementById(idLinha);
+  if (!el) return;
+  const aberto = el.dataset.aberto === "1";
+  if (aberto) {
+    el.style.webkitLineClamp = "2";
+    el.style.overflow = "hidden";
+    el.dataset.aberto = "0";
+  } else {
+    el.style.webkitLineClamp = "unset";
+    el.style.overflow = "visible";
+    el.dataset.aberto = "1";
+  }
+};
+
+window._renderFichaFlutuanteConteudo = function (m, f) {
+  const vidaMax = f.vidaMax || 1;
+  const vidaAtual = f.vidaAtual ?? vidaMax;
+  const pctVida = Math.max(0, Math.min(100, (vidaAtual / vidaMax) * 100));
+  const corVida = pctVida <= 25 ? "#8a2c22" : pctVida <= 60 ? "#a9822f" : "#4a6b32";
+
+  const todosPoderes = f.poderes || [];
+  const poderesGerais = todosPoderes.filter(p => (p.circulo ?? "") === "").map(p => _fichaDashLinha(m.uid, p.nome || "Sem nome", "", _fichaDashPillCargas(p), p.desc)).join("");
+  const talentos = todosPoderes.filter(p => p.circulo === "talento").map(p => _fichaDashLinha(m.uid, p.nome || "Sem nome", "", _fichaDashPillCargas(p), p.desc)).join("");
+  const passivas = todosPoderes.filter(p => p.circulo === "passiva").map(p => _fichaDashLinha(m.uid, p.nome || "Sem nome", "", _fichaDashPillCargas(p), p.desc)).join("");
+
+  const gastos = f.gastosCirculos || {};
+  const bolinhasCirculo = (circulo) => {
+    const arr = gastos[circulo] || [];
+    if (arr.length === 0) return "";
+    return `<div style="display:flex;gap:6px;margin:6px 0 8px;justify-content:center;">${arr.map(gasta => `<span style="width:13px;height:13px;border-radius:50%;display:inline-block;background:${gasta ? "#8a2c22" : "transparent"};border:2px solid #8a2c22;"></span>`).join("")}</div>`;
+  };
+
+  let magias = "";
+  for (let c = 0; c <= 9; c++) {
+    const magiasDoCirculo = todosPoderes.filter(p => String(p.circulo) === String(c));
+    if (magiasDoCirculo.length === 0 && (!gastos[c] || gastos[c].length === 0)) continue;
+
+    magias += `
+      <div style="margin-top:10px;text-align:center;">
+        <div style="font-size:11px;color:#4A3728;font-weight:bold;text-transform:uppercase;letter-spacing:.05em;">Círculo ${c}</div>
+        ${bolinhasCirculo(c)}
+        ${magiasDoCirculo.map(p => _fichaDashLinha(m.uid, p.nome || "Sem nome", "", _fichaDashPillCargas(p), p.desc)).join("") || `<p style="font-size:11px;color:#8a7860;font-style:italic;">Sem magias registradas.</p>`}
+      </div>`;
+  }
+
+  const armas = (f.armas || []).map(a => _fichaDashLinha(m.uid, a.nome || "Sem nome", a.dano || "", _fichaDashPillCargas(a), a.desc)).join("");
+  const armaduras = (f.armaduras || []).map(a => _fichaDashLinha(m.uid, a.nome || "Sem nome", a.ca ? "CA " + a.ca : "", _fichaDashPillCargas(a), a.desc)).join("");
+  const inventario = (f.inventario || []).map(i => _fichaDashLinha(m.uid, i.nome || "Sem nome", "", `<span style="font-size:11px;color:#6b5a42;">x${i.qtd || 1}</span>`, i.desc)).join("");
+
+  const dominioArr = f.dominio || [];
+  const dominioHtml = `
+    <div style="display:flex;gap:7px;flex-wrap:wrap;padding:10px 0 4px;justify-content:center;">
+      ${dominioArr.map(marcado => `<span style="width:16px;height:16px;border-radius:50%;display:inline-block;background:${marcado ? "#8a2c22" : "transparent"};border:2px solid #8a2c22;"></span>`).join("")}
+    </div>`;
+
+  const efeitosExaustaoDash = ["Sem exaustão","Desvantagem em testes de habilidade","Metade da velocidade","Desvantagem em ataques e testes de resistência","Metade do HP máximo","Velocidade = 0","Morte"];
+  const nivelExaustao = f.exaustao ?? 0;
+  const exaustaoHtml = `
+    <div style="font-size:12px;color:#2A1A10;padding:10px 0 4px;">
+      Nível ${nivelExaustao} ${nivelExaustao > 0 ? `<span style="color:#6b5a42;">— ${escapeHtml(efeitosExaustaoDash[nivelExaustao] || "")}</span>` : ""}
+    </div>`;
+
+ const alvos = window._grupoMasterAlvos || [];
+  document.getElementById("fichaFlutuanteContador").textContent = alvos.length > 1 ? `${window._fichaFlutuanteIndex + 1} / ${alvos.length}` : "";
+
+  document.getElementById("fichaFlutuanteConteudo").innerHTML = `
+    <div style="padding-top:16px;text-align:center;">
+      <div style="font-family:'Cinzel',serif;font-weight:bold;font-size:22px;color:#4A3728;">${escapeHtml(f.nome || "Sem nome")}</div>
+      <div style="font-size:14px;color:#6b5a42;margin-top:4px;">${escapeHtml(m.nickname)} · ${escapeHtml(f.classe || "")}${f.nivel ? " · Nv " + escapeHtml(String(f.nivel)) : ""} · CA ${escapeHtml(String(f.ca ?? "-"))}</div>
+    </div>
+    <div style="height:7px;background:rgba(74,55,40,0.15);margin:12px 0 0;border-radius:99px;overflow:hidden;">
+      <div style="height:100%;width:${pctVida}%;background:${corVida};transition:width .4s ease;"></div>
+    </div>
+    <div style="font-size:11px;color:#6b5a42;padding:4px 0 4px;">HP: ${vidaAtual} / ${vidaMax}</div>
+    ${_fichaDashSecao("Poderes", poderesGerais)}
+    ${_fichaDashSecao("Magias", magias)}
+    ${_fichaDashSecao("Talentos", talentos)}
+    ${_fichaDashSecao("Passivas", passivas)}
+    ${_fichaDashSecao("Armas", armas)}
+    ${_fichaDashSecao("Armaduras", armaduras)}
+    ${_fichaDashSecao("Inventário", inventario)}
+    ${dominioArr.length ? _fichaDashSecao("Pontos de Domínio", dominioHtml) : ""}
+    ${_fichaDashSecao("Exaustão", exaustaoHtml)}
+    <div style="height:14px;"></div>
+  `;
+};
+
+window.abrirFichaFlutuante = function (uid) {
+  const idx = (window._grupoMasterAlvos || []).findIndex(m => m.uid === uid);
+  if (idx === -1) return;
+  window._fichaFlutuanteIndex = idx;
+  window._mostrarFichaFlutuanteAtual();
+};
+
+window._renderPeeksFichaFlutuante = function () {
+  const alvos = window._grupoMasterAlvos || [];
+  const peekEsq = document.getElementById("fichaFlutuantePeekEsq");
+  const peekDir = document.getElementById("fichaFlutuantePeekDir");
+  if (!peekEsq || !peekDir) return;
+
+  if (alvos.length <= 1) {
+    peekEsq.style.display = "none";
+    peekDir.style.display = "none";
+    return;
+  }
+
+  const idx = window._fichaFlutuanteIndex;
+  const prevIdx = (idx - 1 + alvos.length) % alvos.length;
+  const nextIdx = (idx + 1) % alvos.length;
+
+  const montarPeek = (m) => {
+    const cache = (window._grupoMasterFichaCache || {})[m.uid] || {};
+    return `
+      <div style="height:320px;background:${cache.imagem ? `url('${cache.imagem}')` : "#1a1310"} center/cover no-repeat;"></div>
+      <div style="padding:16px;text-align:center;">
+        <div style="font-family:'Cinzel',serif;font-weight:bold;font-size:16px;color:#4A3728;">${escapeHtml(cache.nome || m.nickname)}</div>
+      </div>
+    `;
+  };
+
+  peekEsq.innerHTML = montarPeek(alvos[prevIdx]);
+  peekDir.innerHTML = montarPeek(alvos[nextIdx]);
+  peekEsq.style.display = "block";
+  peekDir.style.display = "block";
+};
+
+window._mostrarFichaFlutuanteAtual = function () {
+  const alvos = window._grupoMasterAlvos || [];
+  const m = alvos[window._fichaFlutuanteIndex];
+  if (!m) return;
+
+  window._fichaFlutuanteUid = m.uid;
+  if (window._fichaFlutuanteUnsub) window._fichaFlutuanteUnsub();
+
+  document.getElementById("fichaFlutuanteOverlay").style.display = "block";
+  document.getElementById("fichaFlutuante").style.display = "flex";
+  window._renderPeeksFichaFlutuante();
+  document.getElementById("fichaFlutuanteConteudo").innerHTML = `<p style="color:#9A8A70;font-size:13px;text-align:center;padding:20px 0;">Carregando ${escapeHtml(m.nickname)}...</p>`;
+
+  const ref = doc(db, "usuarios", m.uid, "fichas", m.fichaId);
+  window._fichaFlutuanteUnsub = onSnapshot(ref, snap => {
+    if (!snap.exists()) {
+      document.getElementById("fichaFlutuanteConteudo").innerHTML = `<p style="color:#e05050;font-size:13px;text-align:center;padding:20px 0;">Ficha não encontrada.</p>`;
+      return;
+    }
+    window._renderFichaFlutuanteConteudo(m, snap.data());
+  }, err => {
+    console.error(err);
+    document.getElementById("fichaFlutuanteConteudo").innerHTML = `<p style="color:#e05050;font-size:13px;text-align:center;padding:20px 0;">Sem permissão pra ver essa ficha ainda.</p>`;
+  });
+};
+
+window.fecharFichaFlutuante = function () {
+  document.getElementById("fichaFlutuanteOverlay").style.display = "none";
+  document.getElementById("fichaFlutuante").style.display = "none";
+  document.getElementById("fichaFlutuantePeekEsq").style.display = "none";
+  document.getElementById("fichaFlutuantePeekDir").style.display = "none";
+  if (window._fichaFlutuanteUnsub) window._fichaFlutuanteUnsub();
+  window._fichaFlutuanteUnsub = null;
+  window._fichaFlutuanteUid = null;
+};
+
+window.trocarFichaFlutuante = function (direcao) {
+  const alvos = window._grupoMasterAlvos || [];
+  if (alvos.length <= 1) return;
+
+  const el = document.getElementById("fichaFlutuante");
+  const saida = direcao > 0 ? -60 : 60;
+
+  el.style.transition = "transform .22s ease, opacity .22s ease";
+  el.style.transform = `translate(-50%,-50%) translateX(${saida}px)`;
+  el.style.opacity = "0";
+
+  setTimeout(() => {
+    window._fichaFlutuanteIndex = (window._fichaFlutuanteIndex + direcao + alvos.length) % alvos.length;
+    window._mostrarFichaFlutuanteAtual();
+
+    el.style.transition = "none";
+    el.style.transform = `translate(-50%,-50%) translateX(${-saida}px)`;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.style.transition = "transform .22s ease, opacity .22s ease";
+        el.style.transform = "translate(-50%,-50%) translateX(0)";
+        el.style.opacity = "1";
+      });
+    });
+  }, 220);
+};
+
+(function ativarGestosFichaFlutuante() {
+  const el = document.getElementById("fichaFlutuante");
+  if (!el) return;
+  let inicioX = 0, inicioY = 0, arrastando = false;
+
+  el.addEventListener("touchstart", e => {
+    const t = e.touches[0];
+    inicioX = t.clientX; inicioY = t.clientY; arrastando = true;
+    el.style.transition = "none";
+  }, { passive: true });
+
+  el.addEventListener("touchmove", e => {
+    if (!arrastando) return;
+    const t = e.touches[0];
+    const diffX = t.clientX - inicioX;
+    const diffY = t.clientY - inicioY;
+    if (Math.abs(diffX) > Math.abs(diffY)) {
+      el.style.transform = `translate(-50%,-50%) translateX(${diffX}px)`;
+      el.style.opacity = String(1 - Math.min(Math.abs(diffX) / 400, 0.5));
+    }
+  }, { passive: true });
+
+  el.addEventListener("touchend", e => {
+    if (!arrastando) return;
+    arrastando = false;
+    const t = e.changedTouches[0];
+    const diffX = t.clientX - inicioX;
+    const diffY = t.clientY - inicioY;
+
+    if (Math.abs(diffX) > 60 && Math.abs(diffX) > Math.abs(diffY)) {
+      window.trocarFichaFlutuante(diffX < 0 ? 1 : -1);
+    } else {
+      el.style.transition = "transform .2s ease, opacity .2s ease";
+      el.style.transform = "translate(-50%,-50%) translateX(0)";
+      el.style.opacity = "1";
+    }
+  }, { passive: true });
+})();
+
 function limparTags(str) {
   if (!str) return str;
   return String(str).replace(/<[^>]*>/g, "");
@@ -490,6 +845,14 @@ function renderCampanhasMaster() {
 
   <button
     class="monstro-delete campanha-delete"
+    style="right:44px !important;"
+    onclick="event.stopPropagation(); window.abrirEditarCampanha(${index})"
+  >
+    ✎
+  </button>
+
+  <button
+    class="monstro-delete campanha-delete"
     onclick="event.stopPropagation(); deletarCampanhaMaster(${index})"
   >
     ×
@@ -498,6 +861,10 @@ function renderCampanhasMaster() {
 
     lista.appendChild(card);
   });
+
+  if (typeof window.carregarGruposParaCampanha === "function") {
+    window.carregarGruposParaCampanha();
+  }
 }
 
 function criarCampanhaMaster() {
@@ -514,6 +881,8 @@ function criarCampanhaMaster() {
     return;
   }
 
+  const grupoVinculado = document.getElementById("novaCampanhaGrupo")?.value || "";
+
   const novaCampanha = {
   id: Date.now(),
   nome,
@@ -525,7 +894,8 @@ function criarCampanhaMaster() {
   sessoes: [],
   quests: [],
   npcs: [],
-  combates: []
+  combates: [],
+  grupoVinculado
 };
 
   campanhasMaster.push(novaCampanha);
@@ -546,6 +916,68 @@ function criarCampanhaMaster() {
 
   renderCampanhasMaster();
 }
+
+window.carregarGruposParaCampanha = async function (selectId = "novaCampanhaGrupo", valorSelecionado = "") {
+  const select = document.getElementById(selectId);
+  if (!select || !window.usuarioAtual) return;
+
+  try {
+    const meuUid = window.usuarioAtual.uid;
+    const q = query(collection(db, "grupos"), where("membrosUids", "array-contains", meuUid));
+    const snap = await getDocs(q);
+
+    const meusGrupos = snap.docs.filter(d => d.data().criadoPor === meuUid);
+
+    select.innerHTML = `<option value="">Sem grupo vinculado</option>` +
+      meusGrupos.map(d => `<option value="${d.id}" ${d.id === valorSelecionado ? "selected" : ""}>${escapeHtml(d.data().nome)}</option>`).join("");
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+window._campanhaEmEdicaoIndex = null;
+
+window.abrirEditarCampanha = async function (index) {
+  const campanha = campanhasMaster[index];
+  if (!campanha) return;
+
+  window._campanhaEmEdicaoIndex = index;
+
+  document.getElementById("modalEditarCampanhaOverlay").style.display = "block";
+  document.getElementById("modalEditarCampanha").style.display = "block";
+
+  document.getElementById("editCampanhaNome").value = campanha.nome || "";
+  document.getElementById("editCampanhaSistema").value = campanha.sistema || "";
+  document.getElementById("editCampanhaDescricao").value = campanha.descricao || "";
+
+  await window.carregarGruposParaCampanha("editCampanhaGrupo", campanha.grupoVinculado || "");
+};
+
+window.fecharEditarCampanha = function () {
+  document.getElementById("modalEditarCampanhaOverlay").style.display = "none";
+  document.getElementById("modalEditarCampanha").style.display = "none";
+  window._campanhaEmEdicaoIndex = null;
+};
+
+window.salvarEdicaoCampanha = function () {
+  const index = window._campanhaEmEdicaoIndex;
+  if (index === null || !campanhasMaster[index]) return;
+
+  const nome = document.getElementById("editCampanhaNome").value.trim();
+  if (!nome) {
+    alert("Digite o nome da campanha.");
+    return;
+  }
+
+  campanhasMaster[index].nome = nome;
+  campanhasMaster[index].sistema = document.getElementById("editCampanhaSistema").value.trim();
+  campanhasMaster[index].descricao = document.getElementById("editCampanhaDescricao").value.trim();
+  campanhasMaster[index].grupoVinculado = document.getElementById("editCampanhaGrupo").value || "";
+
+  salvarCampanhasMaster();
+  renderCampanhasMaster();
+  window.fecharEditarCampanha();
+};
 
 function entrarCampanhaMaster(index) {
   const plano = getPlanoUsuario();
@@ -1843,16 +2275,18 @@ function renderAliados() {
 
       <div class="item-acoes">
         <div class="acoes-topo">
-          <button type="button" class="btn-editar" onclick="event.stopPropagation(); editarAliado(${index})">✏️</button>
+          <button type="button" class="btn-editar" onclick="event.stopPropagation(); editarItem(${index})">✏️</button>
         </div>
-        <button type="button" class="item-remover" onclick="event.stopPropagation(); removerAliado(${index})">X</button>
+
+        <button type="button" class="btn-editar" style="color:#C4A95B;" onclick="event.stopPropagation(); window.abrirDarItem('inventario', ${index})">🎁</button>
+        <button type="button" class="item-remover" onclick="event.stopPropagation(); removerItem(${index})">X</button>
       </div>
     `;
 
     ul.appendChild(li);
   });
 
-  habilitarArrastarReordenar(ul, p.aliados, renderAliados);
+  habilitarArrastarReordenar(ul, inventario, renderInv);
 }
 
 function removerAliado(index) {
@@ -2274,6 +2708,7 @@ function renderArmaduras() {
 
       <div class="item-acoes">
         <button type="button" class="btn-editar" onclick="event.stopPropagation(); editarArmadura(${index})">✏️</button>
+        <button type="button" class="btn-editar" style="color:#C4A95B;" onclick="event.stopPropagation(); window.abrirDarItem('armaduras', ${index})">🎁</button>
         <button type="button" class="arma-remover" onclick="event.stopPropagation(); removerArmadura(${index})">X</button>
       </div>
     `;
@@ -3361,6 +3796,7 @@ function renderArmas() {
 
       <div class="item-acoes">
         <button type="button" class="btn-editar" onclick="event.stopPropagation(); editarArma(${index})">✏️</button>
+        <button type="button" class="btn-editar" style="color:#C4A95B;" onclick="event.stopPropagation(); window.abrirDarItem('armas', ${index})">🎁</button>
         <button type="button" class="arma-remover" onclick="event.stopPropagation(); removerArma(${index})">X</button>
       </div>
     `;
@@ -5001,6 +5437,59 @@ if (nomeAba === "lore") {
   renderMonstrosMestre();
 }
   if (nomeAba === "combateMaster") renderCombatesMestre();
+  if (nomeAba === "grupoMaster" && typeof window.renderGrupoMaster === "function") window.renderGrupoMaster();
+}
+
+function previewImagemMapaMestre() {
+  const input = document.getElementById("mapaMasterImagemInput");
+  const preview = document.getElementById("previewMapaMaster");
+  if (!input?.files?.[0]) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement("canvas");
+      const scale = 700 / img.width;
+      canvas.width = 700;
+      canvas.height = img.height * scale;
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      window._imagemMapaMestreBase64 = canvas.toDataURL("image/jpeg", 0.75);
+      if (preview) { preview.src = window._imagemMapaMestreBase64; preview.style.display = "block"; }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+async function salvarMapaMestre() {
+  const nome = document.getElementById("mapaMasterNome")?.value.trim();
+  if (!nome) { alert("Coloque o nome do mapa."); return; }
+
+  if (campanhaAtualMaster === null || campanhaAtualMaster === undefined) {
+    alert("Nenhuma campanha selecionada."); return;
+  }
+
+  const campanha = campanhasMaster[campanhaAtualMaster];
+  if (!campanha) { alert("Campanha não encontrada."); return; }
+
+  campanha.mapasMaster ||= [];
+  campanha.mapasMaster.push({
+    id: Date.now(), _tipo: "mapa", nome,
+    desc: document.getElementById("mapaMasterDesc")?.value.trim() || "",
+    ...(window._imagemMapaMestreBase64
+    ? await uploadImagemFirebase(window._imagemMapaMestreBase64, `mapas/${Date.now()}.jpg`).then(r => ({ imagem: r.url, imagemDeleteUrl: r.deleteUrl }))
+    : { imagem: "", imagemDeleteUrl: "" }),
+  });
+
+  salvarCampanhasMaster();
+  renderMonstrosMestre();
+
+  document.getElementById("mapaMasterNome").value = "";
+  document.getElementById("mapaMasterDesc").value = "";
+  document.getElementById("mapaMasterImagemInput").value = "";
+  window._imagemMapaMestreBase64 = "";
+  const preview = document.getElementById("previewMapaMaster");
+  if (preview) { preview.src = ""; preview.style.display = "none"; }
 }
 
 function injetarFiltrosCompendio() {
@@ -5015,6 +5504,7 @@ function injetarFiltrosCompendio() {
     <option value="bosses">💀 Bosses</option>
     <option value="npcs">🧙 NPCs</option>
     <option value="itens">⚔️ Itens</option>
+    <option value="mapas">🗺️ Mapas</option>
   `;
   select.onchange = () => {
     _filtroCompendio = select.value;
@@ -5389,6 +5879,7 @@ function renderMonstrosMestre() {
   const bossesBase   = [...(bossesPadrao || []), ...(campanha.bosses || []).map(b => ({ ...b, _tipo: "boss" }))];
   const itensBase    = [...(itensPadrao || []), ...(campanha.itensMaster || []).map(i => ({ ...i, _tipo: "item" }))];
   const npcsBase = [...(npcsPadrao || []), ...(campanha.npcs || []).map(n => ({ ...n, _tipo: "npc" }))];
+  const mapasBase = (campanha.mapasMaster || []).map(mp => ({ ...mp, _tipo: "mapa" }));
 
   let listaCompleta;
   switch (_filtroCompendio) {
@@ -5396,7 +5887,8 @@ function renderMonstrosMestre() {
     case "bosses":   listaCompleta = bossesBase;   break;
     case "itens":    listaCompleta = itensBase;    break;
     case "npcs":     listaCompleta = npcsBase;     break;
-    default:         listaCompleta = [...monstrosBase, ...bossesBase, ...itensBase, ...npcsBase];
+    case "mapas":    listaCompleta = mapasBase;    break;
+    default:         listaCompleta = [...monstrosBase, ...bossesBase, ...itensBase, ...npcsBase, ...mapasBase];
   }
 
   const pesquisa = document.getElementById("pesquisaMonstro")?.value?.toLowerCase().trim() || "";
@@ -5447,6 +5939,7 @@ function renderMonstrosMestre() {
       bosses:   "Nenhum boss criado.\nCrie um na aba ✍️ Criar.",
       itens:    "Nenhum item criado.\nCrie um na aba ✍️ Criar.",
       npcs:     "Nenhum NPC criado.\nCrie um na aba ✍️ Criar.",
+      mapas:    "Nenhum mapa criado.\nCrie um na aba ✍️ Criar.",
     };
     lista.innerHTML = `<p style="text-align:center;color:#cdb791;grid-column:1/-1;padding:24px 0;white-space:pre-line;">${msgs[_filtroCompendio] || msgs.todos}</p>`;
     return;
@@ -5466,9 +5959,10 @@ function renderMonstrosMestre() {
       else if (tipo === "boss") { sheetMonstroIndexAtual = index; listaSheetCompendio = listaFiltrada; _abrirPopupBossCompendio(entry); }
       else if (tipo === "item") { sheetMonstroIndexAtual = index; listaSheetCompendio = listaFiltrada; _abrirPopupItemCompendio(entry); }
       else if (tipo === "npc")  { sheetMonstroIndexAtual = index; listaSheetCompendio = listaFiltrada; _abrirPopupNPCCompendio(entry); }
+      else if (tipo === "mapa") { sheetMonstroIndexAtual = index; listaSheetCompendio = listaFiltrada; _abrirPopupMapaCompendio(entry); }
     };
 
-    const badge = { boss:"💀 Boss", item:"⚔️ Item", npc:"🧙 NPC" }[entry._tipo] || "👹 Criatura";
+    const badge = { boss:"💀 Boss", item:"⚔️ Item", npc:"🧙 NPC", mapa:"🗺️ Mapa" }[entry._tipo] || "👹 Criatura";
     const subtitulo = entry._tipo === "item"
       ? [entry.tipo, ({normal:"Normal",incomum:"Incomum",raro:"Raro",reliquia:"Relíquia"})[entry.raridade]].filter(Boolean).join(" · ")
       : entry._tipo === "npc"
@@ -6127,7 +6621,27 @@ ${item.imagem ? `<div class="sheet-img-wrap">
     ${item.descricao ? bloco("Descrição", escapeHtml(item.descricao)) : ""}
     ${item.historia  ? bloco("História", escapeHtml(item.historia)) : ""}
     ${item.origem    ? bloco("Origem", escapeHtml(item.origem)) : ""}
+    <button style="width:100%;margin-top:4px;margin-bottom:8px;background:#C4A95B!important;border:none!important;border-radius:8px;color:#1a0e05!important;font-weight:bold;padding:10px;font-size:13px;cursor:pointer;" onclick="window.abrirDarItemMestre('${item.id}')">🎁 Dar pra jogador</button>
     <button style="width:100%;margin-top:4px;background:rgba(143,34,34,0.8)!important;border:none!important;border-radius:8px;color:#fff!important;padding:10px;font-size:13px;cursor:pointer;" onclick="excluirEntradaCompendio('item',${item.id})">🗑 Excluir Item</button>
+  `;
+  _abrirSheetCustom(conteudo);
+}
+
+function _abrirPopupMapaCompendio(mapa) {
+  window._entradaSessaoAtual = mapa;
+
+  const conteudo = `
+    ${mapa.imagem ? `<img src="${mapa.imagem}" style="width:100%;max-height:340px;object-fit:cover;object-position:top center;border-radius:10px;margin-bottom:12px;">` : ""}
+    <h2 class="sheet-titulo" style="text-align:center;margin-bottom:4px;">${escapeHtml(mapa.nome)}</h2>
+    ${mapa.desc ? `
+    <div style="background:#E8E0CC;border-radius:10px;margin-bottom:10px;overflow:hidden;border:1px solid rgba(196,169,91,0.25);">
+      <div style="background:#D4C9A8;padding:7px 12px;text-align:center;">
+        <span style="font-size:10px;color:#4A3728;text-transform:uppercase;letter-spacing:1.5px;font-weight:bold;">Descrição</span>
+      </div>
+      <div style="padding:10px 14px;font-size:13px;color:#2A1A10;line-height:1.6;">${escapeHtml(mapa.desc)}</div>
+    </div>` : ""}
+    <button style="width:100%;margin-top:4px;margin-bottom:8px;background:#C4A95B!important;border:none!important;border-radius:8px;color:#1a0e05!important;font-weight:bold;padding:10px;font-size:13px;cursor:pointer;" onclick="window.abrirDarItemMestre('${mapa.id}')">🎁 Dar pra jogador</button>
+    <button style="width:100%;margin-top:4px;background:rgba(143,34,34,0.8)!important;border:none!important;border-radius:8px;color:#fff!important;padding:10px;font-size:13px;cursor:pointer;" onclick="excluirEntradaCompendio('mapa',${mapa.id})">🗑 Excluir Mapa</button>
   `;
   _abrirSheetCustom(conteudo);
 }
@@ -6651,7 +7165,13 @@ function trocarMonstroSheet(direcao) {
   document.body.appendChild(fantasma);
 
   sheetMonstroIndexAtual = novoIndex;
-  abrirSheetMonstroPadrao(listaSheetCompendio[novoIndex]);
+  const proximaEntry = listaSheetCompendio[novoIndex];
+  const proximoTipo = proximaEntry._tipo;
+  if (proximoTipo === "boss") _abrirPopupBossCompendio(proximaEntry);
+  else if (proximoTipo === "item") _abrirPopupItemCompendio(proximaEntry);
+  else if (proximoTipo === "npc") _abrirPopupNPCCompendio(proximaEntry);
+  else if (proximoTipo === "mapa") _abrirPopupMapaCompendio(proximaEntry);
+  else abrirSheetMonstroPadrao(proximaEntry);
 
   sheet.style.transition = "none";
   sheet.style.transformOrigin = direcao > 0 ? "left center" : "right center";
@@ -7130,9 +7650,9 @@ function renderCombatesMestre() {
           </small>
 
           <div class="combate-hp">
-  ❤️ HP ${monstro.hpAtual}/${monstro.hpMax}
+  <span id="combateHpTexto${index}">❤️ HP ${monstro.hpAtual}/${monstro.hpMax}</span>
   <div class="combate-hp-barra">
-    <div class="combate-hp-fill" style="width:${Math.max(0,Math.min(100,Math.round((monstro.hpAtual/monstro.hpMax)*100)))}%;background:${monstro.hpAtual/monstro.hpMax > 0.5 ? '#2a7a40' : monstro.hpAtual/monstro.hpMax > 0.25 ? '#7a6020' : '#8f2222'};"></div>
+    <div id="combateHpFill${index}" class="combate-hp-fill" style="width:${Math.max(0,Math.min(100,Math.round((monstro.hpAtual/monstro.hpMax)*100)))}%;background:${monstro.hpAtual/monstro.hpMax > 0.5 ? '#2a7a40' : monstro.hpAtual/monstro.hpMax > 0.25 ? '#7a6020' : '#8f2222'};"></div>
   </div>
 </div>
 
@@ -7307,17 +7827,17 @@ function renderCombatesMestre() {
         ${monstro.fraquezas ? `<div style="background:#E8E0CC;border-radius:10px;margin-bottom:10px;overflow:hidden;border:1px solid rgba(196,169,91,0.25);"><div style="background:#D4C9A8;padding:7px 12px;text-align:center;"><span style="font-size:10px;color:#4A3728;text-transform:uppercase;letter-spacing:1.5px;font-weight:bold;">Fraquezas</span></div><div style="padding:10px 14px;font-size:13px;color:#2A1A10;line-height:1.6;">${formatarTexto(monstro.fraquezas)}</div></div>` : ""}
 
           <!-- LOG -->
-${monstro.log && monstro.log.length > 0 ? `
   <div class="combate-log">
     <div class="combate-log-titulo">Log de combate</div>
-    ${monstro.log.map(e => `
-      <div class="combate-log-item combate-log-${e.tipo}">
-        <span class="combate-log-hora">${e.hora}</span>
-        <span>${e.texto}</span>
-      </div>
-    `).join("")}
+    <div class="combate-log-lista" id="combateLogLista${index}">
+      ${(monstro.log && monstro.log.length > 0) ? monstro.log.map(e => `
+        <div class="combate-log-item combate-log-${e.tipo}">
+          <span class="combate-log-hora">${e.hora}</span>
+          <span>${e.texto}</span>
+        </div>
+      `).join("") : `<div class="combate-log-vazio">Nenhum evento registrado ainda.</div>`}
+    </div>
   </div>
-` : ""}
 
         <!-- REMOVER -->
         <button
@@ -7351,19 +7871,49 @@ function alterarHpCombate(index, valor) {
   if (monstro.hpAtual > monstro.hpMax) monstro.hpAtual = monstro.hpMax;
 
   const diff = monstro.hpAtual - hpAntes;
+  let novoItemLogHtml = "";
+
   if (diff !== 0) {
     if (!monstro.log) monstro.log = [];
-    const hora = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-    if (diff < 0) {
-      monstro.log.unshift({ tipo: "dano", texto: `${monstro.nome} tomou ${Math.abs(diff)} de dano — HP: ${monstro.hpAtual}/${monstro.hpMax}`, hora });
-    } else {
-      monstro.log.unshift({ tipo: "cura", texto: `${monstro.nome} recebeu ${diff} de cura — HP: ${monstro.hpAtual}/${monstro.hpMax}`, hora });
-    }
+    const hora = new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "");
+    const entrada = diff < 0
+      ? { tipo: "dano", texto: `${monstro.nome} tomou ${Math.abs(diff)} de dano — HP: ${monstro.hpAtual}/${monstro.hpMax}`, hora }
+      : { tipo: "cura", texto: `${monstro.nome} recebeu ${diff} de cura — HP: ${monstro.hpAtual}/${monstro.hpMax}`, hora };
+
+    monstro.log.unshift(entrada);
     if (monstro.log.length > 20) monstro.log.pop();
+
+    novoItemLogHtml = `
+      <div class="combate-log-item combate-log-${entrada.tipo}">
+        <span class="combate-log-hora">${entrada.hora}</span>
+        <span>${entrada.texto}</span>
+      </div>`;
   }
 
   salvarCombatesMestreStorage();
-  renderCombatesMestre();
+
+  // Atualiza só este card — sem recriar a lista inteira, sem pular a rolagem
+  const textoHp = document.getElementById(`combateHpTexto${index}`);
+  const fillHp = document.getElementById(`combateHpFill${index}`);
+  const logLista = document.getElementById(`combateLogLista${index}`);
+
+  if (textoHp) textoHp.textContent = `❤️ HP ${monstro.hpAtual}/${monstro.hpMax}`;
+
+  if (fillHp) {
+    const pct = Math.max(0, Math.min(100, Math.round((monstro.hpAtual / monstro.hpMax) * 100)));
+    const cor = monstro.hpAtual / monstro.hpMax > 0.5 ? '#2a7a40' : monstro.hpAtual / monstro.hpMax > 0.25 ? '#7a6020' : '#8f2222';
+    fillHp.style.width = pct + "%";
+    fillHp.style.background = cor;
+  }
+
+  if (logLista && novoItemLogHtml) {
+    const vazio = logLista.querySelector(".combate-log-vazio");
+    if (vazio) vazio.remove();
+    logLista.insertAdjacentHTML("afterbegin", novoItemLogHtml);
+    while (logLista.children.length > 20) {
+      logLista.removeChild(logLista.lastElementChild);
+    }
+  }
 }
 
 function aplicarDanoCombate(index) {
