@@ -3759,6 +3759,169 @@ function verItem(index) {
   abrirPopup(item.nome || "Sem nome", html, true, () => editarItem(index));
 }
 
+// ===== Color Picker custom (quadrado saturação/valor + barra de matiz) =====
+let cpTargetInput = null, cpTargetSwatch = null, cpHue = 0, cpSat = 0, cpVal = 0;
+
+function hsvToRgb(h, s, v) {
+  s /= 100; v /= 100;
+  const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;
+  let r=0,g=0,b=0;
+  if (h < 60) [r,g,b] = [c,x,0];
+  else if (h < 120) [r,g,b] = [x,c,0];
+  else if (h < 180) [r,g,b] = [0,c,x];
+  else if (h < 240) [r,g,b] = [0,x,c];
+  else if (h < 300) [r,g,b] = [x,0,c];
+  else [r,g,b] = [c,0,x];
+  return [Math.round((r+m)*255), Math.round((g+m)*255), Math.round((b+m)*255)];
+}
+
+function rgbToHsv(r, g, b) {
+  r/=255; g/=255; b/=255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max-min;
+  let h = 0;
+  if (d !== 0) {
+    if (max === r) h = 60 * (((g-b)/d) % 6);
+    else if (max === g) h = 60 * ((b-r)/d + 2);
+    else h = 60 * ((r-g)/d + 4);
+  }
+  if (h < 0) h += 360;
+  const s = max === 0 ? 0 : d/max;
+  return [h, s*100, max*100];
+}
+
+function rgbToHex(r,g,b){
+  return "#" + [r,g,b].map(v => v.toString(16).padStart(2,"0")).join("");
+}
+function hexToRgb(hex){
+  hex = (hex || "#000000").replace("#","");
+  if (hex.length === 3) hex = hex.split("").map(c=>c+c).join("");
+  const num = parseInt(hex,16) || 0;
+  return [(num>>16)&255, (num>>8)&255, num&255];
+}
+
+function desenharQuadradoCP(){
+  const canvas = document.getElementById("cpSquare");
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width; canvas.height = rect.height;
+  const ctx = canvas.getContext("2d");
+  const [r,g,b] = hsvToRgb(cpHue, 100, 100);
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  const gradWhite = ctx.createLinearGradient(0,0,canvas.width,0);
+  gradWhite.addColorStop(0,"rgba(255,255,255,1)");
+  gradWhite.addColorStop(1,"rgba(255,255,255,0)");
+  ctx.fillStyle = gradWhite;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  const gradBlack = ctx.createLinearGradient(0,0,0,canvas.height);
+  gradBlack.addColorStop(0,"rgba(0,0,0,0)");
+  gradBlack.addColorStop(1,"rgba(0,0,0,1)");
+  ctx.fillStyle = gradBlack;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
+function desenharHueCP(){
+  const canvas = document.getElementById("cpHue");
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width; canvas.height = rect.height;
+  const ctx = canvas.getContext("2d");
+  const grad = ctx.createLinearGradient(0,0,canvas.width,0);
+  for (let i=0;i<=360;i+=30) grad.addColorStop(i/360, `hsl(${i},100%,50%)`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
+function atualizarHandlesCP(){
+  const sqWrap = document.getElementById("cpSquareWrap");
+  document.getElementById("cpSquareHandle").style.left = (cpSat/100*sqWrap.clientWidth) + "px";
+  document.getElementById("cpSquareHandle").style.top = ((1-cpVal/100)*sqWrap.clientHeight) + "px";
+  const hueWrap = document.getElementById("cpHueWrap");
+  document.getElementById("cpHueHandle").style.left = (cpHue/360*hueWrap.clientWidth) + "px";
+}
+
+function atualizarPreviewCP(){
+  const [r,g,b] = hsvToRgb(cpHue, cpSat, cpVal);
+  document.getElementById("cpPreview").style.background = rgbToHex(r,g,b);
+  document.getElementById("cpR").value = r;
+  document.getElementById("cpG").value = g;
+  document.getElementById("cpB").value = b;
+  desenharQuadradoCP();
+}
+
+window.abrirColorPicker = function(targetInputId, targetSwatchId){
+  cpTargetInput = targetInputId;
+  cpTargetSwatch = targetSwatchId;
+  const [r,g,b] = hexToRgb(document.getElementById(targetInputId).value);
+  const [h,s,v] = rgbToHsv(r,g,b);
+  cpHue = h; cpSat = s; cpVal = v;
+  document.getElementById("colorPickerOverlay").style.display = "block";
+  document.getElementById("colorPickerModal").style.display = "block";
+  requestAnimationFrame(() => {
+    desenharHueCP();
+    desenharQuadradoCP();
+    atualizarHandlesCP();
+    atualizarPreviewCP();
+  });
+};
+
+window.fecharColorPicker = function(){
+  document.getElementById("colorPickerOverlay").style.display = "none";
+  document.getElementById("colorPickerModal").style.display = "none";
+};
+
+window.confirmarColorPicker = function(){
+  const [r,g,b] = hsvToRgb(cpHue, cpSat, cpVal);
+  const hex = rgbToHex(r,g,b);
+  if (cpTargetInput) document.getElementById(cpTargetInput).value = hex;
+  if (cpTargetSwatch) document.getElementById(cpTargetSwatch).style.background = hex;
+  fecharColorPicker();
+};
+
+document.addEventListener("DOMContentLoaded", function(){
+  const sqWrap = document.getElementById("cpSquareWrap");
+  const hueWrap = document.getElementById("cpHueWrap");
+  if (!sqWrap || !hueWrap) return;
+
+  function moverQuadrado(clientX, clientY){
+    const rect = sqWrap.getBoundingClientRect();
+    const x = Math.min(Math.max(clientX - rect.left, 0), rect.width);
+    const y = Math.min(Math.max(clientY - rect.top, 0), rect.height);
+    cpSat = (x/rect.width)*100;
+    cpVal = (1-(y/rect.height))*100;
+    atualizarHandlesCP();
+    atualizarPreviewCP();
+  }
+  function moverHue(clientX){
+    const rect = hueWrap.getBoundingClientRect();
+    const x = Math.min(Math.max(clientX - rect.left, 0), rect.width);
+    cpHue = (x/rect.width)*360;
+    atualizarHandlesCP();
+    atualizarPreviewCP();
+  }
+
+  let arrastandoQuad = false, arrastandoHue = false;
+  sqWrap.addEventListener("pointerdown", e => { arrastandoQuad = true; moverQuadrado(e.clientX, e.clientY); sqWrap.setPointerCapture(e.pointerId); });
+  sqWrap.addEventListener("pointermove", e => { if (arrastandoQuad) moverQuadrado(e.clientX, e.clientY); });
+  sqWrap.addEventListener("pointerup", () => arrastandoQuad = false);
+  sqWrap.addEventListener("pointercancel", () => arrastandoQuad = false);
+
+  hueWrap.addEventListener("pointerdown", e => { arrastandoHue = true; moverHue(e.clientX); hueWrap.setPointerCapture(e.pointerId); });
+  hueWrap.addEventListener("pointermove", e => { if (arrastandoHue) moverHue(e.clientX); });
+  hueWrap.addEventListener("pointerup", () => arrastandoHue = false);
+  hueWrap.addEventListener("pointercancel", () => arrastandoHue = false);
+
+  ["cpR","cpG","cpB"].forEach(id => {
+    document.getElementById(id).addEventListener("change", () => {
+      const r = parseInt(document.getElementById("cpR").value)||0;
+      const g = parseInt(document.getElementById("cpG").value)||0;
+      const b = parseInt(document.getElementById("cpB").value)||0;
+      const [h,s,v] = rgbToHsv(r,g,b);
+      cpHue=h; cpSat=s; cpVal=v;
+      atualizarHandlesCP();
+      atualizarPreviewCP();
+    });
+  });
+});
+
 async function removerItem(index) {
   const item = inventario[index];
   if (!item) return;
@@ -7963,11 +8126,6 @@ function renderCombatesMestre() {
      colunas[index % numColunas].appendChild(card);
   });
 }
-
-
-window.addEventListener("resize", () => layoutCombateMasonry());
-
-window.addEventListener("resize", () => layoutCombateMasonry());
 
 function alterarHpCombate(index, valor) {
   const monstro = combatesMestre[index];
