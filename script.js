@@ -1317,7 +1317,10 @@ function getIconeTipo(tipo) {
   if (t.includes("espirit")) return "🌓";
   if (t.includes("vento")) return "🍃";
   if (t.includes("madeira")) return "🌳";
-  if (t.includes("terra")) return "🌍";
+ if (t.includes("terra")) return "🌍";
+  if (t.includes("metal")) return "⚙️";
+
+  return "🔮";
 
   return "🔮";
 }
@@ -1336,6 +1339,16 @@ function getClasseTipo(tipo) {
   if (t.includes("corte")) return "tipo-corte";
   if (t.includes("perfur")) return "tipo-perfurante";
   if (t.includes("concuss")) return "tipo-concussao";
+  if (t.includes("agua")) return "tipo-agua";
+  if (t.includes("magico")) return "tipo-magico";
+  if (t.includes("fisico")) return "tipo-fisico";
+  if (t.includes("trevas")) return "tipo-trevas";
+  if (t.includes("luz")) return "tipo-luz";
+  if (t.includes("espirit")) return "tipo-espirito";
+  if (t.includes("vento")) return "tipo-vento";
+  if (t.includes("madeira")) return "tipo-madeira";
+  if (t.includes("terra")) return "tipo-terra";
+  if (t.includes("metal")) return "tipo-metal";
 
   return "tipo-padrao";
 }
