@@ -3686,6 +3686,32 @@ window.abrirPreviewFicha = function (i) {
     document.getElementById("modalPreviewFicha").style.display = "none";
   };
 
+let deferredInstallPrompt = null;
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById("btnInstalarApp");
+  if (btn) btn.style.display = "block";
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("btnInstalarApp");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    btn.style.display = "none";
+  });
+});
+
+window.addEventListener("appinstalled", () => {
+  const btn = document.getElementById("btnInstalarApp");
+  if (btn) btn.style.display = "none";
+});
+
   function salvarLorePersonagem() {
   const p = personagens[personagemAtual];
   if (!p) return;
