@@ -56,6 +56,12 @@
 <!-- ================= ESCOLHA DE MODO ================= -->
 <div id="tela-modo" style="display:none;position:fixed;inset:0;z-index:5000;background:#0e0907;color:#F8F4E3;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px 36px;overflow-y:auto;">
 
+  <button onclick="abrirPainelAmigos()"
+    style="position:absolute;top:18px;left:18px;z-index:20;width:38px;height:38px;border-radius:50%;background:rgba(196,169,91,0.12);border:1px solid rgba(196,169,91,0.4);color:#E8CC80;display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;">
+    <i class="ti ti-users"></i>
+  </button>
+
+  <!-- fundos animados -->
   <!-- fundos animados -->
   <div style="position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(123,30,40,0.22) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 50% 100%,rgba(60,13,20,0.35) 0%,transparent 55%),linear-gradient(180deg,#0e0907 0%,#160d0a 50%,#0a0605 100%);pointer-events:none;"></div>
   <div id="tmBgJornada" style="position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 80% 60% at 30% 50%,rgba(100,60,10,0.2) 0%,transparent 65%);opacity:0;transition:opacity 0.6s ease;pointer-events:none;"></div>
@@ -255,6 +261,179 @@
 
 </div>
 
+<div id="painelAmigosOverlay" style="display:none;position:fixed;inset:0;z-index:6500;background:rgba(0,0,0,.6);" onclick="fecharPainelAmigos()"></div>
+<div id="painelAmigos" style="display:none;position:fixed;top:0;left:0;bottom:0;width:min(85vw,340px);background:#120c09;border-right:1px solid rgba(196,169,91,0.25);z-index:6501;padding:20px 16px;flex-direction:column;transform:translateX(-100%);transition:transform .3s ease;color:#F8F4E3;font-family:'EB Garamond',serif;">
+
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+    <div>
+      <div style="font-family:'Cinzel',serif;color:#E8CC80;font-size:17px;letter-spacing:.04em;">Amigos</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+        <span id="meuNicknameLabel" style="font-size:12px;color:#9A8A70;"></span>
+        <button id="btnCopiarNickname" onclick="copiarMeuNickname()" title="Copiar"
+          style="background:none;border:none;color:#C4A95B;cursor:pointer;padding:2px;display:flex;align-items:center;font-size:13px;">
+          <i class="ti ti-copy"></i>
+        </button>
+      </div>
+      <button onclick="abrirPerfil(window.usuarioAtual.uid)" style="margin-top:4px;background:none;border:none;color:#C4A95B;font-size:11px;padding:0;cursor:pointer;text-decoration:underline;">Ver meu perfil</button>
+    </div>
+    <button onclick="fecharPainelAmigos()" style="background:none;border:none;color:#9A8A70;font-size:20px;cursor:pointer;padding:2px;line-height:1;">✕</button>
+  </div>
+
+  <div style="display:flex;gap:6px;margin-bottom:16px;background:rgba(255,255,255,0.03);border-radius:10px;padding:3px;">
+    <button id="tabAmigosBtn" onclick="trocarAbaAmigos('amigos')" style="flex:1;padding:8px;border:none;border-radius:8px;background:rgba(196,169,91,0.18);color:#E8CC80;font-family:'Cinzel',serif;font-size:12px;letter-spacing:.05em;cursor:pointer;">AMIGOS</button>
+    <button id="tabGruposBtn" onclick="trocarAbaAmigos('grupos')" style="flex:1;padding:8px;border:none;border-radius:8px;background:transparent;color:#9A8A70;font-family:'Cinzel',serif;font-size:12px;letter-spacing:.05em;cursor:pointer;">GRUPOS</button>
+  </div>
+
+  <div id="abaAmigosConteudo" style="flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column;">
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <input id="buscaAmigoInput" placeholder="Nickname#0000" style="flex:1;background:#1b120c;border:1px solid rgba(196,169,91,0.25);border-radius:8px;padding:9px 12px;color:#F8F4E3;font-size:13px;">
+      <button onclick="enviarSolicitacaoAmizade()" style="width:38px;border-radius:8px;border:none;background:#C4A95B;color:#1a0e05;font-weight:bold;font-size:16px;cursor:pointer;">+</button>
+    </div>
+    <div id="listaAmigos" style="display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+
+  <div id="abaGruposConteudo" style="display:none;flex:1;overflow-y:auto;min-height:0;flex-direction:column;">
+    <button id="btnMostrarCriarGrupo" onclick="mostrarFormCriarGrupo()" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(196,169,91,0.35);background:rgba(196,169,91,0.1);color:#E8CC80;font-family:'Cinzel',serif;font-size:13px;cursor:pointer;margin-bottom:14px;">+ Criar grupo</button>
+
+    <div id="formCriarGrupo" style="display:none;background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.2);border-radius:10px;padding:12px;margin-bottom:14px;">
+      <input id="nomeGrupoInput" placeholder="Nome do grupo" style="width:100%;background:#1b120c;border:1px solid rgba(196,169,91,0.25);border-radius:8px;padding:9px 12px;color:#F8F4E3;font-size:13px;margin-bottom:10px;box-sizing:border-box;">
+      <div style="font-size:11px;color:#9A8A70;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Convidar amigos</div>
+      <div id="listaAmigosParaGrupo" style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;margin-bottom:12px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="cancelarCriarGrupo()" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(196,169,91,0.25);background:transparent;color:#9A8A70;font-size:13px;cursor:pointer;">Cancelar</button>
+        <button onclick="confirmarCriarGrupo()" style="flex:1;padding:8px;border-radius:8px;border:none;background:#C4A95B;color:#1a0e05;font-weight:bold;font-size:13px;cursor:pointer;">Criar</button>
+      </div>
+    </div>
+
+    <div id="listaGrupos" style="display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+
+</div>
+
+<!-- ================= DETALHE DO GRUPO ================= -->
+<!-- ================= DAR ITEM (JOGADOR) ================= -->
+<div id="modalDarItemOverlay" style="display:none;position:fixed;inset:0;z-index:7000;background:rgba(0,0,0,.8);" onclick="fecharDarItem()"></div>
+<div id="modalDarItem" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:7001;width:min(90vw,360px);max-height:75vh;overflow-y:auto;background:#120c09;border:1px solid rgba(196,169,91,0.25);border-radius:14px;padding:18px;color:#F8F4E3;font-family:'EB Garamond',serif;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <span style="font-family:'Cinzel',serif;color:#E8CC80;font-size:15px;">Dar pra quem?</span>
+    <button onclick="fecharDarItem()" style="background:none;border:none;color:#9A8A70;font-size:18px;cursor:pointer;">✕</button>
+  </div>
+  <div id="listaDarItem" style="display:flex;flex-direction:column;gap:8px;"></div>
+</div>
+
+<!-- ================= DAR ITEM (MESTRE) ================= -->
+<div id="modalDarItemMestreOverlay" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.8);" onclick="fecharDarItemMestre()"></div>
+<div id="modalDarItemMestre" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100001;width:min(90vw,360px);max-height:75vh;overflow-y:auto;background:#120c09;border:1px solid rgba(196,169,91,0.25);border-radius:14px;padding:18px;color:#F8F4E3;font-family:'EB Garamond',serif;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <span style="font-family:'Cinzel',serif;color:#E8CC80;font-size:15px;">Dar pra quem?</span>
+    <button onclick="fecharDarItemMestre()" style="background:none;border:none;color:#9A8A70;font-size:18px;cursor:pointer;">✕</button>
+  </div>
+  <div id="listaDarItemMestre" style="display:flex;flex-direction:column;gap:8px;"></div>
+</div>
+
+<!-- ================= ITENS RECEBIDOS ================= -->
+<div id="modalInboxItensOverlay" style="display:none;position:fixed;inset:0;z-index:7000;background:rgba(0,0,0,.8);" onclick="fecharInboxItens()"></div>
+<div id="modalInboxItens" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:7001;width:min(92vw,380px);max-height:80vh;overflow-y:auto;background:#120c09;border:1px solid rgba(196,169,91,0.25);border-radius:14px;padding:18px;color:#F8F4E3;font-family:'EB Garamond',serif;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <span style="font-family:'Cinzel',serif;color:#E8CC80;font-size:15px;">Itens recebidos</span>
+    <button onclick="fecharInboxItens()" style="background:none;border:none;color:#9A8A70;font-size:18px;cursor:pointer;">✕</button>
+  </div>
+  <div id="listaInboxItens" style="display:flex;flex-direction:column;gap:8px;"></div>
+</div>
+
+<!-- ================= PERFIL ================= -->
+<div id="modalPerfilOverlay" style="display:none;position:fixed;inset:0;z-index:6700;background:rgba(0,0,0,.8);" onclick="fecharPerfil()"></div>
+<div id="modalPerfil" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6701;width:min(92vw,400px);max-height:88vh;overflow-y:auto;overflow-x:hidden;background:#0e0907;border:1px solid rgba(196,169,91,0.25);border-radius:16px;color:#F8F4E3;font-family:'EB Garamond',serif;">
+<button onclick="fecharPerfil()" style="position:absolute;top:10px;right:10px;z-index:5;background:rgba(0,0,0,.5);border:none;color:#F8F4E3;font-size:18px;width:30px;height:30px;padding:0;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+  <div id="perfilFundo" style="height:110px;background-size:cover;background-position:center;background-color:#1b120c;border-radius:16px 16px 0 0;position:relative;">
+    <button id="btnMudarFundo" onclick="document.getElementById('inputFundoPerfil').click()" style="display:none;position:absolute;bottom:8px;right:8px;font-size:11px;padding:5px 10px;border-radius:8px;border:1px solid rgba(196,169,91,0.4);background:rgba(0,0,0,.5);color:#E8CC80;cursor:pointer;">Trocar fundo</button>
+    <input type="file" id="inputFundoPerfil" accept="image/*" style="display:none;" onchange="uploadImagemPerfil(this, 'fundo')">
+  </div>
+
+  <div style="text-align:center;margin-top:-45px;position:relative;pointer-events:none;">
+    <div id="perfilAvatarWrap" style="display:inline-block;position:relative;pointer-events:auto;">
+      <div id="perfilAvatar" style="width:90px;height:90px;border-radius:50%;background-color:#2a1e14;background-size:cover;background-position:center;border:3px solid #0e0907;box-shadow:0 0 0 1px rgba(196,169,91,0.4);"></div>
+      <button id="btnMudarAvatar" onclick="document.getElementById('inputAvatarPerfil').click()" style="display:none;position:absolute;bottom:0;right:0;width:26px;height:26px;border-radius:50%;background:#C4A95B;border:2px solid #0e0907;color:#1a0e05;font-size:12px;cursor:pointer;">✎</button>
+      <input type="file" id="inputAvatarPerfil" accept="image/*" style="display:none;" onchange="uploadImagemPerfil(this, 'avatar')">
+    </div>
+    <div id="perfilNomeTag" style="margin-top:8px;font-family:'Cinzel',serif;color:#E8CC80;font-size:16px;"></div>
+  </div>
+
+  <div style="padding:16px;">
+<button id="btnVerMeuPerfil" onclick="abrirPerfil(window.usuarioAtual.uid)" style="display:none;width:100%;margin-bottom:12px;padding:8px;border-radius:8px;border:1px solid rgba(196,169,91,0.3);background:transparent;color:#E8CC80;font-size:12px;cursor:pointer;">← Ver meu perfil</button>
+<div id="perfilBioView" style="background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.15);border-radius:10px;padding:10px 12px;font-size:13px;color:#cdb791;min-height:20px;word-break:break-word;overflow-wrap:anywhere;"></div>    <textarea id="perfilBioEdit" maxlength="200" placeholder="Fale um pouco sobre você..." style="display:none;width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.25);border-radius:10px;padding:10px 12px;font-size:13px;color:#F8F4E3;box-sizing:border-box;min-height:60px;font-family:inherit;"></textarea>
+    <button id="btnSalvarBio" onclick="salvarBioPerfil()" style="display:none;margin-top:6px;width:100%;padding:8px;border-radius:8px;border:none;background:#C4A95B;color:#1a0e05;font-weight:bold;font-size:12px;cursor:pointer;">Salvar bio</button>
+
+    <div style="font-size:11px;color:#9A8A70;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px;">Personagens</div>
+    <div id="perfilShowcase" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
+    <button id="btnEscolherDestaque" onclick="abrirEscolherDestaque()" style="display:none;margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid rgba(196,169,91,0.3);background:transparent;color:#E8CC80;font-size:12px;cursor:pointer;">Escolher personagens em destaque</button>
+  </div>
+</div>
+
+<!-- ================= ESCOLHER PERSONAGENS DESTAQUE ================= -->
+<div id="modalEscolherDestaqueOverlay" style="display:none;position:fixed;inset:0;z-index:6800;background:rgba(0,0,0,.8);" onclick="fecharEscolherDestaque()"></div>
+<div id="modalEscolherDestaque" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6801;width:min(90vw,380px);max-height:80vh;overflow-y:auto;background:#120c09;border:1px solid rgba(196,169,91,0.25);border-radius:14px;padding:18px;color:#F8F4E3;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <span style="font-family:'Cinzel',serif;color:#E8CC80;font-size:15px;">Escolha até 4</span>
+    <button onclick="fecharEscolherDestaque()" style="background:none;border:none;color:#9A8A70;font-size:18px;cursor:pointer;">✕</button>
+  </div>
+  <div id="listaEscolherDestaque" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
+  <button onclick="salvarDestaquePerfil()" style="width:100%;padding:10px;border-radius:8px;border:none;background:#C4A95B;color:#1a0e05;font-weight:bold;font-size:13px;cursor:pointer;">Salvar</button>
+</div>
+
+<!-- ================= EDITAR CAMPANHA ================= -->
+<div id="modalEditarCampanhaOverlay" style="display:none;position:fixed;inset:0;z-index:6900;background:rgba(0,0,0,.8);" onclick="fecharEditarCampanha()"></div>
+<div id="modalEditarCampanha" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6901;width:min(90vw,380px);max-height:85vh;overflow-y:auto;background:#120c09;border:1px solid rgba(196,169,91,0.25);border-radius:14px;padding:18px;color:#F8F4E3;font-family:'EB Garamond',serif;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <span style="font-family:'Cinzel',serif;color:#E8CC80;font-size:16px;">Editar campanha</span>
+    <button onclick="fecharEditarCampanha()" style="background:none;border:none;color:#9A8A70;font-size:18px;cursor:pointer;">✕</button>
+  </div>
+
+  <input id="editCampanhaNome" placeholder="Nome da campanha" style="width:100%;background:#1b120c;border:1px solid rgba(196,169,91,0.25);border-radius:8px;padding:9px 12px;color:#F8F4E3;font-size:13px;margin-bottom:8px;box-sizing:border-box;">
+  <input id="editCampanhaSistema" placeholder="Sistema usado" style="width:100%;background:#1b120c;border:1px solid rgba(196,169,91,0.25);border-radius:8px;padding:9px 12px;color:#F8F4E3;font-size:13px;margin-bottom:8px;box-sizing:border-box;">
+  <textarea id="editCampanhaDescricao" placeholder="Descrição breve" style="width:100%;background:#1b120c;border:1px solid rgba(196,169,91,0.25);border-radius:8px;padding:9px 12px;color:#F8F4E3;font-size:13px;margin-bottom:8px;box-sizing:border-box;min-height:60px;font-family:inherit;"></textarea>
+
+  <select id="editCampanhaGrupo" style="width:100%;background:#1b120c;border:1px solid rgba(196,169,91,0.25);border-radius:8px;padding:9px 12px;color:#F8F4E3;font-size:13px;margin-bottom:14px;box-sizing:border-box;">
+    <option value="">Sem grupo vinculado</option>
+  </select>
+
+  <button onclick="salvarEdicaoCampanha()" style="width:100%;padding:10px;border-radius:8px;border:none;background:#C4A95B;color:#1a0e05;font-weight:bold;font-size:13px;cursor:pointer;">Salvar</button>
+</div>
+
+<div id="modalGrupoDetalheOverlay" style="display:none;position:fixed;inset:0;z-index:6600;background:rgba(0,0,0,.75);" onclick="fecharDetalheGrupo()"></div>
+<div id="modalGrupoDetalhe" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6601;width:min(90vw,380px);max-height:80vh;overflow-y:auto;background:#120c09;border:1px solid rgba(196,169,91,0.25);border-radius:14px;padding:20px;color:#F8F4E3;font-family:'EB Garamond',serif;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <span id="detalheGrupoNome" style="font-family:'Cinzel',serif;color:#E8CC80;font-size:17px;"></span>
+    <button onclick="fecharDetalheGrupo()" style="background:none;border:none;color:#9A8A70;font-size:20px;cursor:pointer;padding:2px;line-height:1;">✕</button>
+  </div>
+  <div id="detalheGrupoRenomear" style="display:none;gap:8px;margin-bottom:14px;">
+    <input id="renomearGrupoInput" style="flex:1;background:#1b120c;border:1px solid rgba(196,169,91,0.25);border-radius:8px;padding:8px 10px;color:#F8F4E3;font-size:13px;">
+    <button onclick="salvarRenomearGrupo()" style="padding:0 14px;border-radius:8px;border:none;background:#C4A95B;color:#1a0e05;font-weight:bold;cursor:pointer;">OK</button>
+  </div>
+  <div id="detalheGrupoMembros" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
+  <div id="detalheGrupoAcoes" style="display:flex;flex-direction:column;gap:8px;"></div>
+</div>
+
+<!-- ================= CONFIRMAÇÃO BONITA ================= -->
+<div id="modalConfirmBonitoOverlay" style="display:none;position:fixed;inset:0;z-index:200000;background:rgba(0,0,0,.78);" onclick="window._confirmBonitoResolve && window._confirmBonitoResolve(false)"></div>
+<div id="modalConfirmBonito" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:200001;width:min(88vw,340px);background:#120c09;border:1px solid rgba(196,169,91,0.3);border-radius:16px;padding:24px 20px 20px;color:#F8F4E3;font-family:'EB Garamond',serif;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+  <div style="font-size:24px;margin-bottom:10px;color:#C4A95B;">⚠</div>
+  <div id="confirmBonitoTexto" style="font-size:15px;line-height:1.5;color:#F0E4D0;margin-bottom:22px;"></div>
+  <div style="display:flex;gap:10px;">
+    <button onclick="window._confirmBonitoResolve && window._confirmBonitoResolve(false)" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(196,169,91,0.3);background:transparent;color:#9A8A70;font-family:'Cinzel',serif;font-size:13px;font-weight:bold;letter-spacing:.03em;cursor:pointer;">Cancelar</button>
+    <button onclick="window._confirmBonitoResolve && window._confirmBonitoResolve(true)" style="flex:1;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#e05050,#7B1E28);color:#fff;font-family:'Cinzel',serif;font-weight:bold;font-size:13px;letter-spacing:.03em;cursor:pointer;">Confirmar</button>
+  </div>
+</div>
+
+<!-- ================= MENU DE AÇÕES DO MEMBRO ================= -->
+<div id="modalAcoesMembroOverlay" style="display:none;position:fixed;inset:0;z-index:200000;background:rgba(0,0,0,.78);" onclick="fecharAcoesMembro()"></div>
+<div id="modalAcoesMembro" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:200001;width:min(85vw,300px);background:#120c09;border:1px solid rgba(196,169,91,0.3);border-radius:16px;padding:18px;color:#F8F4E3;font-family:'EB Garamond',serif;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+  <div id="acoesMembroNome" style="font-family:'Cinzel',serif;font-size:15px;color:#E8CC80;margin-bottom:14px;"></div>
+  <button id="acoesMembroBtnPerfil" style="width:100%;margin-bottom:8px;padding:10px;border-radius:8px;border:1px solid rgba(196,169,91,0.3);background:transparent;color:#F0E4D0;font-size:13px;cursor:pointer;">👁 Exibir perfil</button>
+  <button id="acoesMembroBtnAmizade" style="width:100%;margin-bottom:8px;padding:10px;border-radius:8px;border:none;background:#C4A95B;color:#1a0e05;font-weight:bold;font-size:13px;cursor:pointer;">➕ Adicionar amigo</button>
+  <button onclick="fecharAcoesMembro()" style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#9A8A70;font-size:12px;cursor:pointer;">Cancelar</button>
+</div>
+
 <div id="telaCampanhasMaster" class="master-page tela-campanhas-master" style="display:none;">
   <div class="simbolos-bg"></div>
 
@@ -291,6 +470,10 @@
         id="novaCampanhaDescricao"
         placeholder="Descrição breve da campanha"
       ></textarea>
+
+      <select id="novaCampanhaGrupo" style="width:100%;background:#f5ecd8;color:#3c2c1c;border:1px solid #cbb98a;border-radius:8px;padding:10px 12px;font-size:14px;margin:5px 0;box-sizing:border-box;">
+        <option value="">Sem grupo vinculado</option>
+      </select>
 
       <label class="master-upload">
   Escolher imagem da campanha
@@ -356,6 +539,9 @@
   </button>
   <button class="master-tab-btn" title="Combate" onclick="trocarAbaMaster('combateMaster', this)">
     <span class="tab-icone"><i class="ti ti-swords"></i></span><span class="tab-label">Combate</span>
+  </button>
+  <button class="master-tab-btn" title="Grupo" onclick="trocarAbaMaster('grupoMaster', this)">
+    <span class="tab-icone"><i class="ti ti-users"></i></span><span class="tab-label">Grupo</span>
   </button>
 </div>
 
@@ -488,10 +674,10 @@
   <!-- ================= COMPÊNDIO ================= -->
 <section id="abaMaster-compendio" class="master-aba" style="display:none;">
 
-<h2 class="Compendio-titulo">Compendio</h2>
-<p class="master-desc">
-  Todos os monstros criados aparecem aqui.
-</p>
+<div class="lore-header">
+  <h2 class="Compendio-titulo">Compendio</h2>
+  <p class="master-desc">Todos os monstros criados aparecem aqui.</p>
+</div>
 
     <div class="compendio-controles">
   <input
@@ -534,6 +720,9 @@
   </button>
   <button class="criar-tipo-btn" onclick="trocarTipoCriar('item', this)">
     <span>Item</span>
+  </button>
+  <button class="criar-tipo-btn" onclick="trocarTipoCriar('mapa', this)">
+    <span>Mapa</span>
   </button>
   <button class="criar-tipo-btn" onclick="trocarTipoCriar('encontro', this)">
   <span>Encontro</span>
@@ -754,6 +943,18 @@
     </div>
   </div>
 
+  <!-- ===== MAPA ===== -->
+  <div id="criarForm-mapa" class="criar-form-panel" style="display:none;">
+    <div class="criar-form-titulo">Criar Mapa</div>
+    <div class="form-master-limpo">
+      <input id="mapaMasterNome" placeholder="Nome do mapa">
+      <textarea id="mapaMasterDesc" placeholder="Descrição / notas do mestre"></textarea>
+      <label class="master-upload" style="display:block; margin-bottom:8px;">📷 Imagem do mapa<input id="mapaMasterImagemInput" type="file" accept="image/*" onchange="previewImagemMapaMestre()"></label>
+      <img id="previewMapaMaster" class="preview-monstro" src="" style="display:none;">
+      <button class="btn-master-principal" onclick="salvarMapaMestre()">⚡ Salvar Mapa</button>
+    </div>
+  </div>
+
   <!-- ===== ENCONTRO ===== -->
   <div id="criarForm-encontro" class="criar-form-panel" style="display:none;">
     <div class="criar-form-titulo">Criar Encontro</div>
@@ -788,15 +989,38 @@
 
   <!-- ================= COMBATE MASTER ================= -->
   <section id="abaMaster-combateMaster" class="master-aba" style="display:none;">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-    <div>
-      <h3 class="titulo-secao" style="margin:0;">Combate</h3>
-      <p class="master-desc" style="margin:0;">Envie monstros do compêndio para organizar a sessão.</p>
-    </div>
+  <div class="combate-cabecalho">
+    <h3 class="lore-titulo">Combate</h3>
+    <p class="master-desc">Envie monstros do compêndio para organizar a sessão.</p>
     <button class="btn-iniciativa-abrir" onclick="abrirPainelIniciativa()">☰</button>
   </div>
   <div id="listaCombateMestre" class="combate-master-lista"></div>
 </section>
+
+<section id="abaMaster-grupoMaster" class="master-aba" style="display:none;">
+  <div class="lore-header">
+    <h2 class="lore-titulo">Grupo</h2>
+    <p class="master-desc">Acompanhe as fichas dos jogadores em tempo real.</p>
+  </div>
+  <div id="grupoMasterConteudo"></div>
+</section>
+</div>
+
+<div id="fichaFlutuanteOverlay" style="display:none;position:fixed;inset:0;z-index:90000;background:rgba(0,0,0,.7);" onclick="fecharFichaFlutuante()"></div>
+
+<div id="fichaFlutuantePeekEsq" onclick="window.trocarFichaFlutuante(-1)" style="display:none;position:fixed;top:50%;left:calc(50% - 380px);transform:translate(-50%,-50%) scale(0.82);z-index:90001;width:min(45vw,280px);max-height:68vh;background:#FDFAF0;border:1px solid rgba(196,169,91,0.25);border-radius:20px;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,0.4);opacity:0.55;cursor:pointer;"></div>
+<div id="fichaFlutuantePeekDir" onclick="window.trocarFichaFlutuante(1)" style="display:none;position:fixed;top:50%;left:calc(50% + 380px);transform:translate(-50%,-50%) scale(0.82);z-index:90001;width:min(45vw,280px);max-height:68vh;background:#FDFAF0;border:1px solid rgba(196,169,91,0.25);border-radius:20px;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,0.4);opacity:0.55;cursor:pointer;"></div>
+
+<div id="fichaFlutuante" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:90002;width:min(90vw,440px);max-height:88vh;background:#FDFAF0;border:1px solid rgba(196,169,91,0.35);border-radius:20px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,0.55);flex-direction:column;">
+  <div style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:2px 8px 0 14px;flex-shrink:0;">
+    <button onclick="window.trocarFichaFlutuante(-1)" style="background:none;border:none;font-size:20px;color:#8a2c22;cursor:pointer;padding:6px 10px;">‹</button>
+    <span id="fichaFlutuanteContador" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:11px;color:#7A6A50;letter-spacing:.05em;"></span>
+    <div style="display:flex;align-items:center;">
+      <button onclick="window.trocarFichaFlutuante(1)" style="background:none;border:none;font-size:20px;color:#8a2c22;cursor:pointer;padding:6px 10px;">›</button>
+      <button onclick="fecharFichaFlutuante()" style="background:none;border:none;font-size:18px;color:#7A6A50;cursor:pointer;padding:6px 8px;">✕</button>
+    </div>
+  </div>
+  <div id="fichaFlutuanteConteudo" style="overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0 16px 14px;"></div>
 </div>
 
 <!-- PAINEL INICIATIVA -->
@@ -863,7 +1087,13 @@
 
       <!-- ================= PERSONAGEM ================= -->
       <div class="aba" id="personagem">
-        <button class="voltar" onclick="voltarInicio()">← Voltar</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <button class="voltar" onclick="voltarInicio()">← Voltar</button>
+          <button id="btnInboxItens" onclick="abrirInboxItens()" style="position:relative;background:#4a3b31;border:none;color:#f1e6cf;border-radius:10px;padding:8px 12px;cursor:pointer;font-size:13px;">
+            Itens recebidos
+            <span id="badgeInboxItens" style="display:none;position:absolute;top:-6px;right:-6px;background:#b83a2f;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:flex;align-items:center;justify-content:center;">0</span>
+          </button>
+        </div>
 
         <div class="personagem-topo">
           <!-- CAMPOS -->
@@ -2184,7 +2414,12 @@
   getDoc,
   collection,
   getDocs,
-  deleteDoc
+  deleteDoc,
+  updateDoc,
+  arrayUnion,
+  query,
+  where,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import {
@@ -2220,6 +2455,13 @@ import {
   window.setDoc = setDoc;
   window.getDoc = getDoc;
   window.deleteDoc = deleteDoc;
+  window.updateDoc = updateDoc;
+  window.arrayUnion = arrayUnion;
+  window.query = query;
+  window.where = where;
+  window.collection = collection;
+  window.getDocs = getDocs;
+  window.onSnapshot = onSnapshot;
 
   await setPersistence(auth, browserLocalPersistence);
 
@@ -2545,6 +2787,1223 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
       mostrarErroLogin("Email de recuperação enviado. Verifique sua caixa de entrada ou spam.");
     } catch (e) {
       mostrarErroLogin(tratarErroFirebase(e.code));
+    }
+  };
+
+  // ================= PAINEL DE AMIGOS =================
+
+  window.abrirPainelAmigos = function () {
+    document.getElementById("painelAmigosOverlay").style.display = "block";
+    const painel = document.getElementById("painelAmigos");
+    painel.style.display = "flex";
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      painel.style.transform = "translateX(0)";
+    }));
+    mostrarMeuNickname();
+    carregarAmigos();
+  };
+
+  window.fecharPainelAmigos = function () {
+    const painel = document.getElementById("painelAmigos");
+    painel.style.transform = "translateX(-100%)";
+    setTimeout(() => {
+      painel.style.display = "none";
+      document.getElementById("painelAmigosOverlay").style.display = "none";
+    }, 300);
+  };
+
+  window.trocarAbaAmigos = function (aba) {
+    const btnAmigos = document.getElementById("tabAmigosBtn");
+    const btnGrupos = document.getElementById("tabGruposBtn");
+    const contAmigos = document.getElementById("abaAmigosConteudo");
+    const contGrupos = document.getElementById("abaGruposConteudo");
+
+    if (aba === "amigos") {
+      contAmigos.style.display = "flex";
+      contGrupos.style.display = "none";
+      btnAmigos.style.background = "rgba(196,169,91,0.18)";
+      btnAmigos.style.color = "#E8CC80";
+      btnGrupos.style.background = "transparent";
+      btnGrupos.style.color = "#9A8A70";
+    } else {
+      contAmigos.style.display = "none";
+      contGrupos.style.display = "flex";
+      btnGrupos.style.background = "rgba(196,169,91,0.18)";
+      btnGrupos.style.color = "#E8CC80";
+      btnAmigos.style.background = "transparent";
+      btnAmigos.style.color = "#9A8A70";
+      if (typeof window.carregarGrupos === "function") window.carregarGrupos();
+    }
+  };
+
+  async function mostrarMeuNickname() {
+    const label = document.getElementById("meuNicknameLabel");
+    if (!label || !window.usuarioAtual) return;
+    try {
+      const snap = await getDoc(doc(db, "usuarios", window.usuarioAtual.uid));
+      const dados = snap.exists() ? snap.data() : {};
+      window._meuNicknameCompleto = dados.nickname && dados.tag
+        ? `${dados.nickname}#${dados.tag}`
+        : "";
+      label.innerHTML = dados.nickname && dados.tag
+        ? `${escapeHtml(dados.nickname)}<span style="opacity:.5;">#${escapeHtml(dados.tag)}</span>`
+        : "";
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  window.copiarMeuNickname = async function () {
+    const texto = window._meuNicknameCompleto;
+    if (!texto) return;
+
+    const btn = document.getElementById("btnCopiarNickname");
+    const iconeOriginal = btn.innerHTML;
+
+    try {
+      await navigator.clipboard.writeText(texto);
+    } catch (e) {
+      const temp = document.createElement("textarea");
+      temp.value = texto;
+      temp.style.position = "fixed";
+      temp.style.opacity = "0";
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand("copy");
+      document.body.removeChild(temp);
+    }
+
+    btn.innerHTML = `<i class="ti ti-check" style="color:#4a7c3a;"></i>`;
+    setTimeout(() => { btn.innerHTML = iconeOriginal; }, 1200);
+  };
+
+  async function carregarAmigos() {
+    const lista = document.getElementById("listaAmigos");
+    const meuUid = window.usuarioAtual.uid;
+    lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;">Carregando...</p>`;
+
+    try {
+      const [solicitacoesSnap, amigosSnap] = await Promise.all([
+        getDocs(collection(db, "usuarios", meuUid, "solicitacoesRecebidas")),
+        getDocs(collection(db, "usuarios", meuUid, "amigos"))
+      ]);
+
+      let html = "";
+
+      if (!solicitacoesSnap.empty) {
+        html += `<div style="font-size:11px;color:#9A8A70;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Pedidos pendentes</div>`;
+        solicitacoesSnap.forEach(docSnap => {
+          const d = docSnap.data();
+          html += `
+            <div style="display:flex;align-items:center;gap:8px;background:rgba(196,169,91,0.08);border:1px solid rgba(196,169,91,0.2);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+              <span style="flex:1;font-size:13px;color:#F8F4E3;">${escapeHtml(d.deNickname)}<span style="opacity:.5;">#${escapeHtml(d.deTag)}</span></span>              <button onclick="responderSolicitacao('${docSnap.id}', true)" style="width:26px;height:26px;padding:0;border-radius:50%;border:none;background:#4a7c3a;color:#fff;cursor:pointer;font-size:12px;">✓</button>
+            <button onclick="responderSolicitacao('${docSnap.id}', false)" style="width:26px;height:26px;padding:0;border-radius:50%;border:none;background:#7B1E28;color:#fff;cursor:pointer;font-size:12px;">✕</button>
+            </div>`;
+        });
+      }
+
+      if (!amigosSnap.empty) {
+        html += `<div style="font-size:11px;color:#9A8A70;text-transform:uppercase;letter-spacing:.08em;margin:${solicitacoesSnap.empty ? "0" : "14px"} 0 6px;">Seus amigos</div>`;
+        amigosSnap.forEach(docSnap => {
+          const d = docSnap.data();
+          html += `
+            <div onclick="abrirPerfil('${docSnap.id}')" style="cursor:pointer;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.12);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+              <span style="flex:1;font-size:13px;color:#F8F4E3;">${escapeHtml(d.nickname)}<span style="opacity:.5;">#${escapeHtml(d.tag)}</span></span>
+            </div>`;
+        });
+      }
+
+      if (solicitacoesSnap.empty && amigosSnap.empty) {
+        html = `<p style="color:#9A8A70;font-size:13px;text-align:center;padding:20px 0;font-style:italic;">Nenhum amigo ainda.</p>`;
+      }
+
+      lista.innerHTML = html;
+    } catch (e) {
+      console.error(e);
+      lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Erro ao carregar: ${e.code || e.message}</p>`;
+    }
+  }
+
+  window.enviarSolicitacaoAmizade = async function () {
+    const input = document.getElementById("buscaAmigoInput");
+    const valor = input.value.trim();
+
+    const partes = valor.split("#");
+    if (partes.length !== 2 || !partes[0] || !partes[1]) {
+      alert("Digite no formato Nickname#0000.");
+      return;
+    }
+    const nicknameLower = partes[0].trim().toLowerCase();
+    const tag = partes[1].trim();
+    const meuUid = window.usuarioAtual.uid;
+
+    try {
+      const tagSnap = await getDoc(doc(db, "tagsUsuario", `${nicknameLower}#${tag}`));
+      if (!tagSnap.exists()) {
+        alert("Nenhum usuário encontrado com esse nome.");
+        return;
+      }
+      const alvoUid = tagSnap.data().uid;
+
+      if (alvoUid === meuUid) {
+        alert("Você não pode adicionar a si mesmo.");
+        return;
+      }
+
+      const jaAmigo = await getDoc(doc(db, "usuarios", meuUid, "amigos", alvoUid));
+      if (jaAmigo.exists()) {
+        alert("Vocês já são amigos.");
+        return;
+      }
+
+      const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
+      const meuDados = meuSnap.exists() ? meuSnap.data() : {};
+
+      await setDoc(doc(db, "usuarios", alvoUid, "solicitacoesRecebidas", meuUid), {
+        deUid: meuUid,
+        deNickname: meuDados.nickname || "",
+        deTag: meuDados.tag || "",
+        criadoEm: new Date().toISOString()
+      });
+
+      input.value = "";
+      alert("Solicitação enviada!");
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao enviar solicitação: " + (e.code || e.message));
+    }
+  };
+
+  window.responderSolicitacao = async function (deUid, aceitar) {
+    const meuUid = window.usuarioAtual.uid;
+    try {
+      const reqRef = doc(db, "usuarios", meuUid, "solicitacoesRecebidas", deUid);
+      const reqSnap = await getDoc(reqRef);
+      if (!reqSnap.exists()) return;
+      const d = reqSnap.data();
+
+      if (aceitar) {
+        const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
+        const meuDados = meuSnap.exists() ? meuSnap.data() : {};
+
+        await setDoc(doc(db, "usuarios", meuUid, "amigos", deUid), {
+          nickname: d.deNickname,
+          tag: d.deTag,
+          desde: new Date().toISOString()
+        });
+
+        await setDoc(doc(db, "usuarios", deUid, "amigos", meuUid), {
+          nickname: meuDados.nickname || "",
+          tag: meuDados.tag || "",
+          desde: new Date().toISOString()
+        });
+      }
+
+      await deleteDoc(reqRef);
+      carregarAmigos();
+    } catch (e) {
+      console.error(e);
+      alert("Erro: " + (e.code || e.message));
+    }
+  };
+
+  window.confirmBonito = function (mensagem) {
+    return new Promise(resolve => {
+      document.getElementById("confirmBonitoTexto").textContent = mensagem;
+      document.getElementById("modalConfirmBonitoOverlay").style.display = "block";
+      document.getElementById("modalConfirmBonito").style.display = "block";
+      window._confirmBonitoResolve = (valor) => {
+        document.getElementById("modalConfirmBonitoOverlay").style.display = "none";
+        document.getElementById("modalConfirmBonito").style.display = "none";
+        window._confirmBonitoResolve = null;
+        resolve(valor);
+      };
+    });
+  };
+
+  window.abrirAcoesMembro = function (uid, nickname, tag) {
+    document.getElementById("acoesMembroNome").textContent = `${nickname}#${tag}`;
+
+    document.getElementById("acoesMembroBtnPerfil").onclick = function () {
+      fecharAcoesMembro();
+      if (typeof window.abrirPerfil === "function") window.abrirPerfil(uid);
+      else alert("Perfil ainda não foi portado pra essa versão.");
+    };
+
+    document.getElementById("acoesMembroBtnAmizade").onclick = function () {
+      fecharAcoesMembro();
+      window.enviarSolicitacaoAmizadePorUid(uid, nickname, tag);
+    };
+
+    document.getElementById("modalAcoesMembroOverlay").style.display = "block";
+    document.getElementById("modalAcoesMembro").style.display = "block";
+  };
+
+  window.fecharAcoesMembro = function () {
+    document.getElementById("modalAcoesMembroOverlay").style.display = "none";
+    document.getElementById("modalAcoesMembro").style.display = "none";
+  };
+
+  window.enviarSolicitacaoAmizadePorUid = async function (alvoUid, alvoNickname, alvoTag) {
+    const meuUid = window.usuarioAtual.uid;
+    if (alvoUid === meuUid) return;
+
+    try {
+      const jaAmigo = await getDoc(doc(db, "usuarios", meuUid, "amigos", alvoUid));
+      if (jaAmigo.exists()) {
+        alert("Vocês já são amigos.");
+        return;
+      }
+
+      const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
+      const meuDados = meuSnap.exists() ? meuSnap.data() : {};
+
+      await setDoc(doc(db, "usuarios", alvoUid, "solicitacoesRecebidas", meuUid), {
+        deUid: meuUid,
+        deNickname: meuDados.nickname || "",
+        deTag: meuDados.tag || "",
+        criadoEm: new Date().toISOString()
+      });
+
+      alert(`Solicitação enviada pra ${alvoNickname}!`);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao enviar solicitação: " + (e.code || e.message));
+    }
+  };
+
+  // ================= GRUPOS =================
+
+  window.carregarGrupos = async function () {
+    const lista = document.getElementById("listaGrupos");
+    const meuUid = window.usuarioAtual.uid;
+    lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;">Carregando...</p>`;
+
+    let htmlConvites = "";
+    let htmlGrupos = "";
+
+    try {
+      const convitesSnap = await getDocs(collection(db, "usuarios", meuUid, "convitesGrupo"));
+      if (!convitesSnap.empty) {
+        htmlConvites += `<div style="font-size:11px;color:#9A8A70;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Convites pendentes</div>`;
+        convitesSnap.forEach(docSnap => {
+          const d = docSnap.data();
+          htmlConvites += `
+            <div style="display:flex;align-items:center;gap:8px;background:rgba(196,169,91,0.08);border:1px solid rgba(196,169,91,0.2);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+              <div style="flex:1;">
+                <div style="font-size:13px;color:#F8F4E3;">${escapeHtml(d.nomeGrupo)}</div>
+                <div style="font-size:11px;color:#9A8A70;">de ${escapeHtml(d.deNickname)}<span style="opacity:.5;">#${escapeHtml(d.deTag)}</span></div>
+              </div>
+              <button onclick="responderConviteGrupo('${docSnap.id}', true)" style="width:26px;height:26px;padding:0;border-radius:50%;border:none;background:#4a7c3a;color:#fff;cursor:pointer;font-size:12px;">✓</button>
+              <button onclick="responderConviteGrupo('${docSnap.id}', false)" style="width:26px;height:26px;padding:0;border-radius:50%;border:none;background:#7B1E28;color:#fff;cursor:pointer;font-size:12px;">✕</button>
+            </div>`;
+        });
+      }
+    } catch (e) {
+      console.error("Erro ao carregar convites:", e);
+      htmlConvites = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Erro ao carregar convites: ${e.code || e.message}</p>`;
+    }
+
+    try {
+      const gruposSnap = await getDocs(query(collection(db, "grupos"), where("membrosUids", "array-contains", meuUid)));
+      if (!gruposSnap.empty) {
+        htmlGrupos += `<div style="font-size:11px;color:#9A8A70;text-transform:uppercase;letter-spacing:.08em;margin:${htmlConvites ? "14px" : "0"} 0 6px;">Seus grupos</div>`;
+        gruposSnap.forEach(docSnap => {
+          const d = docSnap.data();
+          const souMestre = d.criadoPor === meuUid;
+          htmlGrupos += `
+            <div onclick="abrirDetalheGrupo('${docSnap.id}')" style="cursor:pointer;background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.15);border-radius:10px;padding:10px 12px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:14px;color:#F8F4E3;font-weight:bold;">${escapeHtml(d.nome)}</span>
+                ${souMestre ? `<span style="font-size:10px;color:#C4A95B;text-transform:uppercase;letter-spacing:.05em;">Mestre</span>` : ""}
+              </div>
+              <div style="font-size:12px;color:#9A8A70;margin-top:4px;">${(d.membros || []).length} membro${(d.membros || []).length > 1 ? "s" : ""}</div>
+            </div>`;
+        });
+      }
+    } catch (e) {
+      console.error("Erro ao carregar seus grupos:", e);
+      htmlGrupos = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Erro ao carregar seus grupos: ${e.code || e.message}</p>`;
+    }
+
+    const html = htmlConvites + htmlGrupos;
+    lista.innerHTML = html || `<p style="color:#9A8A70;font-size:13px;text-align:center;padding:20px 0;font-style:italic;">Nenhum grupo ainda.</p>`;
+  };
+
+  window.responderConviteGrupo = async function (grupoId, aceitar) {
+    const meuUid = window.usuarioAtual.uid;
+    try {
+      const conviteRef = doc(db, "usuarios", meuUid, "convitesGrupo", grupoId);
+
+      if (aceitar) {
+        const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
+        const meuDados = meuSnap.exists() ? meuSnap.data() : {};
+
+        const grupoRef = doc(db, "grupos", grupoId);
+        const novoMembro = { uid: meuUid, nickname: meuDados.nickname || "", tag: meuDados.tag || "", papel: "jogador" };
+
+        await updateDoc(grupoRef, {
+          membros: arrayUnion(novoMembro),
+          membrosUids: arrayUnion(meuUid)
+        });
+      }
+
+      await deleteDoc(conviteRef);
+      carregarGrupos();
+    } catch (e) {
+      console.error(e);
+      alert("Erro: " + (e.code || e.message));
+    }
+  };
+
+  window.mostrarFormCriarGrupo = async function () {
+    document.getElementById("btnMostrarCriarGrupo").style.display = "none";
+    document.getElementById("formCriarGrupo").style.display = "block";
+
+    const meuUid = window.usuarioAtual.uid;
+    const lista = document.getElementById("listaAmigosParaGrupo");
+    lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;">Carregando...</p>`;
+
+    try {
+      const amigosSnap = await getDocs(collection(db, "usuarios", meuUid, "amigos"));
+      if (amigosSnap.empty) {
+        lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;font-style:italic;">Você ainda não tem amigos pra convidar.</p>`;
+        return;
+      }
+      let html = "";
+      amigosSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        html += `
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F8F4E3;cursor:pointer;">
+            <input type="checkbox" class="checkAmigoGrupo" value="${docSnap.id}" data-nickname="${escapeHtml(d.nickname)}" data-tag="${escapeHtml(d.tag)}" style="width:auto;margin:0;">
+            ${escapeHtml(d.nickname)}<span style="opacity:.5;">#${escapeHtml(d.tag)}</span>
+          </label>`;
+      });
+      lista.innerHTML = html;
+    } catch (e) {
+      console.error(e);
+      lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;">Erro ao carregar amigos.</p>`;
+    }
+  };
+
+  window.cancelarCriarGrupo = function () {
+    document.getElementById("formCriarGrupo").style.display = "none";
+    document.getElementById("btnMostrarCriarGrupo").style.display = "block";
+    document.getElementById("nomeGrupoInput").value = "";
+  };
+
+  window.confirmarCriarGrupo = async function () {
+    const nome = document.getElementById("nomeGrupoInput").value.trim();
+    if (!nome) {
+      alert("Digite um nome pro grupo.");
+      return;
+    }
+
+    const meuUid = window.usuarioAtual.uid;
+    const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
+    const meuDados = meuSnap.exists() ? meuSnap.data() : {};
+
+    const checks = document.querySelectorAll(".checkAmigoGrupo:checked");
+    const convidados = Array.from(checks).map(chk => ({
+      uid: chk.value,
+      nickname: chk.dataset.nickname,
+      tag: chk.dataset.tag
+    }));
+
+    try {
+      const novoGrupoRef = doc(collection(db, "grupos"));
+      await setDoc(novoGrupoRef, {
+        nome,
+        criadoPor: meuUid,
+        criadoEm: new Date().toISOString(),
+        membros: [{
+          uid: meuUid,
+          nickname: meuDados.nickname || "",
+          tag: meuDados.tag || "",
+          papel: "mestre"
+        }],
+        membrosUids: [meuUid],
+        mestresUids: [meuUid]
+      });
+
+      for (const c of convidados) {
+        await setDoc(doc(db, "usuarios", c.uid, "convitesGrupo", novoGrupoRef.id), {
+          grupoId: novoGrupoRef.id,
+          nomeGrupo: nome,
+          deUid: meuUid,
+          deNickname: meuDados.nickname || "",
+          deTag: meuDados.tag || "",
+          criadoEm: new Date().toISOString()
+        });
+      }
+
+      window.cancelarCriarGrupo();
+      carregarGrupos();
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao criar grupo: " + (e.code || e.message));
+    }
+  };
+
+  window.abrirDetalheGrupo = async function (grupoId) {
+    window._grupoAtualId = grupoId;
+    const meuUid = window.usuarioAtual.uid;
+
+    document.getElementById("modalGrupoDetalheOverlay").style.display = "block";
+    document.getElementById("modalGrupoDetalhe").style.display = "block";
+    document.getElementById("detalheGrupoRenomear").style.display = "none";
+
+    const grupoSnap = await getDoc(doc(db, "grupos", grupoId));
+    if (!grupoSnap.exists()) {
+      fecharDetalheGrupo();
+      return;
+    }
+    const g = grupoSnap.data();
+    const souMestre = g.criadoPor === meuUid;
+
+    document.getElementById("detalheGrupoNome").textContent = g.nome;
+
+    const minhasFichas = window.personagens || [];
+    const membrosDiv = document.getElementById("detalheGrupoMembros");
+    membrosDiv.innerHTML = g.membros.map(m => `
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.12);border-radius:8px;padding:8px 10px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div ${m.uid !== meuUid ? `onclick="abrirAcoesMembro('${m.uid}','${escapeHtml(m.nickname)}','${escapeHtml(m.tag)}')" style="cursor:pointer;flex:1;font-size:13px;"` : `style="flex:1;font-size:13px;"`}>${escapeHtml(m.nickname)}<span style="opacity:.5;">#${escapeHtml(m.tag)}</span></div>
+          ${souMestre && m.uid !== meuUid ? `
+            <button onclick="alternarPapelMembro('${m.uid}')" style="font-size:10px;padding:4px 8px;border-radius:6px;border:1px solid rgba(196,169,91,0.3);background:transparent;color:#C4A95B;cursor:pointer;text-transform:uppercase;">${m.papel === "mestre" ? "Mestre" : "Jogador"}</button>
+            <button onclick="removerMembroGrupo('${m.uid}')" style="width:22px;height:22px;padding:0;border-radius:50%;border:none;background:#7B1E28;color:#fff;cursor:pointer;font-size:11px;">✕</button>
+          ` : `<span style="font-size:10px;color:#9A8A70;text-transform:uppercase;">${m.papel === "mestre" ? "Mestre" : "Jogador"}</span>`}
+        </div>
+        ${m.uid === meuUid ? `
+        <select id="selectFichaGrupo" style="margin-top:8px;width:100%;background:#1b120c;border:1px solid rgba(196,169,91,0.25);border-radius:6px;padding:6px 8px;color:#F8F4E3;font-size:12px;">
+          <option value="">— minha ficha nesse grupo —</option>
+          ${minhasFichas.map(f => `<option value="${String(f.id)}" ${String(f.id) === String(m.fichaId) ? "selected" : ""}>${escapeHtml(f.nome || "Sem nome")}</option>`).join("")}
+        </select>
+        <button onclick="window.salvarFichaGrupoBotao(this)" style="margin-top:6px;width:100%;padding:7px;border-radius:6px;border:none;background:#C4A95B;color:#1a0e05;font-weight:bold;font-size:12px;cursor:pointer;">Salvar vínculo</button>
+        <div id="statusFichaGrupo" style="font-size:11px;margin-top:4px;text-align:center;"></div>
+        ` : ""}
+      </div>
+    `).join("");
+
+    const acoesDiv = document.getElementById("detalheGrupoAcoes");
+    let acoesHtml = "";
+    if (souMestre) {
+      acoesHtml += `<button onclick="mostrarRenomearGrupo('${escapeHtml(g.nome)}')" style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(196,169,91,0.3);background:transparent;color:#E8CC80;font-size:13px;cursor:pointer;">Renomear grupo</button>`;
+      acoesHtml += `<button onclick="excluirGrupo()" style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(123,30,40,0.4);background:rgba(123,30,40,0.15);color:#e07a7a;font-size:13px;cursor:pointer;">Excluir grupo</button>`;
+    } else {
+      acoesHtml += `<button onclick="sairDoGrupo()" style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(123,30,40,0.4);background:rgba(123,30,40,0.15);color:#e07a7a;font-size:13px;cursor:pointer;">Sair do grupo</button>`;
+    }
+    acoesDiv.innerHTML = acoesHtml;
+  };
+
+  window.fecharDetalheGrupo = function () {
+    document.getElementById("modalGrupoDetalheOverlay").style.display = "none";
+    document.getElementById("modalGrupoDetalhe").style.display = "none";
+    window._grupoAtualId = null;
+  };
+
+  window.mostrarRenomearGrupo = function (nomeAtual) {
+    const div = document.getElementById("detalheGrupoRenomear");
+    div.style.display = "flex";
+    document.getElementById("renomearGrupoInput").value = nomeAtual;
+  };
+
+  window.salvarRenomearGrupo = async function () {
+    const novoNome = document.getElementById("renomearGrupoInput").value.trim();
+    if (!novoNome || !window._grupoAtualId) return;
+    try {
+      await updateDoc(doc(db, "grupos", window._grupoAtualId), { nome: novoNome });
+      await window.abrirDetalheGrupo(window._grupoAtualId);
+      carregarGrupos();
+    } catch (e) {
+      console.error(e);
+      alert("Erro: " + (e.code || e.message));
+    }
+  };
+
+  window.alternarPapelMembro = async function (uidAlvo) {
+    const grupoId = window._grupoAtualId;
+    if (!grupoId) return;
+    try {
+      const grupoRef = doc(db, "grupos", grupoId);
+      const snap = await getDoc(grupoRef);
+      const g = snap.data();
+      const novosMembros = g.membros.map(m =>
+        m.uid === uidAlvo ? { ...m, papel: m.papel === "mestre" ? "jogador" : "mestre" } : m
+      );
+      const novosMestresUids = novosMembros.filter(m => m.papel === "mestre").map(m => m.uid);
+      await updateDoc(grupoRef, { membros: novosMembros, mestresUids: novosMestresUids });
+      await window.abrirDetalheGrupo(grupoId);
+    } catch (e) {
+      console.error(e);
+      alert("Erro: " + (e.code || e.message));
+    }
+  };
+
+  window.removerMembroGrupo = async function (uidAlvo) {
+    const grupoId = window._grupoAtualId;
+    if (!grupoId) return;
+    if (!(await confirmBonito("Remover esse membro do grupo?"))) return;
+    try {
+      const grupoRef = doc(db, "grupos", grupoId);
+      const snap = await getDoc(grupoRef);
+      const g = snap.data();
+      await updateDoc(grupoRef, {
+        membros: g.membros.filter(m => m.uid !== uidAlvo),
+        membrosUids: g.membrosUids.filter(u => u !== uidAlvo),
+        mestresUids: (g.mestresUids || []).filter(u => u !== uidAlvo)
+      });
+      await window.abrirDetalheGrupo(grupoId);
+      carregarGrupos();
+    } catch (e) {
+      console.error(e);
+      alert("Erro: " + (e.code || e.message));
+    }
+  };
+
+  window.sairDoGrupo = async function () {
+    const grupoId = window._grupoAtualId;
+    const meuUid = window.usuarioAtual.uid;
+    if (!grupoId) return;
+    if (!(await confirmBonito("Sair desse grupo?"))) return;
+    try {
+      const grupoRef = doc(db, "grupos", grupoId);
+      const snap = await getDoc(grupoRef);
+      const g = snap.data();
+      await updateDoc(grupoRef, {
+        membros: g.membros.filter(m => m.uid !== meuUid),
+        membrosUids: g.membrosUids.filter(u => u !== meuUid),
+        mestresUids: (g.mestresUids || []).filter(u => u !== meuUid)
+      });
+      fecharDetalheGrupo();
+      carregarGrupos();
+    } catch (e) {
+      console.error(e);
+      alert("Erro: " + (e.code || e.message));
+    }
+  };
+
+  window.escolherFichaGrupo = async function (selectEl) {
+    const grupoId = window._grupoAtualId;
+    const meuUid = window.usuarioAtual.uid;
+    const novoFichaId = selectEl.value;
+    if (!grupoId) return;
+
+    const grupoRef = doc(db, "grupos", grupoId);
+    const snap = await getDoc(grupoRef);
+    const g = snap.data();
+
+    const novosMembros = g.membros.map(m =>
+      m.uid === meuUid ? { ...m, fichaId: novoFichaId || null } : m
+    );
+    await updateDoc(grupoRef, { membros: novosMembros });
+
+    if (novoFichaId) {
+      const mestresUids = g.membros.filter(m => m.papel === "mestre").map(m => m.uid);
+      await setDoc(doc(db, "usuarios", meuUid, "fichas", novoFichaId), {
+        grupoAtivo: grupoId,
+        mestresAutorizados: mestresUids
+      }, { merge: true });
+
+      // atualiza a cópia em memória também, pra não precisar recarregar a página
+      const fichaLocal = (window.personagens || []).find(f => String(f.id) === String(novoFichaId));
+      if (fichaLocal) fichaLocal.grupoAtivo = grupoId;
+    }
+  };
+
+  window.salvarFichaGrupoBotao = async function (btn) {
+    const select = document.getElementById("selectFichaGrupo");
+    const status = document.getElementById("statusFichaGrupo");
+    if (!select) return;
+
+    const grupoId = window._grupoAtualId;
+    const fichaEscolhida = select.value;
+
+    btn.disabled = true;
+    btn.textContent = "Salvando...";
+    status.textContent = "";
+
+    try {
+      await window.escolherFichaGrupo(select);
+
+      if (!fichaEscolhida) {
+        status.textContent = "✓ Vínculo removido.";
+        status.style.color = "#4a7c3a";
+      } else {
+        const confSnap = await getDoc(doc(db, "usuarios", window.usuarioAtual.uid, "fichas", fichaEscolhida));
+        const grupoAtivoSalvo = confSnap.exists() ? confSnap.data().grupoAtivo : null;
+
+        if (grupoAtivoSalvo === grupoId) {
+          status.textContent = "✓ Vínculo salvo e confirmado!";
+          status.style.color = "#4a7c3a";
+        } else {
+          status.textContent = "✗ Não confirmei o salvamento — tenta de novo.";
+          status.style.color = "#e07a7a";
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      status.textContent = "✗ Erro: " + (e.code || e.message);
+      status.style.color = "#e07a7a";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Salvar vínculo";
+    }
+  };
+
+  window.excluirGrupo = async function () {
+    const grupoId = window._grupoAtualId;
+    if (!grupoId) return;
+    if (!(await confirmBonito("Excluir esse grupo pra sempre? Não dá pra desfazer."))) return;
+    try {
+      await deleteDoc(doc(db, "grupos", grupoId));
+      fecharDetalheGrupo();
+      carregarGrupos();
+    } catch (e) {
+      console.error(e);
+      alert("Erro: " + (e.code || e.message));
+    }
+  };
+
+ window.abrirDarItem = async function (tipo, index) {
+    const ficha = window.personagens?.[personagemAtual];
+    if (!ficha) return;
+
+    if (!ficha.grupoAtivo) {
+      alert("Essa ficha não está vinculada a nenhum grupo. Vá em Amigos → Grupos e escolha essa ficha num grupo primeiro.");
+      return;
+    }
+
+    window._darItemContexto = { tipo, index };
+
+    document.getElementById("modalDarItemOverlay").style.display = "block";
+    document.getElementById("modalDarItem").style.display = "block";
+
+    const lista = document.getElementById("listaDarItem");
+    lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;">Carregando...</p>`;
+
+    try {
+      const grupoSnap = await getDoc(doc(db, "grupos", ficha.grupoAtivo));
+      if (!grupoSnap.exists()) {
+        lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Esse grupo não existe mais. Vá em Amigos → Grupos e vincule essa ficha a um grupo válido.</p>`;
+        return;
+      }
+      const g = grupoSnap.data();
+      const meuUid = window.usuarioAtual.uid;
+      const outros = g.membros.filter(m => m.uid !== meuUid && m.fichaId);
+
+      if (outros.length === 0) {
+        lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;">Ninguém do grupo tem uma ficha vinculada ainda.</p>`;
+        return;
+      }
+
+      lista.innerHTML = outros.map(m => `
+        <button onclick="window.confirmarDarItem('${m.uid}', '${m.fichaId}', '${escapeHtml(m.nickname)}')" style="width:100%;text-align:left;padding:10px 12px;border-radius:8px;border:1px solid rgba(196,169,91,0.2);background:rgba(255,255,255,0.03);color:#F8F4E3;font-size:13px;cursor:pointer;">
+          ${escapeHtml(m.nickname)}<span style="opacity:.5;">#${escapeHtml(m.tag)}</span>
+        </button>
+      `).join("");
+    } catch (e) {
+      console.error(e);
+      if (e.code === "permission-denied") {
+        lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Esse grupo não existe mais. Vá em Amigos → Grupos e vincule essa ficha a um grupo válido.</p>`;
+      } else {
+        lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Erro: ${e.code || e.message}</p>`;
+      }
+    }
+  };
+
+  window.fecharDarItem = function () {
+    document.getElementById("modalDarItemOverlay").style.display = "none";
+    document.getElementById("modalDarItem").style.display = "none";
+    window._darItemContexto = null;
+  };
+
+  window.confirmarDarItem = async function (uidDestino, fichaIdDestino, nomeDestino) {
+    const ctx = window._darItemContexto;
+    if (!ctx) return;
+
+    const ficha = window.personagens[personagemAtual];
+    const arrays = { inventario, armas, armaduras };
+    const arr = arrays[ctx.tipo];
+    const item = arr?.[ctx.index];
+    if (!item) return;
+
+    if (!(await confirmBonito(`Dar "${item.nome || "esse item"}" pra ${nomeDestino}?`))) return;
+
+    try {
+      const meuUid = window.usuarioAtual.uid;
+      const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
+      const meuDados = meuSnap.exists() ? meuSnap.data() : {};
+
+      await setDoc(doc(collection(db, "usuarios", uidDestino, "itensRecebidos")), {
+        tipo: ctx.tipo,
+        item,
+        deUid: meuUid,
+        deNickname: meuDados.nickname || "",
+        deTag: meuDados.tag || "",
+        fichaDestinoId: fichaIdDestino,
+        automatico: false,
+        criadoEm: new Date().toISOString()
+      });
+
+      arr.splice(ctx.index, 1);
+      if (ctx.tipo === "inventario") { window.inventario = inventario; renderInv(); }
+      if (ctx.tipo === "armas") { window.armas = armas; renderArmas(); }
+      if (ctx.tipo === "armaduras") { window.armaduras = armaduras; renderArmaduras(); }
+      salvarTudo();
+
+      window.fecharDarItem();
+      alert("Item enviado!");
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao dar item: " + (e.code || e.message));
+    }
+  };
+
+  window.abrirDarItemMestre = async function (itemId) {
+    const campanha = campanhasMaster[campanhaAtualMaster];
+    if (!campanha) return;
+
+    if (!campanha.grupoVinculado) {
+      alert("Essa campanha não tem grupo vinculado. Edite a campanha e escolha um grupo primeiro.");
+      return;
+    }
+
+    let item = (campanha.itensMaster || []).find(i => String(i.id) === String(itemId));
+    if (!item) item = (itensPadrao || []).find(i => String(i.id) === String(itemId));
+    if (!item) item = (campanha.mapasMaster || []).find(i => String(i.id) === String(itemId));
+    if (!item) return;
+
+    window._darItemMestreContexto = item;
+    const lista = document.getElementById("listaDarItemMestre");
+    lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;">Carregando jogadores...</p>`;
+    document.getElementById("modalDarItemMestreOverlay").style.display = "block";
+    document.getElementById("modalDarItemMestre").style.display = "block";
+
+    getDoc(doc(db, "grupos", campanha.grupoVinculado)).then(snap => {
+      if (!snap.exists()) {
+        lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Esse grupo não existe mais. Edite a campanha e escolha outro.</p>`;
+        return;
+      }
+      const g = snap.data();
+      const meuUid = window.usuarioAtual.uid;
+      const jogadores = g.membros.filter(m => m.uid !== meuUid && m.fichaId);
+
+      if (jogadores.length === 0) {
+        lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;font-style:italic;">Nenhum jogador vinculou uma ficha a esse grupo ainda.</p>`;
+        return;
+      }
+
+      lista.innerHTML = jogadores.map(m => `
+        <button onclick="window.confirmarDarItemMestre('${m.uid}','${m.fichaId}','${escapeHtml(m.nickname)}')" style="width:100%;text-align:left;padding:10px 12px;border-radius:8px;border:1px solid rgba(196,169,91,0.2);background:rgba(255,255,255,0.03);color:#F8F4E3;font-size:13px;cursor:pointer;">${escapeHtml(m.nickname)}<span style="opacity:.5;">#${escapeHtml(m.tag)}</span></button>
+      `).join("");
+    }).catch(e => {
+      console.error(e);
+      if (e.code === "permission-denied") {
+        lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Esse grupo não existe mais. Edite a campanha e escolha outro.</p>`;
+      } else {
+        lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Erro ao carregar jogadores.</p>`;
+      }
+    });
+  };
+
+  window.fecharDarItemMestre = function () {
+    document.getElementById("modalDarItemMestreOverlay").style.display = "none";
+    document.getElementById("modalDarItemMestre").style.display = "none";
+  };
+
+  window.confirmarDarItemMestre = async function (uidDestino, fichaIdDestino, nomeDestino) {
+    const itemOriginal = window._darItemMestreContexto;
+    if (!itemOriginal) return;
+
+    if (!(await confirmBonito(`Dar "${itemOriginal.nome}" pra ${nomeDestino}?`))) return;
+
+    try {
+      const meuUid = window.usuarioAtual.uid;
+      const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
+      const meuDados = meuSnap.exists() ? meuSnap.data() : {};
+
+      const categoria = itemOriginal._tipo === "mapa" ? "mapas" : (itemOriginal.categoria || "inventario");
+
+      let itemParaJogador;
+      if (categoria === "mapas") {
+        itemParaJogador = {
+          nome: itemOriginal.nome,
+          desc: itemOriginal.desc || "",
+          imagemUrl: itemOriginal.imagem || "",
+          imagemDeleteUrl: "",
+          anotacoes: []
+        };
+      } else if (categoria === "armas") {
+        itemParaJogador = {
+          nome: itemOriginal.nome,
+          dano: itemOriginal.dano || "",
+          desc: itemOriginal.descricao || itemOriginal.efeito || "",
+          temCargas: false
+        };
+      } else if (categoria === "armaduras") {
+        itemParaJogador = {
+          nome: itemOriginal.nome,
+          ca: itemOriginal.ca || "",
+          desc: itemOriginal.descricao || itemOriginal.efeito || "",
+          temCargas: false
+        };
+      } else {
+        itemParaJogador = {
+          nome: itemOriginal.nome,
+          qtd: 1,
+          desc: itemOriginal.descricao || itemOriginal.efeito || ""
+        };
+      }
+
+      await setDoc(doc(collection(db, "usuarios", uidDestino, "itensRecebidos")), {
+        tipo: categoria,
+        item: itemParaJogador,
+        deUid: meuUid,
+        deNickname: meuDados.nickname || "",
+        deTag: meuDados.tag || "",
+        fichaDestinoId: fichaIdDestino,
+        automatico: false,
+        criadoEm: new Date().toISOString()
+      });
+
+      window.fecharDarItemMestre();
+      alert("Item enviado!");
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao dar item: " + (e.code || e.message));
+    }
+  };
+
+  window.abrirInboxItens = async function () {
+    document.getElementById("modalInboxItensOverlay").style.display = "block";
+    document.getElementById("modalInboxItens").style.display = "block";
+    await window.renderInboxItens();
+  };
+
+  window.fecharInboxItens = function () {
+    document.getElementById("modalInboxItensOverlay").style.display = "none";
+    document.getElementById("modalInboxItens").style.display = "none";
+  };
+
+  window.renderInboxItens = async function () {
+    const lista = document.getElementById("listaInboxItens");
+    const meuUid = window.usuarioAtual.uid;
+
+    lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;">Carregando...</p>`;
+
+    try {
+      const snap = await getDocs(collection(db, "usuarios", meuUid, "itensRecebidos"));
+
+      if (snap.empty) {
+        lista.innerHTML = `<p style="color:#9A8A70;font-size:13px;text-align:center;padding:16px 0;font-style:italic;">Nada por aqui.</p>`;
+        atualizarBadgeInboxItens(0);
+        return;
+      }
+
+      let html = "";
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        html += `
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.15);border-radius:10px;padding:10px 12px;">
+            <div style="font-size:13px;color:#F8F4E3;font-weight:bold;">${escapeHtml(d.item?.nome || "Sem nome")}</div>
+            <div style="font-size:11px;color:#9A8A70;margin:2px 0 8px;">de ${escapeHtml(d.deNickname)}<span style="opacity:.5;">#${escapeHtml(d.deTag)}</span> · ${d.tipo}</div>
+            <div style="display:flex;gap:8px;">
+              <button onclick="window.aceitarItemRecebido('${docSnap.id}')" style="flex:1;padding:6px;border-radius:6px;border:none;background:#4a7c3a;color:#fff;font-size:12px;cursor:pointer;">Aceitar</button>
+              <button onclick="window.recusarItemRecebido('${docSnap.id}')" style="flex:1;padding:6px;border-radius:6px;border:none;background:#7B1E28;color:#fff;font-size:12px;cursor:pointer;">Recusar</button>
+            </div>
+          </div>`;
+      });
+      lista.innerHTML = html;
+      atualizarBadgeInboxItens(snap.size);
+    } catch (e) {
+      console.error(e);
+      lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Erro: ${e.code || e.message}</p>`;
+    }
+  };
+
+  function atualizarBadgeInboxItens(n) {
+    const badge = document.getElementById("badgeInboxItens");
+    if (!badge) return;
+    if (n > 0) {
+      badge.style.display = "flex";
+      badge.textContent = n;
+    } else {
+      badge.style.display = "none";
+    }
+  }
+
+  window.aceitarItemRecebido = async function (docId) {
+    const meuUid = window.usuarioAtual.uid;
+    try {
+      const ref = doc(db, "usuarios", meuUid, "itensRecebidos", docId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return;
+      const d = snap.data();
+
+      const ficha = (window.personagens || []).find(f => String(f.id) === String(d.fichaDestinoId));
+      if (!ficha) {
+        alert("A ficha que devia receber esse item não existe mais na sua conta.");
+        await deleteDoc(ref);
+        window.renderInboxItens();
+        return;
+      }
+
+      ficha[d.tipo] = ficha[d.tipo] || [];
+      ficha[d.tipo].push(d.item);
+
+      if (typeof salvarPersonagens === "function") salvarPersonagens();
+
+      if (personagemAtual !== null && window.personagens[personagemAtual]?.id === ficha.id) {
+        if (d.tipo === "inventario") { inventario = ficha.inventario; window.inventario = inventario; renderInv(); }
+        if (d.tipo === "armas") { armas = ficha.armas; window.armas = armas; renderArmas(); }
+        if (d.tipo === "armaduras") { armaduras = ficha.armaduras; window.armaduras = armaduras; renderArmaduras(); }
+      }
+
+      await deleteDoc(ref);
+      window.renderInboxItens();
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao aceitar: " + (e.code || e.message));
+    }
+  };
+
+  window.recusarItemRecebido = async function (docId) {
+    const meuUid = window.usuarioAtual.uid;
+    try {
+      const ref = doc(db, "usuarios", meuUid, "itensRecebidos", docId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return;
+      const d = snap.data();
+
+      const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
+      const meuDados = meuSnap.exists() ? meuSnap.data() : {};
+
+      await setDoc(doc(collection(db, "usuarios", d.deUid, "itensRecebidos")), {
+        tipo: d.tipo,
+        item: d.item,
+        deUid: meuUid,
+        deNickname: meuDados.nickname || "",
+        deTag: meuDados.tag || "",
+        fichaDestinoId: null,
+        fichaOrigemDevolucao: true,
+        automatico: true,
+        criadoEm: new Date().toISOString()
+      });
+
+      await deleteDoc(ref);
+      window.renderInboxItens();
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao recusar: " + (e.code || e.message));
+    }
+  };
+
+  window.abrirPerfil = async function (uid) {
+    const meuUid = window.usuarioAtual.uid;
+    const ehMeu = uid === meuUid;
+    window._perfilUidAberto = uid;
+    window._perfilEhMeu = ehMeu;
+
+    document.getElementById("modalPerfilOverlay").style.display = "block";
+    document.getElementById("modalPerfil").style.display = "block";
+    document.getElementById("btnSalvarBio").style.display = "none";
+    document.getElementById("perfilBioEdit").style.display = "none";
+    document.getElementById("perfilBioView").style.display = "block";
+
+    try {
+      const snap = await getDoc(doc(db, "usuarios", uid));
+      const d = snap.exists() ? snap.data() : {};
+
+      document.getElementById("perfilNomeTag").innerHTML = d.nickname
+        ? `${escapeHtml(d.nickname)}<span style="opacity:.5;">#${escapeHtml(d.tag)}</span>`
+        : "";
+
+      document.getElementById("perfilFundo").style.backgroundImage = d.fotoFundo ? `url('${d.fotoFundo}')` : "none";
+      document.getElementById("perfilAvatar").style.backgroundImage = d.fotoPerfil ? `url('${d.fotoPerfil}')` : "none";
+
+      const bioView = document.getElementById("perfilBioView");
+      bioView.textContent = d.bio || (ehMeu ? "Adicione uma bio..." : "Sem bio ainda.");
+      document.getElementById("perfilBioEdit").value = d.bio || "";
+
+      document.getElementById("btnMudarFundo").style.display = ehMeu ? "block" : "none";
+      document.getElementById("btnMudarAvatar").style.display = ehMeu ? "block" : "none";
+      document.getElementById("btnEscolherDestaque").style.display = ehMeu ? "block" : "none";
+      document.getElementById("btnVerMeuPerfil").style.display = ehMeu ? "none" : "block";
+      bioView.onclick = ehMeu ? mostrarEditarBio : null;
+      bioView.style.cursor = ehMeu ? "pointer" : "default";
+
+      const showcase = document.getElementById("perfilShowcase");
+      const destaque = d.personagensDestaque || [];
+      if (destaque.length === 0) {
+        showcase.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:#9A8A70;font-size:12px;font-style:italic;padding:10px 0;">Nenhum personagem em destaque.</p>`;
+      } else {
+        showcase.innerHTML = destaque.map(f => `
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.15);border-radius:10px;overflow:hidden;">
+            <div style="height:80px;background-image:url('${f.imagem || ""}');background-size:cover;background-position:center;background-color:#1b120c;"></div>
+            <div style="padding:8px;">
+              <div style="font-size:12px;font-weight:bold;color:#F8F4E3;">${escapeHtml(f.nome || "Sem nome")}</div>
+              <div style="font-size:11px;color:#9A8A70;">${escapeHtml(f.classe || "")}${f.nivel ? " · Nv " + escapeHtml(String(f.nivel)) : ""}</div>
+              ${!ehMeu && f.publica ? `<button onclick="pegarFichaPublica('${uid}','${f.fichaId}')" style="margin-top:6px;width:100%;padding:5px;border-radius:6px;border:none;background:#C4A95B;color:#1a0e05;font-size:11px;font-weight:bold;cursor:pointer;">Pegar</button>` : ""}
+            </div>
+          </div>
+        `).join("");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao carregar perfil: " + (e.code || e.message));
+    }
+  };
+
+  window.fecharPerfil = function () {
+    document.getElementById("modalPerfilOverlay").style.display = "none";
+    document.getElementById("modalPerfil").style.display = "none";
+  };
+
+  window.mostrarEditarBio = function () {
+    document.getElementById("perfilBioView").style.display = "none";
+    document.getElementById("perfilBioEdit").style.display = "block";
+    document.getElementById("btnSalvarBio").style.display = "block";
+  };
+
+  window.salvarBioPerfil = async function () {
+    const bio = document.getElementById("perfilBioEdit").value.trim();
+    try {
+      await setDoc(doc(db, "usuarios", window.usuarioAtual.uid), { bio }, { merge: true });
+      window.abrirPerfil(window.usuarioAtual.uid);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao salvar bio: " + (e.code || e.message));
+    }
+  };
+
+  window.uploadImagemPerfil = async function (input, tipo) {
+    if (!input.files || !input.files[0]) return;
+    try {
+      const base64 = await comprimirImagem(input.files[0]);
+      const resultado = await uploadImagemFirebase(base64, tipo);
+      if (resultado.erro || !resultado.url) {
+        alert("Não consegui enviar a imagem. Tente outra.");
+        return;
+      }
+      const campo = tipo === "fundo" ? "fotoFundo" : "fotoPerfil";
+      await setDoc(doc(db, "usuarios", window.usuarioAtual.uid), { [campo]: resultado.url }, { merge: true });
+      window.abrirPerfil(window.usuarioAtual.uid);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao enviar imagem: " + (e.code || e.message));
+    } finally {
+      input.value = "";
+    }
+  };
+
+  window.abrirEscolherDestaque = async function () {
+    document.getElementById("modalEscolherDestaqueOverlay").style.display = "block";
+    document.getElementById("modalEscolherDestaque").style.display = "block";
+
+    const lista = document.getElementById("listaEscolherDestaque");
+    const fichas = window.personagens || [];
+    if (fichas.length === 0) {
+      lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;">Você ainda não tem fichas.</p>`;
+      return;
+    }
+
+    let idsDestaque = [];
+    try {
+      const snap = await getDoc(doc(db, "usuarios", window.usuarioAtual.uid));
+      const destaqueAtual = (snap.exists() && snap.data().personagensDestaque) || [];
+      idsDestaque = destaqueAtual.map(d => String(d.fichaId));
+    } catch (e) {
+      console.error(e);
+    }
+
+    lista.innerHTML = fichas.map((f, i) => {
+      const jaExibida = idsDestaque.includes(String(f.id));
+      return `
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.15);border-radius:10px;padding:10px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="flex:1;font-size:13px;">${escapeHtml(f.nome || "Sem nome")} <span style="color:#9A8A70;font-size:11px;">${escapeHtml(f.classe || "")}</span></span>
+          <button type="button" onclick="var el=document.getElementById('opcoesFicha${i}');el.style.display = el.style.display === 'none' ? 'flex' : 'none';" style="background:none;border:none;color:#C4A95B;font-size:15px;cursor:pointer;padding:2px;">⚙</button>
+        </div>
+        <div id="opcoesFicha${i}" style="display:none;flex-direction:column;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(196,169,91,0.12);">
+          <label style="display:flex;align-items:center;justify-content:space-between;font-size:12px;cursor:pointer;gap:8px;">
+            <span>Exibir ficha</span>
+            <input type="checkbox" class="checkDestaqueFicha" data-index="${i}" ${jaExibida ? "checked" : ""} style="width:auto;margin:0;">
+          </label>
+          <label style="display:flex;align-items:center;justify-content:space-between;font-size:12px;cursor:pointer;gap:8px;">
+            <span>Permitir que a ficha seja copiada</span>
+            <input type="checkbox" class="checkPublicaFicha" data-index="${i}" ${f.publica ? "checked" : ""} style="width:auto;margin:0;">
+          </label>
+        </div>
+      </div>`;
+    }).join("");
+  };
+
+  window.fecharEscolherDestaque = function () {
+    document.getElementById("modalEscolherDestaqueOverlay").style.display = "none";
+    document.getElementById("modalEscolherDestaque").style.display = "none";
+  };
+
+  window.salvarDestaquePerfil = async function () {
+    const checksExibir = document.querySelectorAll(".checkDestaqueFicha:checked");
+    if (checksExibir.length > 4) {
+      alert("Escolha no máximo 4 pra exibir.");
+      return;
+    }
+
+    const fichas = window.personagens || [];
+
+    document.querySelectorAll(".checkPublicaFicha").forEach(chk => {
+      const i = parseInt(chk.dataset.index);
+      if (fichas[i]) fichas[i].publica = chk.checked;
+    });
+
+    const destaque = Array.from(checksExibir).map(chk => {
+      const f = fichas[parseInt(chk.dataset.index)];
+      return {
+        fichaId: String(f.id),
+        nome: f.nome || "",
+        classe: f.classe || "",
+        nivel: f.nivel || "",
+        imagem: f.imagem || "",
+        publica: !!f.publica
+      };
+    });
+
+    try {
+      window.personagens = fichas;
+      if (typeof salvarPersonagens === "function") await salvarPersonagens();
+      await setDoc(doc(db, "usuarios", window.usuarioAtual.uid), { personagensDestaque: destaque }, { merge: true });
+      window.fecharEscolherDestaque();
+      window.abrirPerfil(window.usuarioAtual.uid);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao salvar: " + (e.code || e.message));
+    }
+  };
+
+  window.pegarFichaPublica = async function (donoUid, fichaId) {
+    if (!(await confirmBonito("Copiar essa ficha pra sua conta?"))) return;
+    try {
+      const snap = await getDoc(doc(db, "usuarios", donoUid, "fichas", fichaId));
+      if (!snap.exists()) {
+        alert("Essa ficha não está mais disponível.");
+        return;
+      }
+      const original = snap.data();
+      const copia = JSON.parse(JSON.stringify(original));
+      copia.id = Date.now() + Math.floor(Math.random() * 99999);
+      copia.nome = (original.nome || "Sem nome") + " (cópia)";
+      copia.publica = false;
+
+      window.personagens.push(copia);
+      if (typeof salvarPersonagens === "function") salvarPersonagens();
+      if (typeof renderPersonagens === "function") renderPersonagens();
+
+      alert("Ficha copiada! Ela já está na sua lista de personagens.");
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao copiar ficha: " + (e.code || e.message));
     }
   };
 
