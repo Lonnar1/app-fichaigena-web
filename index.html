@@ -829,6 +829,16 @@
         <div class="status-attr"><label>SAB</label><input id="monstroSab" type="number" value="10" oninput="atualizarModsMaster('monstro')"><span id="monstroModSab">+0</span></div>
         <div class="status-attr"><label>CAR</label><input id="monstroCar" type="number" value="10" oninput="atualizarModsMaster('monstro')"><span id="monstroModCar">+0</span></div>
       </div>
+
+      <div class="criar-campos-duplos">
+        <input id="monstroVelocidade" placeholder="Velocidade (ex: 9m, voo 18m)">
+        <input id="monstroSaves" placeholder="Testes de Resistência (ex: DES +5, CON +7)">
+      </div>
+      <div class="criar-campos-duplos">
+        <input id="monstroSentidos" placeholder="Sentidos (ex: Visão no escuro 18m, Perc. passiva 14)">
+        <input id="monstroIdiomas" placeholder="Idiomas (ex: Comum, Abissal)">
+      </div>
+
       <textarea id="monstroLore" placeholder="Lore / história"></textarea>
 
       <!-- HABILIDADES -->
@@ -850,7 +860,9 @@
       <input type="hidden" id="monstroAtaques">
 
       <textarea id="monstroReacoes" placeholder="Reações (ex: Aparar — reduz 1d6+2 de dano)"></textarea>
-      <textarea id="monstroResistencias" placeholder="Resistências / Imunidades / Vulnerabilidades"></textarea>
+      <textarea id="monstroResistencias" placeholder="Resistências a dano (ex: fogo, contundente não mágico)"></textarea>
+      <textarea id="monstroImunidades" placeholder="Imunidades a dano / condição (ex: veneno, envenenado)"></textarea>
+      <textarea id="monstroVulnerabilidades" placeholder="Vulnerabilidades (ex: radiante)"></textarea>
       <textarea id="monstroDialogos" placeholder="Diálogos (um por linha)"></textarea>
       <label class="master-upload">📷 Imagem do monstro<input id="monstroImagemInput" type="file" accept="image/*" onchange="previewImagemMonstro()"></label>
       <img id="previewMonstro" class="preview-monstro" src="" style="display:none;">
@@ -991,15 +1003,25 @@
     <div class="criar-form-titulo">Criar Item</div>
     <div class="form-master-limpo">
       <input id="itemMasterNome" placeholder="Nome do item">
+      <select id="itemMasterCategoria">
+        <option value="inventario">Item diverso (vai pro inventário)</option>
+        <option value="armas">Arma</option>
+        <option value="armaduras">Armadura</option>
+      </select>
       <div class="criar-campos-duplos">
         <input id="itemMasterTipo" placeholder="Tipo (arma, armadura...)">
         <select id="itemMasterRaridade">
-          <option value="normal">Normal</option>
+          <option value="comum">Comum</option>
           <option value="incomum">Incomum</option>
           <option value="raro">Raro</option>
-          <option value="reliquia">Relíquia</option>
+          <option value="muitoraro">Muito Raro</option>
+          <option value="lendario">Lendário</option>
         </select>
       </div>
+      <select id="itemMasterClassificacao">
+        <option value="normal">Item Normal</option>
+        <option value="artefato">Artefato</option>
+      </select>
       <select id="itemMasterSintonia">
         <option value="nao">Sem sintonização</option>
         <option value="sim">Requer sintonização</option>
