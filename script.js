@@ -5944,8 +5944,14 @@ async function salvarMonstroMestre() {
     lore: document.getElementById("monstroLore")?.value.trim() || "",
     habilidades: document.getElementById("monstroHabilidades")?.value.trim() || "",
     ataques:     document.getElementById("monstroAtaques")?.value.trim()     || "",
+    velocidade: document.getElementById("monstroVelocidade")?.value.trim() || "",
+    saves:      document.getElementById("monstroSaves")?.value.trim() || "",
+    sentidos:   document.getElementById("monstroSentidos")?.value.trim() || "",
+    idiomas:    document.getElementById("monstroIdiomas")?.value.trim() || "",
     reacoes:     document.getElementById("monstroReacoes")?.value.trim()     || "",
     resistencias: document.getElementById("monstroResistencias")?.value.trim() || "",
+    imunidades: document.getElementById("monstroImunidades")?.value.trim() || "",
+    vulnerabilidades: document.getElementById("monstroVulnerabilidades")?.value.trim() || "",
     pontoEncontro: document.getElementById("bossPontoEncontro")?.value.trim() || "",
 
     dialogos: (document.getElementById("monstroDialogos")?.value || "")
@@ -6110,6 +6116,8 @@ function limparFormMonstro() {
     "monstroCa",
     "monstroLore",
     "monstroHabilidades","monstroAtaques","monstroReacoes","monstroResistencias",
+    "monstroVelocidade","monstroSaves","monstroSentidos","monstroIdiomas",
+    "monstroImunidades","monstroVulnerabilidades",
     "monstroDialogos",
     "monstroEncontros"
   ];
@@ -6201,9 +6209,9 @@ function renderMonstrosMestre() {
       return ra !== rb ? ra - rb : (a.nome || "").localeCompare(b.nome || "");
     }
     if (ordenacao === "itens") {
-      const ordemRar = { reliquia: 0, raro: 1, incomum: 2, normal: 3 };
-      const ra = ordemRar[a.raridade] ?? 3;
-      const rb = ordemRar[b.raridade] ?? 3;
+      const ordemRar = { lendario: 0, muitoraro: 1, raro: 2, incomum: 3, comum: 4 };
+      const ra = ordemRar[a.raridade] ?? 4;
+      const rb = ordemRar[b.raridade] ?? 4;
       return ra !== rb ? ra - rb : (a.nome || "").localeCompare(b.nome || "");
     }
     return 0;
@@ -6243,7 +6251,7 @@ function renderMonstrosMestre() {
 
     const badge = { boss:"💀 Boss", item:"⚔️ Item", npc:"🧙 NPC", mapa:"🗺️ Mapa" }[entry._tipo] || "👹 Criatura";
     const subtitulo = entry._tipo === "item"
-      ? [entry.tipo, ({normal:"Normal",incomum:"Incomum",raro:"Raro",reliquia:"Relíquia"})[entry.raridade]].filter(Boolean).join(" · ")
+      ? [entry.tipo, ({comum:"Comum",incomum:"Incomum",raro:"Raro",muitoraro:"Muito Raro",lendario:"Lendário"})[entry.raridade], entry.classificacao === "artefato" ? "Artefato" : ""].filter(Boolean).join(" · ")
       : entry._tipo === "npc"
         ? [entry.raca, entry.classe].filter(Boolean).join(" · ")
         : (entry.tipo || "Tipo não definido");
@@ -6884,7 +6892,7 @@ ${boss.imagem ? `<div class="sheet-img-wrap">
 
 function _abrirPopupItemCompendio(item) {
   window._entradaSessaoAtual = item;
-  const r = {normal:"Normal", incomum:"Incomum", raro:"Raro", reliquia:"Relíquia"};
+  const r = {comum:"Comum", incomum:"Incomum", raro:"Raro", muitoraro:"Muito Raro", lendario:"Lendário"};
 
   const bloco = (titulo, texto) => `
     <div style="background:#E8E0CC;border-radius:10px;margin-bottom:10px;overflow:hidden;border:1px solid rgba(196,169,91,0.25);">
@@ -6899,7 +6907,7 @@ ${item.imagem ? `<div class="sheet-img-wrap">
   <img class="sheet-img" src="${item.imagem}" style="width:100%;max-height:340px;object-fit:cover;object-position:top center;border-radius:10px;">
   <button class="sheet-img-expand" onclick="event.stopPropagation(); abrirImagemExpandida(this)" data-img="${escapeHtml(item.imagem)}" title="Ver imagem completa">⤢</button>
 </div>` : ""}    <h2 class="sheet-titulo" style="text-align:center;margin-bottom:4px;">${escapeHtml(item.nome)}</h2>
-    <div class="sheet-meta" style="text-align:center;margin-bottom:8px;">${[item.tipo, r[item.raridade]].filter(Boolean).join(" • ")}</div>
+    <div class="sheet-meta" style="text-align:center;margin-bottom:8px;">${[item.tipo, r[item.raridade], item.classificacao === "artefato" ? "✦ Artefato" : ""].filter(Boolean).join(" • ")}</div>
     ${item.sintonia === "sim" ? `<div class="sheet-meta" style="text-align:center;margin-bottom:12px;">✦ Requer sintonização</div>` : ""}
     ${item.efeito    ? bloco("Efeito", escapeHtml(item.efeito)) : ""}
     ${item.descricao ? bloco("Descrição", escapeHtml(item.descricao)) : ""}
@@ -7057,9 +7065,27 @@ ${imagem ? `<div class="sheet-img-wrap">
     </div>` : ""}
     ${monstro.resistencias ? `<div style="background:#E8E0CC;border-radius:10px;margin-bottom:10px;overflow:hidden;border:1px solid rgba(196,169,91,0.25);">
       <div style="background:#D4C9A8;padding:7px 12px;text-align:center;">
-        <span style="font-size:10px;color:#4A3728;text-transform:uppercase;letter-spacing:1.5px;font-weight:bold;">Resistências / Imunidades</span>
+        <span style="font-size:10px;color:#4A3728;text-transform:uppercase;letter-spacing:1.5px;font-weight:bold;">Resistências</span>
       </div>
       <div style="padding:10px 14px;font-size:13px;color:#2A1A10;line-height:1.6;">${formatarTexto(monstro.resistencias)}</div>
+    </div>` : ""}
+    ${monstro.imunidades ? `<div style="background:#E8E0CC;border-radius:10px;margin-bottom:10px;overflow:hidden;border:1px solid rgba(196,169,91,0.25);">
+      <div style="background:#D4C9A8;padding:7px 12px;text-align:center;">
+        <span style="font-size:10px;color:#4A3728;text-transform:uppercase;letter-spacing:1.5px;font-weight:bold;">Imunidades</span>
+      </div>
+      <div style="padding:10px 14px;font-size:13px;color:#2A1A10;line-height:1.6;">${formatarTexto(monstro.imunidades)}</div>
+    </div>` : ""}
+    ${monstro.vulnerabilidades ? `<div style="background:#E8E0CC;border-radius:10px;margin-bottom:10px;overflow:hidden;border:1px solid rgba(196,169,91,0.25);">
+      <div style="background:#D4C9A8;padding:7px 12px;text-align:center;">
+        <span style="font-size:10px;color:#4A3728;text-transform:uppercase;letter-spacing:1.5px;font-weight:bold;">Vulnerabilidades</span>
+      </div>
+      <div style="padding:10px 14px;font-size:13px;color:#2A1A10;line-height:1.6;">${formatarTexto(monstro.vulnerabilidades)}</div>
+    </div>` : ""}
+    ${(monstro.sentidos || monstro.idiomas) ? `<div style="background:#E8E0CC;border-radius:10px;margin-bottom:10px;overflow:hidden;border:1px solid rgba(196,169,91,0.25);">
+      <div style="background:#D4C9A8;padding:7px 12px;text-align:center;">
+        <span style="font-size:10px;color:#4A3728;text-transform:uppercase;letter-spacing:1.5px;font-weight:bold;">Sentidos e Idiomas</span>
+      </div>
+      <div style="padding:10px 14px;font-size:13px;color:#2A1A10;line-height:1.6;">${monstro.sentidos ? "Sentidos: " + escapeHtml(monstro.sentidos) : ""}${monstro.sentidos && monstro.idiomas ? "<br>" : ""}${monstro.idiomas ? "Idiomas: " + escapeHtml(monstro.idiomas) : ""}</div>
     </div>` : ""}
     ${monstro.fraquezas ? `<div style="background:#E8E0CC;border-radius:10px;margin-bottom:10px;overflow:hidden;border:1px solid rgba(196,169,91,0.25);"><div style="background:#D4C9A8;padding:7px 12px;text-align:center;"><span style="font-size:10px;color:#4A3728;text-transform:uppercase;letter-spacing:1.5px;font-weight:bold;">Fraquezas</span></div><div style="padding:10px 14px;font-size:13px;color:#2A1A10;line-height:1.6;">${formatarTexto(monstro.fraquezas)}</div></div>` : ""}
     ${bloco("Diálogos", monstro.dialogos?.length ? monstro.dialogos.map(f => `"${escapeHtml(f)}"`).join("<br>") : "Sem falas cadastradas.")}
@@ -7114,7 +7140,8 @@ ${imagem ? `<div class="sheet-img-wrap">
   <img class="sheet-img" src="${imagem}" alt="${escapeHtml(monstro.nome)}" style="width:100%;max-height:340px;object-fit:cover;object-position:top center;border-radius:10px;">
   <button class="sheet-img-expand" onclick="event.stopPropagation(); abrirImagemExpandida(this)" data-img="${escapeHtml(imagem)}" title="Ver imagem completa">⤢</button>
 </div>` : ""}    <div class="sheet-meta" style="text-align:center;margin-bottom:8px;">${escapeHtml(monstro.tipo || "Tipo não definido")} · ${escapeHtml(monstro.regiao || "Região não definida")}</div>
-    <div class="sheet-hp-ca" style="text-align:center;margin-bottom:12px;">HP ${monstro.hpAtual}/${monstro.hpMax} · CA ${monstro.ca || 0}</div>
+    <div class="sheet-hp-ca" style="text-align:center;margin-bottom:12px;">HP ${monstro.hpAtual}/${monstro.hpMax} · CA ${monstro.ca || 0}${monstro.velocidade ? " · Vel " + escapeHtml(monstro.velocidade) : ""}</div>
+    ${monstro.saves ? `<div class="sheet-meta" style="text-align:center;margin-bottom:8px;">Testes: ${escapeHtml(monstro.saves)}</div>` : ""}
 
     <div class="sheet-status-grid" style="margin-bottom:12px;">
       <div>FOR<br>${monstro.status?.for||10}<small>${formatarModMonstro(calcularModMonstro(monstro.status?.for||10))}</small></div>
@@ -7290,8 +7317,10 @@ async function salvarItemMestre() {
   campanha.itensMaster ||= [];
   campanha.itensMaster.push({
     id: Date.now(), _tipo: "item", nome,
+    categoria: document.getElementById("itemMasterCategoria")?.value || "inventario",
     tipo:      document.getElementById("itemMasterTipo")?.value.trim() || "",
-    raridade:  document.getElementById("itemMasterRaridade")?.value || "normal",
+    raridade:  document.getElementById("itemMasterRaridade")?.value || "comum",
+    classificacao: document.getElementById("itemMasterClassificacao")?.value || "normal",
     sintonia:  document.getElementById("itemMasterSintonia")?.value || "nao",
     efeito:    document.getElementById("itemMasterEfeito")?.value.trim() || "",
     descricao: document.getElementById("itemMasterDescricao")?.value.trim() || "",
