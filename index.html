@@ -1204,16 +1204,6 @@
               <select id="racaSelect" onchange="aoMudarRaca()">
                 <option value="" selected>Selecionar raça</option>
                 <option value="custom">Raças personalizadas</option>
-                <option value="humano">Humano</option>
-                <option value="elfo">Elfo</option>
-                <option value="anao">Anão</option>
-                <option value="halfling">Halfling</option>
-                <option value="meio_elfo">Meio-Elfo</option>
-                <option value="meio_orc">Meio-Orc</option>
-                <option value="draconato">Draconato</option>
-                <option value="tiefling">Tiefling</option>
-                <option value="gnomo">Gnomo</option>
-                <option value="tritao">Tritão</option>
               </select>
             </div>
 
@@ -1349,7 +1339,7 @@
                 id="forca"
                 type="number"
                 min="1"
-                max="20"
+                max="30"
                 value="10"
                 oninput="
                   limitarAtributo(this);
@@ -2736,23 +2726,68 @@ async function salvarMonstrosNaNuvem() {
   const combates =
     JSON.parse(localStorage.getItem("combatesMestre")) || [];
 
-  // 🔥 salva monstros separados
-  for (const monstro of monstros) {
+  const colecaoRef = collection(
+    db,
+    "usuarios",
+    uid,
+    "monstros"
+  );
 
+  // Pega tudo que existe atualmente no Firestore
+  const snapAtuais = await getDocs(colecaoRef);
+
+  const idsAtuais = new Set();
+
+  // Salva os objetos atuais
+  for (const monstro of monstros) {
     if (!monstro.id) {
       monstro.id =
         Date.now() + Math.floor(Math.random() * 99999);
     }
 
+    const id = String(monstro.id);
+
+    idsAtuais.add(id);
+
     await setDoc(
-      doc(db, "usuarios", uid, "monstros", String(monstro.id)),
+      doc(
+        db,
+        "usuarios",
+        uid,
+        "monstros",
+        id
+      ),
       monstro
     );
   }
 
-  // 🔥 combate separado
+  // ==========================================
+  // REMOVE DA NUVEM O QUE FOI EXCLUÍDO LOCALMENTE
+  // ==========================================
+
+  for (const docSnap of snapAtuais.docs) {
+    if (!idsAtuais.has(docSnap.id)) {
+      await deleteDoc(
+        doc(
+          db,
+          "usuarios",
+          uid,
+          "monstros",
+          docSnap.id
+        )
+      );
+    }
+  }
+
+  // Salva combates
   await setDoc(
-    doc(db, "usuarios", uid, "estado", "combate"),
+    doc(
+      db,
+      "usuarios",
+      uid,
+      "estado",
+      "combate"
+    ),
     {
       combatesMestre: combates,
       atualizadoEm: new Date().toISOString()
@@ -4220,6 +4255,7 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
     await carregarFichasDaNuvem();
     await carregarMonstrosDaNuvem();
     await carregarCampanhasMasterFirebase();
+    await migrarCompendioParaGlobal();
 
   }  else {
   window.usuarioAtual = null;
