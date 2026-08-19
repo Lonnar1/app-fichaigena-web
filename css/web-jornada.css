@@ -960,3 +960,10 @@ input[type="file"] { display: none; }
   max-height: 420px;
   overflow-y: auto;
 }
+
+.sintonia-preview {
+  margin-top: 6px;
+  color: var(--j-gold);
+  font-size: 12px;
+  font-weight: 600;
+}
