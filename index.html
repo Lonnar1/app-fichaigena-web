@@ -1262,33 +1262,47 @@
           </div>
         </div>
 
-        <!-- 🔥 ALIADOS -->
-        <div class="secao-toggle">
-          <h2
-            class="titulo-secao titulo-toggle"
-            onclick="toggleSecao('boxAliadosForm', this)"
-          >
-            <span>Aliados</span>
-            <span class="setinha">▼</span>
-          </h2>
+       <!-- 🔥 RELAÇÕES -->
+<div class="secao-toggle">
+  <h2 class="titulo-secao titulo-toggle" onclick="toggleSecao('boxAliadosForm', this)">
+    <span>Vinculos</span>
+    <span class="setinha">▼</span>
+  </h2>
 
-          <div id="boxAliadosForm" class="conteudo-toggle aberto">
-            <div class="inv-add">
-              <input id="aliadoNome" placeholder="Nome do aliado" />
-              <textarea
-                id="aliadoDesc"
-                placeholder="Descrição do aliado"
-              ></textarea>
-              <input id="aliadoLocal" placeholder="Região / Local" />
-            </div>
+  <div id="boxAliadosForm" class="conteudo-toggle aberto">
+    <div class="inv-add">
+      <input id="aliadoNome" placeholder="Nome do personagem">
+      <select id="aliadoTipo">
+        <option value="companheiro">⚔ Companheiro</option>
+        <option value="inimigo">☠ Inimigo</option>
+        <option value="neutro">◈ Neutro</option>
+      </select>
+      <input id="aliadoLocal" placeholder="Região / Local">
+      <textarea id="aliadoDesc" placeholder="Descrição do personagem"></textarea>
 
-            <div class="add-linha">
-              <button class="inv-add-btn" onclick="adicionarAliado()">+</button>
-            </div>
-          </div>
+      <input type="file" id="aliadoImagem" accept="image/*" onchange="previewImagemAliado(this)" style="display:none;">
 
-          <ul id="listaAliados" class="lista-sempre-visivel"></ul>
-        </div>
+      <label for="aliadoImagem" class="botao-upload">🖼 Adicionar imagem (opcional)</label>
+
+      <img id="aliadoImagemPreview" style="display:none;">
+
+      <span id="aliadoRemoverImagem" class="link-remover-imagem" onclick="removerImagemAliado()">Remover imagem</span>
+    </div>
+
+    <div class="add-linha">
+      <button class="inv-add-btn" onclick="adicionarAliado()">+</button>
+    </div>
+  </div>
+
+  <div class="aliados-filtros">
+    <button type="button" class="aliado-filtro ativo" onclick="filtrarAliados('todos', this)">Todos</button>
+    <button type="button" class="aliado-filtro" onclick="filtrarAliados('companheiro', this)">⚔ Companheiros</button>
+    <button type="button" class="aliado-filtro" onclick="filtrarAliados('inimigo', this)">☠ Inimigos</button>
+    <button type="button" class="aliado-filtro" onclick="filtrarAliados('neutro', this)">◈ Neutros</button>
+  </div>
+
+  <ul id="listaAliados" class="lista-sempre-visivel"></ul>
+</div>
 
         <!-- 🔥 LORE -->
         <div class="secao-toggle">
