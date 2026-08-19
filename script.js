@@ -241,9 +241,11 @@ window.alternarDescDash = function (idLinha) {
 
 window._renderFichaFlutuanteConteudo = function (m, f) {
   const vidaMax = f.vidaMax || 1;
-  const vidaAtual = f.vidaAtual ?? vidaMax;
-  const pctVida = Math.max(0, Math.min(100, (vidaAtual / vidaMax) * 100));
-  const corVida = pctVida <= 25 ? "#8a2c22" : pctVida <= 60 ? "#a9822f" : "#4a6b32";
+const vidaAtual = f.vidaAtual ?? vidaMax;
+const vidaTemp = f.vidaTemp ?? 0;
+const pctVida = Math.max(0, Math.min(100, (vidaAtual / vidaMax) * 100));
+const pctTemp = Math.max(0, Math.min(100, (vidaTemp / vidaMax) * 100));
+const corVida = pctVida <= 25 ? "#8a2c22" : pctVida <= 60 ? "#a9822f" : "#4a6b32";
 
   const todosPoderes = f.poderes || [];
   const poderesGerais = todosPoderes.filter(p => (p.circulo ?? "") === "").map(p => _fichaDashLinha(m.uid, p.nome || "Sem nome", "", _fichaDashPillCargas(p), p.desc)).join("");
@@ -298,7 +300,11 @@ window._renderFichaFlutuanteConteudo = function (m, f) {
     <div style="height:7px;background:rgba(74,55,40,0.15);margin:12px 0 0;border-radius:99px;overflow:hidden;">
       <div style="height:100%;width:${pctVida}%;background:${corVida};transition:width .4s ease;"></div>
     </div>
-    <div style="font-size:11px;color:#6b5a42;padding:4px 0 4px;">HP: ${vidaAtual} / ${vidaMax}</div>
+    <div style="font-size:11px;color:#6b5a42;padding:4px 14px 4px;">HP: ${vidaAtual} / ${vidaMax}</div>
+<div style="height:5px;background:rgba(74,55,40,0.12);margin:2px 14px 0;border-radius:99px;overflow:hidden;">
+  <div style="height:100%;width:${pctTemp}%;background:#4b8f9a;transition:width .4s ease;"></div>
+</div>
+<div style="font-size:10px;color:#4b8f9a;padding:3px 14px 4px;">PV temporários: ${vidaTemp}</div>
     ${_fichaDashSecao("Poderes", poderesGerais)}
     ${_fichaDashSecao("Magias", magias)}
     ${_fichaDashSecao("Talentos", talentos)}
