@@ -3582,8 +3582,8 @@ function renderInv() {
         </div>
 
         <p class="item-preview">
-          ${item.desc ? esc(item.desc).substring(0, 60) + (item.desc.length > 60 ? "..." : "") : "Sem descrição"}
-        </p>
+  ${formatarDescricao(item.desc)}
+</p>
       </div>
 
       <div class="item-acoes">
@@ -3600,6 +3600,14 @@ function renderInv() {
   });
 
   habilitarArrastarReordenar(ul, inventario, renderInv);
+}
+
+function formatarDescricao(texto) {
+  if (!texto) return "Sem descrição";
+
+  return esc(String(texto))
+    .replace(/\r\n/g, "<br>")
+    .replace(/\n/g, "<br>");
 }
 
 function corContraste(hex) {
@@ -3750,7 +3758,7 @@ function verItem(index) {
 
     <div style="margin-top: 12px;">
       <span class="popup-label">Descrição</span>
-      <div class="popup-descricao popup-descricao-grande">${item.desc || "Sem descrição"}</div>
+      <div class="popup-descricao popup-descricao-grande">${formatarDescricao(item.desc)}</div>
     </div>
   </div>
 `;
@@ -4053,8 +4061,8 @@ function renderArmas() {
         <strong class="arma-nome">${esc(arma.nome) || "Sem nome"}</strong>
         <p class="arma-dano-preview">${esc(arma.dano) || "Sem dano"}</p>
         <p class="arma-desc-preview">
-          ${arma.desc ? esc(arma.desc).substring(0, 60) + (arma.desc.length > 60 ? "..." : "") : "Sem descrição"}
-        </p>
+  ${formatarDescricao(arma.desc)}
+</p>
         ${cargasHTML}
       </div>
 
@@ -4102,9 +4110,9 @@ function verArma(index) {
 
       <div style="margin-top: 12px;">
         <span class="popup-label">Descrição</span>
-        <div class="popup-descricao">
-          ${arma.desc || "Sem descrição"}
-        </div>
+        <div class="popup-descricao popup-descricao-grande">
+  ${formatarDescricao(arma.desc)}
+</div>
       </div>
     </div>
   `;
