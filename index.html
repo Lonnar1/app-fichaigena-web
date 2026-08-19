@@ -1572,26 +1572,53 @@
               >
 
               <div class="toggle-cargas">
-                <span class="toggle-cargas-texto">Usa cargas</span>
+  <span class="toggle-cargas-texto">Usa cargas</span>
 
-                <label class="switch-cargas">
-                  <input
-                    type="checkbox"
-                    id="armaTemCargas"
-                    onchange="toggleCampoCargas()"
-                  />
-                  <span class="slider-cargas"></span>
-                </label>
-              </div>
+  <label class="switch-cargas">
+    <input
+      type="checkbox"
+      id="armaTemCargas"
+      onchange="toggleCampoCargas()"
+    />
+    <span class="slider-cargas"></span>
+  </label>
+</div>
 
-              <input
-                id="armaMaxCargas"
-                type="number"
-                min="1"
-                max="20"
-                placeholder="Qtd. de cargas"
-                style="display: none"
-              />
+<div class="toggle-cargas">
+  <span class="toggle-cargas-texto">Requer sintonização</span>
+
+  <label class="switch-cargas">
+    <input
+      type="checkbox"
+      id="armaRequerSintonia"
+      onchange="toggleSintoniaArma()"
+    />
+    <span class="slider-cargas"></span>
+  </label>
+</div>
+
+<div id="boxArmaSintonizado" style="display: none;">
+  <div class="toggle-cargas">
+    <span class="toggle-cargas-texto">Está sintonizado</span>
+
+    <label class="switch-cargas">
+      <input
+        type="checkbox"
+        id="armaSintonizado"
+      />
+      <span class="slider-cargas"></span>
+    </label>
+  </div>
+</div>
+
+<input
+  id="armaMaxCargas"
+  type="number"
+  min="1"
+  max="20"
+  placeholder="Qtd. de cargas"
+  style="display: none"
+/>
 
               <div class="arma-acoes-final">
                 <button class="inv-add-btn" onclick="addArma()">+</button>
@@ -1637,16 +1664,31 @@
               >
 
               <div class="toggle-cargas">
-                <span class="toggle-cargas-texto">Usa cargas</span>
-                <label class="switch-cargas">
-                  <input
-                    type="checkbox"
-                    id="armaduraTemCargas"
-                    onchange="toggleCampoCargasArmadura()"
-                  />
-                  <span class="slider-cargas"></span>
-                </label>
-              </div>
+  <span class="toggle-cargas-texto">Requer sintonização</span>
+
+  <label class="switch-cargas">
+    <input
+      type="checkbox"
+      id="armaduraRequerSintonia"
+      onchange="toggleSintoniaArmadura()"
+    />
+    <span class="slider-cargas"></span>
+  </label>
+</div>
+
+<div id="boxArmaduraSintonizado" style="display: none;">
+  <div class="toggle-cargas">
+    <span class="toggle-cargas-texto">Está sintonizado</span>
+
+    <label class="switch-cargas">
+      <input
+        type="checkbox"
+        id="armaduraSintonizado"
+      />
+      <span class="slider-cargas"></span>
+    </label>
+  </div>
+</div>
 
               <input
                 id="armaduraMaxCargas"
@@ -2014,7 +2056,6 @@
                   <option value="fogo">🔥 Fogo</option>
                   <option value="gelo">❄️ Gelo</option>
                   <option value="raio">⚡ Raio</option>
-                  <option value="cura">🩹 Cura</option>
                   <option value="trovejante">🌩️ Trovejante</option>
                   <option value="necrotico">💀 Necrótico</option>
                   <option value="radiante">✨ Radiante</option>
