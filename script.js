@@ -1288,7 +1288,6 @@ function getIconeTipo(tipo) {
   if (t.includes("gelo")) return "❄️";
   if (t.includes("agua")) return "💧";
   if (t.includes("raio")) return "⚡";
-  if (t.includes("cura")) return "🩹";
   if (t.includes("trovej")) return "🌩️";
   if (t.includes("necrot")) return "💀";
   if (t.includes("radiante")) return "✨";
@@ -1304,8 +1303,10 @@ function getIconeTipo(tipo) {
   if (t.includes("espirit")) return "🌓";
   if (t.includes("vento")) return "🍃";
   if (t.includes("madeira")) return "🌳";
-  if (t.includes("terra")) return "🌍";
+ if (t.includes("terra")) return "🌍";
   if (t.includes("metal")) return "⚙️";
+
+  return "🔮";
 
   return "🔮";
 }
@@ -1688,28 +1689,60 @@ function editarArma(index) {
       <span class="link-remover-imagem" onclick="removerEditImagemArma()">Remover imagem</span>
 
       <div class="toggle-cargas" style="margin-top:10px;">
-        <span class="toggle-cargas-texto">Usa cargas</span>
+  <span class="toggle-cargas-texto">Usa cargas</span>
 
-        <label class="switch-cargas">
-          <input
-            type="checkbox"
-            id="editArmaTemCargas"
-            ${arma.temCargas ? "checked" : ""}
-            onchange="toggleEditCampoCargas()"
-          >
-          <span class="slider-cargas"></span>
-        </label>
-      </div>
+  <label class="switch-cargas">
+    <input
+      type="checkbox"
+      id="editArmaTemCargas"
+      ${arma.temCargas ? "checked" : ""}
+      onchange="toggleEditCampoCargas()"
+    >
+    <span class="slider-cargas"></span>
+  </label>
+</div>
 
+<div class="toggle-cargas">
+  <span class="toggle-cargas-texto">Requer sintonização</span>
+
+  <label class="switch-cargas">
+    <input
+      type="checkbox"
+      id="editArmaRequerSintonia"
+      ${arma.requerSintonia ? "checked" : ""}
+      onchange="toggleEditSintoniaArma()"
+    >
+    <span class="slider-cargas"></span>
+  </label>
+</div>
+
+<div
+  id="boxEditArmaSintonizado"
+  style="display:${arma.requerSintonia ? "block" : "none"};"
+>
+  <div class="toggle-cargas">
+    <span class="toggle-cargas-texto">Está sintonizado</span>
+
+    <label class="switch-cargas">
       <input
-        id="editArmaMaxCargas"
-        type="number"
-        min="1"
-        max="20"
-        placeholder="Qtd. de cargas"
-        value="${arma.maxCargas || ""}"
-        style="display:${arma.temCargas ? "block" : "none"};"
+        type="checkbox"
+        id="editArmaSintonizado"
+        ${arma.sintonizado ? "checked" : ""}
       >
+      <span class="slider-cargas"></span>
+    </label>
+  </div>
+</div>
+
+<input
+  id="editArmaMaxCargas"
+  type="number"
+  min="1"
+  max="20"
+  placeholder="Qtd. de cargas"
+  value="${arma.maxCargas || ""}"
+  style="display:${arma.temCargas ? "block" : "none"};"
+>
 
       <button class="popup-salvar-btn" onclick="salvarEdicaoArma(${index})">
         Salvar
@@ -1763,7 +1796,6 @@ function editarPoder(index) {
   <option value="fogo" ${normalizarTipo(poder.tipo) === "fogo" ? "selected" : ""}>🔥 Fogo</option>
   <option value="gelo" ${normalizarTipo(poder.tipo) === "gelo" ? "selected" : ""}>❄️ Gelo</option>
   <option value="raio" ${normalizarTipo(poder.tipo) === "raio" ? "selected" : ""}>⚡ Raio</option>
-  <option value="cura" ${normalizarTipo(poder.tipo) === "cura" ? "selected" : ""}>🩹 Cura</option>
   <option value="trovejante" ${normalizarTipo(poder.tipo) === "trovejante" ? "selected" : ""}>🌩️ Trovejante</option>
   <option value="necrotico" ${normalizarTipo(poder.tipo) === "necrotico" ? "selected" : ""}>💀 Necrótico</option>
   <option value="radiante" ${normalizarTipo(poder.tipo) === "radiante" ? "selected" : ""}>✨ Radiante</option>
@@ -1925,7 +1957,14 @@ async function salvarEdicaoArma(index) {
   const dano = document.getElementById("editArmaDano").value.trim();
   const desc = document.getElementById("editArmaDesc").value.trim();
 
-  const temCargas = !!document.getElementById("editArmaTemCargas")?.checked;
+const requerSintonia =
+  !!document.getElementById("editArmaRequerSintonia")?.checked;
+
+const sintonizado =
+  requerSintonia &&
+  !!document.getElementById("editArmaSintonizado")?.checked;
+
+const temCargas = !!document.getElementById("editArmaTemCargas")?.checked;
   const maxCargas = temCargas
     ? parseInt(document.getElementById("editArmaMaxCargas")?.value) || 0
     : 0;
@@ -1967,15 +2006,17 @@ async function salvarEdicaoArma(index) {
   }
 
   armas[index] = {
-    nome,
-    dano,
-    desc,
-    temCargas,
-    maxCargas,
-    cargasGastas,
-    imagemUrl,
-    imagemDeleteUrl,
-  };
+  nome,
+  dano,
+  desc,
+  temCargas,
+  maxCargas,
+  cargasGastas,
+  requerSintonia,
+  sintonizado,
+  imagemUrl,
+  imagemDeleteUrl,
+};
 
   editArmaImagemBase64Temp = "";
   renderArmas();
@@ -2583,6 +2624,13 @@ async function addArmadura() {
   const temCargas = !!temCargasEl?.checked;
   const maxCargas = temCargas ? parseInt(maxCargasEl?.value) || 0 : 0;
 
+  const requerSintonia =
+  !!document.getElementById("armaduraRequerSintonia")?.checked;
+
+const sintonizado =
+  requerSintonia &&
+  !!document.getElementById("armaduraSintonizado")?.checked;
+
   if (!nome) return;
   if (temCargas && maxCargas <= 0) return;
 
@@ -2605,15 +2653,17 @@ async function addArmadura() {
   }
 
   const novaArmadura = {
-    nome,
-    ca,
-    desc,
-    temCargas,
-    maxCargas,
-    cargasGastas: temCargas ? Array(maxCargas).fill(false) : [],
-    imagemUrl,
-    imagemDeleteUrl,
-  };
+  nome,
+  ca,
+  desc,
+  temCargas,
+  maxCargas,
+  cargasGastas: temCargas ? Array(maxCargas).fill(false) : [],
+  requerSintonia,
+  sintonizado,
+  imagemUrl,
+  imagemDeleteUrl,
+};
 
   if (editandoArmadura >= 0) {
     const armaduraAnterior = armaduras[editandoArmadura];
@@ -2646,9 +2696,52 @@ async function addArmadura() {
     maxCargasEl.style.display = "none";
   }
 
+  const requerSintoniaEl =
+  document.getElementById("armaduraRequerSintonia");
+
+const sintonizadoEl =
+  document.getElementById("armaduraSintonizado");
+
+const boxSintonizadoEl =
+  document.getElementById("boxArmaduraSintonizado");
+
+if (requerSintoniaEl) requerSintoniaEl.checked = false;
+if (sintonizadoEl) sintonizadoEl.checked = false;
+if (boxSintonizadoEl) boxSintonizadoEl.style.display = "none";
+
   armaduraImagemBase64Temp = "";
   document.getElementById("armaduraImagem").value = "";
   document.getElementById("armaduraImagemPreview").style.display = "none";
+}
+
+function toggleSintoniaArma() {
+  const requer = document.getElementById("armaRequerSintonia");
+  const box = document.getElementById("boxArmaSintonizado");
+  const sintonizado = document.getElementById("armaSintonizado");
+
+  if (!requer || !box || !sintonizado) return;
+
+  if (requer.checked) {
+    box.style.display = "block";
+  } else {
+    box.style.display = "none";
+    sintonizado.checked = false;
+  }
+}
+
+function toggleSintoniaArmadura() {
+  const requer = document.getElementById("armaduraRequerSintonia");
+  const box = document.getElementById("boxArmaduraSintonizado");
+  const sintonizado = document.getElementById("armaduraSintonizado");
+
+  if (!requer || !box || !sintonizado) return;
+
+  if (requer.checked) {
+    box.style.display = "block";
+  } else {
+    box.style.display = "none";
+    sintonizado.checked = false;
+  }
 }
 
 function toggleCargaArmadura(indexArmadura, indexCarga) {
@@ -2692,6 +2785,15 @@ function renderArmaduras() {
       `
         : "";
 
+        const sintoniaHTML = armadura.requerSintonia
+  ? `
+    <div class="sintonia-preview">
+      🔗 Requer sintonização
+      ${armadura.sintonizado ? "• ✅ Sintonizado" : "• ❌ Não sintonizado"}
+    </div>
+  `
+  : "";
+
     li.innerHTML = `
       <button type="button" class="drag-handle" aria-label="Arrastar para reordenar">⠿</button>
 
@@ -2699,9 +2801,13 @@ function renderArmaduras() {
         <strong class="armadura-nome">${esc(armadura.nome) || "Sem nome"}</strong>
         <p class="armadura-ca-preview">CA: ${esc(armadura.ca) || "Sem CA"}</p>
         <p class="armadura-desc-preview">
-          ${armadura.desc ? esc(armadura.desc).substring(0, 60) + (armadura.desc.length > 60 ? "..." : "") : "Sem descrição"}
-        </p>
-        ${cargasHTML}
+          <p class="armadura-desc-preview">
+  ${armadura.desc ? esc(armadura.desc).substring(0, 60) + (armadura.desc.length > 60 ? "..." : "") : "Sem descrição"}
+</p>
+
+${sintoniaHTML}
+
+${cargasHTML}
       </div>
 
       <div class="item-acoes">
@@ -2744,14 +2850,28 @@ function verArmadura(index) {
       }
 
       <div>
-        <span class="popup-label">CA</span>
-        <div class="popup-descricao-pequena">${esc(armadura.ca) || "Sem CA"}</div>
-      </div>
+  <span class="popup-label">CA</span>
+  <div class="popup-descricao-pequena">${esc(armadura.ca) || "Sem CA"}</div>
+</div>
 
-      <div style="margin-top: 12px;">
-        <span class="popup-label">Descrição</span>
-        <div class="popup-descricao">${esc(armadura.desc) || "Sem descrição"}</div>
-      </div>
+<div style="margin-top: 12px;">
+  <span class="popup-label">Sintonia</span>
+
+  <div class="popup-descricao-pequena">
+    ${
+      armadura.requerSintonia
+        ? armadura.sintonizado
+          ? "🔗 Requer sintonização — ✅ Sintonizado"
+          : "🔗 Requer sintonização — ❌ Não sintonizado"
+        : "Não requer sintonização"
+    }
+  </div>
+</div>
+
+<div style="margin-top: 12px;">
+  <span class="popup-label">Descrição</span>
+  <div class="popup-descricao">${esc(armadura.desc) || "Sem descrição"}</div>
+</div>
     </div>
   `;
 
@@ -2802,28 +2922,60 @@ function editarArmadura(index) {
       <span class="link-remover-imagem" onclick="removerEditImagemArmadura()">Remover imagem</span>
 
       <div class="toggle-cargas" style="margin-top:10px;">
-        <span class="toggle-cargas-texto">Usa cargas</span>
+  <span class="toggle-cargas-texto">Usa cargas</span>
 
-        <label class="switch-cargas">
-          <input
-            type="checkbox"
-            id="editArmaduraTemCargas"
-            ${armadura.temCargas ? "checked" : ""}
-            onchange="toggleEditCampoCargasArmadura()"
-          >
-          <span class="slider-cargas"></span>
-        </label>
-      </div>
+  <label class="switch-cargas">
+    <input
+      type="checkbox"
+      id="editArmaduraTemCargas"
+      ${armadura.temCargas ? "checked" : ""}
+      onchange="toggleEditCampoCargasArmadura()"
+    >
+    <span class="slider-cargas"></span>
+  </label>
+</div>
 
+<div class="toggle-cargas">
+  <span class="toggle-cargas-texto">Requer sintonização</span>
+
+  <label class="switch-cargas">
+    <input
+      type="checkbox"
+      id="editArmaduraRequerSintonia"
+      ${armadura.requerSintonia ? "checked" : ""}
+      onchange="toggleEditSintoniaArmadura()"
+    >
+    <span class="slider-cargas"></span>
+  </label>
+</div>
+
+<div
+  id="boxEditArmaduraSintonizado"
+  style="display:${armadura.requerSintonia ? "block" : "none"};"
+>
+  <div class="toggle-cargas">
+    <span class="toggle-cargas-texto">Está sintonizado</span>
+
+    <label class="switch-cargas">
       <input
-        id="editArmaduraMaxCargas"
-        type="number"
-        min="1"
-        max="20"
-        placeholder="Qtd. de cargas"
-        value="${armadura.maxCargas || ""}"
-        style="display:${armadura.temCargas ? "block" : "none"};"
+        type="checkbox"
+        id="editArmaduraSintonizado"
+        ${armadura.sintonizado ? "checked" : ""}
       >
+      <span class="slider-cargas"></span>
+    </label>
+  </div>
+</div>
+
+<input
+  id="editArmaduraMaxCargas"
+  type="number"
+  min="1"
+  max="20"
+  placeholder="Qtd. de cargas"
+  value="${armadura.maxCargas || ""}"
+  style="display:${armadura.temCargas ? "block" : "none"};"
+>
 
       <button class="popup-salvar-btn" onclick="salvarEdicaoArmadura(${index})">
         Salvar
@@ -2853,7 +3005,14 @@ async function salvarEdicaoArmadura(index) {
   const ca = document.getElementById("editArmaduraCA").value.trim();
   const desc = document.getElementById("editArmaduraDesc").value.trim();
 
-  const temCargas = !!document.getElementById("editArmaduraTemCargas")?.checked;
+const requerSintonia =
+  !!document.getElementById("editArmaduraRequerSintonia")?.checked;
+
+const sintonizado =
+  requerSintonia &&
+  !!document.getElementById("editArmaduraSintonizado")?.checked;
+
+const temCargas = !!document.getElementById("editArmaduraTemCargas")?.checked;
   const maxCargas = temCargas
     ? parseInt(document.getElementById("editArmaduraMaxCargas")?.value) || 0
     : 0;
@@ -2895,15 +3054,17 @@ async function salvarEdicaoArmadura(index) {
   }
 
   armaduras[index] = {
-    nome,
-    ca,
-    desc,
-    temCargas,
-    maxCargas,
-    cargasGastas,
-    imagemUrl,
-    imagemDeleteUrl,
-  };
+  nome,
+  ca,
+  desc,
+  temCargas,
+  maxCargas,
+  cargasGastas,
+  requerSintonia,
+  sintonizado,
+  imagemUrl,
+  imagemDeleteUrl,
+};
 
   editArmaduraImagemBase64Temp = "";
   renderArmaduras();
@@ -3953,9 +4114,16 @@ async function addArma() {
   const maxCargasEl = document.getElementById("armaMaxCargas");
 
   const temCargas = !!temCargasEl?.checked;
-  const maxCargas = temCargas ? parseInt(maxCargasEl?.value) || 0 : 0;
+const maxCargas = temCargas ? parseInt(maxCargasEl?.value) || 0 : 0;
 
-  if (!nome) return;
+const requerSintonia =
+  !!document.getElementById("armaRequerSintonia")?.checked;
+
+const sintonizado =
+  requerSintonia &&
+  !!document.getElementById("armaSintonizado")?.checked;
+
+if (!nome) return;
   if (temCargas && maxCargas <= 0) return;
 
   let imagemUrl = editandoArma >= 0 ? armas[editandoArma]?.imagemUrl || "" : "";
@@ -3977,15 +4145,17 @@ async function addArma() {
   }
 
   const novaArma = {
-    nome,
-    dano,
-    desc,
-    temCargas,
-    maxCargas,
-    cargasGastas: temCargas ? Array(maxCargas).fill(false) : [],
-    imagemUrl,
-    imagemDeleteUrl,
-  };
+  nome,
+  dano,
+  desc,
+  temCargas,
+  maxCargas,
+  cargasGastas: temCargas ? Array(maxCargas).fill(false) : [],
+  requerSintonia,
+  sintonizado,
+  imagemUrl,
+  imagemDeleteUrl,
+};
 
   if (editandoArma >= 0) {
     const armaAnterior = armas[editandoArma];
@@ -4017,6 +4187,19 @@ async function addArma() {
     maxCargasEl.value = "";
     maxCargasEl.style.display = "none";
   }
+
+  const requerSintoniaEl =
+  document.getElementById("armaRequerSintonia");
+
+const sintonizadoEl =
+  document.getElementById("armaSintonizado");
+
+const boxSintonizadoEl =
+  document.getElementById("boxArmaSintonizado");
+
+if (requerSintoniaEl) requerSintoniaEl.checked = false;
+if (sintonizadoEl) sintonizadoEl.checked = false;
+if (boxSintonizadoEl) boxSintonizadoEl.style.display = "none";
 
   armaImagemBase64Temp = "";
   document.getElementById("armaImagem").value = "";
@@ -4054,6 +4237,15 @@ function renderArmas() {
       `
         : "";
 
+        const sintoniaHTML = arma.requerSintonia
+  ? `
+    <div class="sintonia-preview">
+      🔗 Requer sintonização
+      ${arma.sintonizado ? "• ✅ Sintonizado" : "• ❌ Não sintonizado"}
+    </div>
+  `
+  : "";
+
     li.innerHTML = `
       <button type="button" class="drag-handle" aria-label="Arrastar para reordenar">⠿</button>
 
@@ -4063,7 +4255,10 @@ function renderArmas() {
         <p class="arma-desc-preview">
   ${formatarDescricao(arma.desc)}
 </p>
-        ${cargasHTML}
+
+${sintoniaHTML}
+
+${cargasHTML}
       </div>
 
       <div class="item-acoes">
@@ -4077,6 +4272,42 @@ function renderArmas() {
   });
 
   habilitarArrastarReordenar(ul, armas, renderArmas);
+}
+
+function toggleEditSintoniaArma() {
+  const requer = document.getElementById("editArmaRequerSintonia");
+  const box = document.getElementById("boxEditArmaSintonizado");
+  const sintonizado = document.getElementById("editArmaSintonizado");
+
+  if (!requer || !box) return;
+
+  if (requer.checked) {
+    box.style.display = "block";
+  } else {
+    box.style.display = "none";
+
+    if (sintonizado) {
+      sintonizado.checked = false;
+    }
+  }
+}
+
+function toggleEditSintoniaArmadura() {
+  const requer = document.getElementById("editArmaduraRequerSintonia");
+  const box = document.getElementById("boxEditArmaduraSintonizado");
+  const sintonizado = document.getElementById("editArmaduraSintonizado");
+
+  if (!requer || !box) return;
+
+  if (requer.checked) {
+    box.style.display = "block";
+  } else {
+    box.style.display = "none";
+
+    if (sintonizado) {
+      sintonizado.checked = false;
+    }
+  }
 }
 
 function toggleCargaArma(indexArma, indexCarga) {
@@ -4103,16 +4334,30 @@ function verArma(index) {
       <div>
         <span class="popup-label">Dano</span>
         <div class="popup-tags">
-  <span class="tag-dano">${arma.dano || "—"}</span>
-</div>
+          <span class="tag-dano">${arma.dano || "—"}</span>
+        </div>
+      </div>
+
+      <div style="margin-top: 12px;">
+        <span class="popup-label">Sintonia</span>
+
+        <div class="popup-descricao popup-descricao-grande">
+          ${
+            arma.requerSintonia
+              ? arma.sintonizado
+                ? "🔗 Requer sintonização — ✅ Sintonizado"
+                : "🔗 Requer sintonização — ❌ Não sintonizado"
+              : "Não requer sintonização"
+          }
         </div>
       </div>
 
       <div style="margin-top: 12px;">
         <span class="popup-label">Descrição</span>
+
         <div class="popup-descricao popup-descricao-grande">
-  ${formatarDescricao(arma.desc)}
-</div>
+          ${formatarDescricao(arma.desc)}
+        </div>
       </div>
     </div>
   `;
