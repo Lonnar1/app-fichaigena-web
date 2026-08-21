@@ -2616,11 +2616,17 @@ async function salvarEdicaoAliado(index) {
     aliado.imagem = "";
   }
 
-  const imagemInput = document.getElementById("editAliadoImagem");
+    const imagemInput = document.getElementById("editAliadoImagem");
 
   if (imagemInput?.files?.[0]) {
     try {
-      aliado.imagem = await comprimirImagem(imagemInput.files[0], 900, 0.72);
+      const base64 = await comprimirImagem(imagemInput.files[0], 900, 0.72);
+      const resultado = await uploadImagemFirebase(base64, "aliado");
+      if (resultado.erro || !resultado.url) {
+        alertBonito("Não consegui enviar a imagem (internet?). A imagem anterior foi mantida.");
+      } else {
+        aliado.imagem = resultado.url;
+      }
     } catch (e) {
       console.error("Erro ao processar imagem do aliado:", e);
       alertBonito("Não consegui processar essa imagem.");
@@ -2638,7 +2644,6 @@ async function adicionarAliado() {
   const local = document.getElementById("aliadoLocal").value.trim();
   const desc = document.getElementById("aliadoDesc").value.trim();
   const tipo = document.getElementById("aliadoTipo")?.value || "companheiro";
-  const imagem = aliadoImagemBase64Temp || "";
 
   if (!nome) return;
 
@@ -2646,6 +2651,16 @@ async function adicionarAliado() {
 
   if (!Array.isArray(p.aliados)) {
     p.aliados = [];
+  }
+
+  let imagem = "";
+  if (aliadoImagemBase64Temp) {
+    const resultado = await uploadImagemFirebase(aliadoImagemBase64Temp, "aliado");
+    if (resultado.erro || !resultado.url) {
+      alertBonito("Não consegui enviar a imagem (internet?). O aliado foi salvo sem foto.");
+    } else {
+      imagem = resultado.url;
+    }
   }
 
   p.aliados.push({ nome, local, desc, tipo, imagem });
