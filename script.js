@@ -504,6 +504,7 @@ const EMAILS_VIP = [
   "pedropian001@gmail.com",
   "vitorlunardi92@gmail.com",
   "xiuuososubliminals@gmail.com",
+  "guilhermezavanela5@gmail.com",
   "nicolastresca@gmail.com"
 ];
 
