@@ -55,6 +55,32 @@
 </div>
 
 <!-- ================= ESCOLHA DE MODO ================= -->
+<div id="modalNicknameOverlay" style="display:none;position:fixed;inset:0;z-index:6000;background:rgba(0,0,0,.75);"></div>
+<div id="modalNickname" class="container login-box" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6001;width:min(90vw,380px);">
+  <h2 class="titulo-secao">Escolha seu nome</h2>
+  <p style="text-align:center;color:#cbbfa7;font-size:13px;margin-bottom:14px;">
+    Esse nome + número é como seus amigos vão te encontrar no app.
+  </p>
+  <input id="nicknameInput" placeholder="Seu nickname" maxlength="20" />
+  <div id="nicknameTagPreview" style="text-align:center;margin:10px 0;font-family:'Cinzel',serif;color:#d7b46a;font-size:18px;"></div>
+  <div id="nicknameErro" class="login-erro"></div>
+  <div class="login-botoes">
+    <button class="btn-login btn-login-secundario" type="button" onclick="gerarNovaTagPreview()">Gerar outro número</button>
+    <button class="btn-login" type="button" onclick="confirmarNickname()">Confirmar</button>
+  </div>
+</div>
+
+<!-- ================= DASHBOARD DO MESTRE ================= -->
+<div id="modalDashboardOverlay" style="display:none;position:fixed;inset:0;z-index:6900;background:rgba(0,0,0,.85);" onclick="fecharDashboardMestre()"></div>
+<div id="modalDashboard" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:6901;background:#0e0907;color:#F8F4E3;padding:16px;overflow-y:auto;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <span style="font-family:'Cinzel',serif;color:#E8CC80;font-size:17px;">Dashboard ao vivo</span>
+    <button onclick="fecharDashboardMestre()" style="background:none;border:none;color:#9A8A70;font-size:22px;cursor:pointer;">✕</button>
+  </div>
+  <div id="dashboardConteudo" style="display:flex;flex-direction:column;gap:12px;"></div>
+</div>
+
+
 <div id="tela-modo" style="display:none;position:fixed;inset:0;z-index:5000;background:#0e0907;color:#F8F4E3;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px 36px;overflow-y:auto;">
 
   <button onclick="abrirPainelAmigos()"
@@ -1003,11 +1029,13 @@
     <div class="criar-form-titulo">Criar Item</div>
     <div class="form-master-limpo">
       <input id="itemMasterNome" placeholder="Nome do item">
-      <select id="itemMasterCategoria">
+      <select id="itemMasterCategoria" onchange="atualizarCamposCategoriaItem()">
         <option value="inventario">Item diverso (vai pro inventário)</option>
         <option value="armas">Arma</option>
         <option value="armaduras">Armadura</option>
       </select>
+      <input id="itemMasterDano" placeholder="Dano (ex: 1d8+2 cortante)" style="display:none;">
+      <input id="itemMasterCA" placeholder="CA (ex: 16)" style="display:none;">
       <div class="criar-campos-duplos">
         <input id="itemMasterTipo" placeholder="Tipo (arma, armadura...)">
         <select id="itemMasterRaridade">
@@ -1164,34 +1192,28 @@
     <!-- ================= FICHA ================= -->
     <div class="container" id="ficha" style="display: none">
       <!-- ABAS -->
-      <!-- ABAS -->
-<div class="tabs">
-  <button class="tab-btn tab-voltar" title="Voltar" onclick="voltarInicio()">
-    <span class="tab-icone">←</span><span class="tab-label">Voltar</span>
-  </button>
-  <button class="tab-btn active" onclick="trocarAba('personagem', this)">
-          👤<span class="tab-label">Personagem</span>
+      <div class="tabs">
+        <button class="tab-btn tab-voltar" title="Voltar" onclick="voltarInicio()">
+          <span class="tab-icone">←</span><span class="tab-label">Voltar</span>
         </button>
-        <button class="tab-btn" onclick="trocarAba('atributos', this)">
-          📊<span class="tab-label">Atributos</span>
-        </button>
+        <button class="tab-btn active" onclick="trocarAba('personagem', this)">👤<span class="tab-label">Personagem</span></button>
+        <button class="tab-btn" onclick="trocarAba('atributos', this)">📊<span class="tab-label">Atributos</span></button>
         <button class="tab-btn" onclick="trocarAba('combate', this)">⚔️<span class="tab-label">Combate</span></button>
-        <button class="tab-btn" onclick="trocarAba('inventario', this)">
-          🎒<span class="tab-label">Inventário</span>
-        </button>
+        <button class="tab-btn" onclick="trocarAba('inventario', this)">🎒<span class="tab-label">Inventário</span></button>
         <button class="tab-btn" onclick="trocarAba('poderes', this)">🔥<span class="tab-label">Poderes</span></button>
+        <button class="tab-btn" onclick="trocarAba('veiculos', this)" aria-label="Veículos"><svg class="tab-ic-carroca" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 26V18c0-6 7-10 16-10s16 4 16 10v8"/><path d="M16 10.5V26M24 8v18M32 10.5V26"/><path d="M5 26h38l-2 6H7z"/><circle cx="14" cy="37" r="5"/><circle cx="34" cy="37" r="5"/><path d="M43 29h3"/></svg><span class="tab-label">Veículos</span></button>
       </div>
 
       <!-- ================= PERSONAGEM ================= -->
-<div class="aba" id="personagem">
-  <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:12px;">
-    <div class="itens-recebidos-align">
-    <button id="btnInboxItens" onclick="abrirInboxItens()" style="position:relative;background:#4a3b31;border:none;color:#f1e6cf;border-radius:10px;padding:8px 12px;cursor:pointer;font-size:13px;white-space:nowrap;">
-      Itens recebidos
-      <span id="badgeInboxItens" style="display:none;position:absolute;top:-6px;right:-6px;background:#b83a2f;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;align-items:center;justify-content:center;">0</span>
-    </button>
-  </div>
-</div>
+      <div class="aba" id="personagem">
+        <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:12px;">
+          <button class="voltar" onclick="voltarInicio()">← Voltar</button>
+          <div class="itens-recebidos-align">
+<button id="btnInboxItens" onclick="abrirInboxItens()" style="position:relative;background:#4a3b31;border:none;color:#f1e6cf;border-radius:10px;padding:8px 12px;cursor:pointer;font-size:13px;white-space:nowrap;">              Itens recebidos
+              <span id="badgeInboxItens" style="display:none;position:absolute;top:-6px;right:-6px;background:#b83a2f;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;align-items:center;justify-content:center;">0</span>
+            </button>
+          </div>
+        </div>
 
         <div class="personagem-topo">
           <!-- CAMPOS -->
@@ -1220,34 +1242,36 @@
               />
               <input id="antecedentes" placeholder="Antecedentes" />
             </div>
-          </div>
 
-          <!-- IMAGEM -->
-          <div class="personagem-imagem-box">
-            <img id="preview" src="" alt="Preview do personagem" />
-
-            <div class="upload-imagem personagem-upload">
-              <button
-                type="button"
-                onclick="abrirEditorImagem()"
-                class="botao-upload"
-              >
-                Ajustar imagem
-              </button>
-
-              <label for="imagem" class="botao-upload"> Escolher imagem </label>
-
-              <input
-                type="file"
-                id="imagem"
-                accept="image/*"
-                onchange="previewImagem()"
-              />
             </div>
-          </div>
-        </div>
+
+                    <!-- IMAGEM -->
+          <div class="personagem-imagem-box">
+  <div id="carrosselWrapper" style="position:relative;width:100%;cursor:pointer;overflow:hidden;border-radius:12px;" onclick="aoClicarFotoPersonagem()">
+    <img id="preview" src="" alt="Preview do personagem" />
+
+    <button type="button" id="carrosselAnterior" onclick="event.stopPropagation(); trocarFotoCarrossel(-1)"
+      style="display:none;position:absolute;left:10px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:16px;cursor:pointer;z-index:2;">‹</button>
+
+    <button type="button" id="carrosselProximo" onclick="event.stopPropagation(); trocarFotoCarrossel(1)"
+      style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:16px;cursor:pointer;z-index:2;">›</button>
+
+    <span id="carrosselContador"
+      style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.55);color:#fff;font-size:10px;padding:2px 7px;border-radius:20px;z-index:2;"></span>
+
+    <button type="button" onclick="event.stopPropagation(); abrirPopupFotoPersonagem()"
+      style="position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:50%;border:1px solid rgba(196,169,91,0.5);background:rgba(20,14,8,0.75);color:#C4A95B;font-size:12px;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;padding:0;">
+      ✏️
+    </button>
+
+            <div id="carrosselDots" style="position:absolute;bottom:8px;left:0;right:0;display:flex;gap:6px;justify-content:center;z-index:2;"></div>
+  </div>
+  <input type="file" id="imagem" accept="image/*" onchange="previewImagem()" style="display:none" />
+</div>
+</div>
 
         <!-- 🔥 IDIOMAS -->
+
         <div class="secao-toggle">
           <h2
             class="titulo-secao titulo-toggle"
@@ -1262,49 +1286,91 @@
           </div>
         </div>
 
-       <!-- 🔥 RELAÇÕES -->
-<div class="secao-toggle">
-  <h2 class="titulo-secao titulo-toggle" onclick="toggleSecao('boxAliadosForm', this)">
-    <span>Vinculos</span>
-    <span class="setinha">▼</span>
-  </h2>
+        <!-- 🔥 ALIADOS -->
+        <div class="secao-toggle">
+          <h2
+            class="titulo-secao titulo-toggle"
+            onclick="toggleSecao('boxAliadosForm', this)"
+          >
+            <span>Vínculos</span>
+            <span class="setinha">▼</span>
+          </h2>
 
-  <div id="boxAliadosForm" class="conteudo-toggle aberto">
-    <div class="inv-add">
-      <input id="aliadoNome" placeholder="Nome do personagem">
-      <select id="aliadoTipo">
-        <option value="companheiro">⚔ Companheiro</option>
-        <option value="inimigo">☠ Inimigo</option>
-        <option value="neutro">◈ Neutro</option>
-      </select>
-      <input id="aliadoLocal" placeholder="Região / Local">
-      <textarea id="aliadoDesc" placeholder="Descrição do personagem"></textarea>
+          <div id="boxAliadosForm" class="conteudo-toggle aberto">
 
-      <input type="file" id="aliadoImagem" accept="image/*" onchange="previewImagemAliado(this)" style="display:none;">
+  <div class="inv-add">
 
-      <label for="aliadoImagem" class="botao-upload">🖼 Adicionar imagem (opcional)</label>
+    <input id="aliadoNome" placeholder="Nome do personagem" />
 
-      <img id="aliadoImagemPreview" style="display:none;">
+    <select id="aliadoTipo">
+      <option value="companheiro">⚔ Companheiro</option>
+      <option value="inimigo">☠ Inimigo</option>
+      <option value="neutro">◈ Neutro</option>
+    </select>
 
-      <span id="aliadoRemoverImagem" class="link-remover-imagem" onclick="removerImagemAliado()">Remover imagem</span>
-    </div>
+    <input id="aliadoLocal" placeholder="Região / Local" />
 
-    <div class="add-linha">
-      <button class="inv-add-btn" onclick="adicionarAliado()">+</button>
-    </div>
+    <textarea
+      id="aliadoDesc"
+      placeholder="Descrição do personagem"
+    ></textarea>
+
+    <input
+  type="file"
+  id="aliadoImagem"
+  accept="image/*"
+  onchange="previewAliadoImagem()"
+  style="display: none"
+/>
+
+<label
+  for="aliadoImagem"
+  class="botao-upload"
+><i class="ti ti-photo-plus"></i><span>Adicionar imagem <small>(opcional)</small></span></label>
+
+<img
+  id="aliadoImagemPreview"
+  style="display: none"
+/>
+
+<span
+  class="link-remover-imagem"
+  onclick="removerImagemAliado()"
+><i class="ti ti-trash"></i> Remover imagem</span>
+
   </div>
 
-  <div class="aliados-filtros">
-    <button type="button" class="aliado-filtro ativo" onclick="filtrarAliados('todos', this)">Todos</button>
-    <button type="button" class="aliado-filtro" onclick="filtrarAliados('companheiro', this)">⚔ Companheiros</button>
-    <button type="button" class="aliado-filtro" onclick="filtrarAliados('inimigo', this)">☠ Inimigos</button>
-    <button type="button" class="aliado-filtro" onclick="filtrarAliados('neutro', this)">◈ Neutros</button>
+  <div class="add-linha">
+    <button type="button" class="inv-add-btn btn-adicionar" onclick="adicionarAliado()"><i class="ti ti-plus"></i><span>Adicionar personagem</span></button>
   </div>
 
-  <ul id="listaAliados" class="lista-sempre-visivel"></ul>
 </div>
 
-        <!-- 🔥 LORE -->
+<!-- Filtros das relações -->
+<div class="aliados-filtros">
+
+  <button type="button" class="aliado-filtro ativo" onclick="filtrarAliados('todos', this)">
+    Todos
+  </button>
+
+  <button type="button" class="aliado-filtro" onclick="filtrarAliados('companheiro', this)">
+    ⚔ Companheiros
+  </button>
+
+  <button type="button" class="aliado-filtro" onclick="filtrarAliados('inimigo', this)">
+    ☠ Inimigos
+  </button>
+
+  <button type="button" class="aliado-filtro" onclick="filtrarAliados('neutro', this)">
+    ◈ Neutros
+  </button>
+
+</div>
+
+<ul id="listaAliados" class="lista-sempre-visivel"></ul>
+        </div>
+
+        <!-- LORE -->
         <div class="secao-toggle">
           <h2
             class="titulo-secao titulo-toggle"
@@ -1315,11 +1381,11 @@
           </h2>
 
           <div id="boxLorePersonagem" class="conteudo-toggle aberto">
-            <textarea id="lorePersonagem" placeholder="História, origem, motivações do seu personagem..." oninput="salvarLorePersonagem()"></textarea>
+<textarea id="lorePersonagem" placeholder="História, origem, motivações do seu personagem..." oninput="salvarLorePersonagem()" style="min-height:160px;padding:16px;line-height:1.6;box-sizing:border-box;"></textarea>
           </div>
         </div>
       </div>
-      
+
       <!-- ================= EDITOR DE IMAGEM (GLOBAL) ================= -->
       <div id="editorImagemInline" class="editor-inline fechado">
   <div class="editor-container">
@@ -1343,138 +1409,176 @@
 
       <!-- ================= ATRIBUTOS ================= -->
       <div class="aba" id="atributos" style="display: none">
+        <h2 class="titulo-secao titulo-atributos">Atributos</h2>
         <div class="atributos-layout-novo">
-          <div class="atributos-e-prof">
-          <div class="atributos-compactos">
-            <div class="attr attr-compacto">
-              <span class="attr-sigla">FOR</span>
-              <div class="save-check" onclick="toggleSave('forca')"></div>
-              <input
-                id="forca"
-                type="number"
-                min="1"
-                max="30"
-                value="10"
-                oninput="
-                  limitarAtributo(this);
-                  atualizarTudo();
-                "
-              />
-              <div class="attr-final" id="final_forca">10</div>
-              <div class="attr-mod" id="mod_forca"></div>
-              <div class="save-badge" id="save_forca"></div>
+          <div class="atributos-lista">
+            <div class="attr-card">
+              <div class="attr-card-inner">
+                <div class="attr-icone"><i class="ti ti-barbell"></i></div>
+                <div class="attr-corpo">
+                  <span class="attr-nome">Força</span>
+                  <div class="attr-valores">
+                    <input
+                      id="forca"
+                      type="number"
+                      min="1"
+                      max="30"
+                      value="10"
+                      oninput="
+                        limitarAtributo(this);
+                        atualizarTudo();
+                      "
+                    />
+                    <div class="attr-mod" id="mod_forca" title="Rolar teste" onclick="rolarAtributo('forca')"></div>
+                    <div class="attr-final" id="final_forca">10</div>
+                  </div>
+                </div>
+                <div class="save-check" onclick="toggleSave('forca')" title="Salvaguarda (toque para marcar proficiência)">
+                  <span class="save-label">Resist.</span>
+                  <div class="save-badge" id="save_forca"></div>
+                </div>
+              </div>
             </div>
 
-            <div class="attr attr-compacto">
-              <span class="attr-sigla">DES</span>
-              <div class="save-check" onclick="toggleSave('destreza')"></div>
-              <input
-                id="destreza"
-                type="number"
-                min="1"
-                max="20"
-                value="10"
-                oninput="
-                  limitarAtributo(this);
-                  atualizarTudo();
-                "
-              />
-              <div class="attr-final" id="final_destreza">10</div>
-              <div class="attr-mod" id="mod_destreza"></div>
-              <div class="save-badge" id="save_destreza"></div>
+            <div class="attr-card">
+              <div class="attr-card-inner">
+                <div class="attr-icone"><i class="ti ti-feather"></i></div>
+                <div class="attr-corpo">
+                  <span class="attr-nome">Destreza</span>
+                  <div class="attr-valores">
+                    <input
+                      id="destreza"
+                      type="number"
+                      min="1"
+                      max="20"
+                      value="10"
+                      oninput="
+                        limitarAtributo(this);
+                        atualizarTudo();
+                      "
+                    />
+                    <div class="attr-mod" id="mod_destreza" title="Rolar teste" onclick="rolarAtributo('destreza')"></div>
+                    <div class="attr-final" id="final_destreza">10</div>
+                  </div>
+                </div>
+                <div class="save-check" onclick="toggleSave('destreza')" title="Salvaguarda (toque para marcar proficiência)">
+                  <span class="save-label">Resist.</span>
+                  <div class="save-badge" id="save_destreza"></div>
+                </div>
+              </div>
             </div>
 
-            <div class="attr attr-compacto">
-              <span class="attr-sigla">CON</span>
-              <div
-                class="save-check"
-                onclick="toggleSave('constituicao')"
-              ></div>
-              <input
-                id="constituicao"
-                type="number"
-                min="1"
-                max="20"
-                value="10"
-                oninput="
-                  limitarAtributo(this);
-                  atualizarTudo();
-                "
-              />
-              <div class="attr-final" id="final_constituicao">10</div>
-              <div class="attr-mod" id="mod_constituicao"></div>
-              <div class="save-badge" id="save_constituicao"></div>
+            <div class="attr-card">
+              <div class="attr-card-inner">
+                <div class="attr-icone"><i class="ti ti-shield"></i></div>
+                <div class="attr-corpo">
+                  <span class="attr-nome">Constituição</span>
+                  <div class="attr-valores">
+                    <input
+                      id="constituicao"
+                      type="number"
+                      min="1"
+                      max="20"
+                      value="10"
+                      oninput="
+                        limitarAtributo(this);
+                        atualizarTudo();
+                      "
+                    />
+                    <div class="attr-mod" id="mod_constituicao" title="Rolar teste" onclick="rolarAtributo('constituicao')"></div>
+                    <div class="attr-final" id="final_constituicao">10</div>
+                  </div>
+                </div>
+                <div class="save-check" onclick="toggleSave('constituicao')" title="Salvaguarda (toque para marcar proficiência)">
+                  <span class="save-label">Resist.</span>
+                  <div class="save-badge" id="save_constituicao"></div>
+                </div>
+              </div>
             </div>
 
-            <div class="attr attr-compacto">
-              <span class="attr-sigla">INT</span>
-              <div
-                class="save-check"
-                onclick="toggleSave('inteligencia')"
-              ></div>
-              <input
-                id="inteligencia"
-                type="number"
-                min="1"
-                max="20"
-                value="10"
-                oninput="
-                  limitarAtributo(this);
-                  atualizarTudo();
-                "
-              />
-              <div class="attr-final" id="final_inteligencia">10</div>
-              <div class="attr-mod" id="mod_inteligencia"></div>
-              <div class="save-badge" id="save_inteligencia"></div>
+            <div class="attr-card">
+              <div class="attr-card-inner">
+                <div class="attr-icone"><i class="ti ti-book"></i></div>
+                <div class="attr-corpo">
+                  <span class="attr-nome">Inteligência</span>
+                  <div class="attr-valores">
+                    <input
+                      id="inteligencia"
+                      type="number"
+                      min="1"
+                      max="20"
+                      value="10"
+                      oninput="
+                        limitarAtributo(this);
+                        atualizarTudo();
+                      "
+                    />
+                    <div class="attr-mod" id="mod_inteligencia" title="Rolar teste" onclick="rolarAtributo('inteligencia')"></div>
+                    <div class="attr-final" id="final_inteligencia">10</div>
+                  </div>
+                </div>
+                <div class="save-check" onclick="toggleSave('inteligencia')" title="Salvaguarda (toque para marcar proficiência)">
+                  <span class="save-label">Resist.</span>
+                  <div class="save-badge" id="save_inteligencia"></div>
+                </div>
+              </div>
             </div>
 
-            <div class="attr attr-compacto">
-              <span class="attr-sigla">SAB</span>
-              <div class="save-check" onclick="toggleSave('sabedoria')"></div>
-              <input
-                id="sabedoria"
-                type="number"
-                min="1"
-                max="20"
-                value="10"
-                oninput="
-                  limitarAtributo(this);
-                  atualizarTudo();
-                "
-              />
-              <div class="attr-final" id="final_sabedoria">10</div>
-              <div class="attr-mod" id="mod_sabedoria"></div>
-              <div class="save-badge" id="save_sabedoria"></div>
+            <div class="attr-card">
+              <div class="attr-card-inner">
+                <div class="attr-icone"><i class="ti ti-eye"></i></div>
+                <div class="attr-corpo">
+                  <span class="attr-nome">Sabedoria</span>
+                  <div class="attr-valores">
+                    <input
+                      id="sabedoria"
+                      type="number"
+                      min="1"
+                      max="20"
+                      value="10"
+                      oninput="
+                        limitarAtributo(this);
+                        atualizarTudo();
+                      "
+                    />
+                    <div class="attr-mod" id="mod_sabedoria" title="Rolar teste" onclick="rolarAtributo('sabedoria')"></div>
+                    <div class="attr-final" id="final_sabedoria">10</div>
+                  </div>
+                </div>
+                <div class="save-check" onclick="toggleSave('sabedoria')" title="Salvaguarda (toque para marcar proficiência)">
+                  <span class="save-label">Resist.</span>
+                  <div class="save-badge" id="save_sabedoria"></div>
+                </div>
+              </div>
             </div>
 
-            <div class="attr attr-compacto">
-              <span class="attr-sigla">CAR</span>
-              <div class="save-check" onclick="toggleSave('carisma')"></div>
-              <input
-                id="carisma"
-                type="number"
-                min="1"
-                max="20"
-                value="10"
-                oninput="
-                  limitarAtributo(this);
-                  atualizarTudo();
-                "
-              />
-              <div class="attr-final" id="final_carisma">10</div>
-              <div class="attr-mod" id="mod_carisma"></div>
-              <div class="save-badge" id="save_carisma"></div>
+            <div class="attr-card">
+              <div class="attr-card-inner">
+                <div class="attr-icone"><i class="ti ti-flame"></i></div>
+                <div class="attr-corpo">
+                  <span class="attr-nome">Carisma</span>
+                  <div class="attr-valores">
+                    <input
+                      id="carisma"
+                      type="number"
+                      min="1"
+                      max="20"
+                      value="10"
+                      oninput="
+                        limitarAtributo(this);
+                        atualizarTudo();
+                      "
+                    />
+                    <div class="attr-mod" id="mod_carisma" title="Rolar teste" onclick="rolarAtributo('carisma')"></div>
+                    <div class="attr-final" id="final_carisma">10</div>
+                  </div>
+                </div>
+                <div class="save-check" onclick="toggleSave('carisma')" title="Salvaguarda (toque para marcar proficiência)">
+                  <span class="save-label">Resist.</span>
+                  <div class="save-badge" id="save_carisma"></div>
+                </div>
+              </div>
             </div>
-          </div>
-
-        <div class="proficiencias-secao">
-          <h2 class="titulo-secao">Proficiências</h2>
-          <textarea
-            id="proficienciasExtras"
-            oninput="salvarTudo()"
-            placeholder="Ex: armas marciais, armaduras leves, armaduras médias, escudos, ferramentas de ladrão, kit de herbalismo..."
-          ></textarea>
-        </div>
           </div>
 
           <div class="pericias pericias-scroll">
@@ -1499,8 +1603,25 @@
               </div>
             </div>
 
+            <div class="pericias-filtros">
+              <button type="button" class="pericias-filtro ativo" onclick="filtrarPericias('todas', this)">Todas</button>
+              <button type="button" class="pericias-filtro" onclick="filtrarPericias('treinadas', this)">Treinadas</button>
+              <button type="button" class="pericias-filtro" onclick="filtrarPericias('especialista', this)">Especialista</button>
+              <button type="button" class="pericias-filtro pericias-dados" onclick="abrirBandejaDados()" title="Rolar dados livres (dano, etc.)">🎲 Dados</button>
+            </div>
+            <p class="pericias-dica">Toque no valor de uma perícia ou no modificador de um atributo pra rolar.</p>
+
             <div id="pericias"></div>
           </div>
+        </div>
+
+        <div class="proficiencias-secao">
+          <h2 class="titulo-secao">Proficiências</h2>
+          <textarea
+            id="proficienciasExtras"
+            oninput="salvarTudo()"
+            placeholder="Ex: armas marciais, armaduras leves, armaduras médias, escudos, ferramentas de ladrão, kit de herbalismo..."
+          ></textarea>
         </div>
       </div>
 
@@ -1571,34 +1692,36 @@
                 placeholder="Descrição da arma"
               ></textarea>
 
+              <span class="mods-titulo">Modificações</span>
+              <div id="armaMods"></div>
+
               <input
                 type="file"
                 id="armaImagem"
                 accept="image/*"
                 onchange="previewArmaImagem()"
+                style="display: none"
               />
               <label for="armaImagem" class="botao-upload"
-                >🖼 Adicionar imagem (opcional)</label
-              >
+                ><i class="ti ti-photo-plus"></i><span>Adicionar imagem <small>(opcional)</small></span></label>
               <img id="armaImagemPreview" style="display: none" />
               <span class="link-remover-imagem" onclick="removerImagemArma()"
-                >Remover imagem</span
-              >
+                ><i class="ti ti-trash"></i> Remover imagem</span>
 
               <div class="toggle-cargas">
-  <span class="toggle-cargas-texto">Usa cargas</span>
+                <span class="toggle-cargas-texto">Usa cargas</span>
 
-  <label class="switch-cargas">
-    <input
-      type="checkbox"
-      id="armaTemCargas"
-      onchange="toggleCampoCargas()"
-    />
-    <span class="slider-cargas"></span>
-  </label>
-</div>
+                <label class="switch-cargas">
+                  <input
+                    type="checkbox"
+                    id="armaTemCargas"
+                    onchange="toggleCampoCargas()"
+                  />
+                  <span class="slider-cargas"></span>
+                </label>
+              </div>
 
-<div class="toggle-cargas">
+              <div class="toggle-cargas">
   <span class="toggle-cargas-texto">Requer sintonização</span>
 
   <label class="switch-cargas">
@@ -1625,17 +1748,17 @@
   </div>
 </div>
 
-<input
-  id="armaMaxCargas"
-  type="number"
-  min="1"
-  max="20"
-  placeholder="Qtd. de cargas"
-  style="display: none"
-/>
+              <input
+                id="armaMaxCargas"
+                type="number"
+                min="1"
+                max="20"
+                placeholder="Qtd. de cargas"
+                style="display: none"
+              />
 
               <div class="arma-acoes-final">
-                <button class="inv-add-btn" onclick="addArma()">+</button>
+                <button type="button" class="inv-add-btn btn-adicionar" onclick="addArma()"><i class="ti ti-plus"></i><span>Adicionar arma</span></button>
               </div>
             </div>
           </div>
@@ -1661,21 +1784,35 @@
                 placeholder="Descrição da armadura"
               ></textarea>
 
+              <span class="mods-titulo">Modificações</span>
+              <div id="armaduraMods"></div>
+
               <input
                 type="file"
                 id="armaduraImagem"
                 accept="image/*"
                 onchange="previewArmaduraImagem()"
+                style="display: none"
               />
               <label for="armaduraImagem" class="botao-upload"
-                >🖼 Adicionar imagem (opcional)</label
-              >
+                ><i class="ti ti-photo-plus"></i><span>Adicionar imagem <small>(opcional)</small></span></label>
               <img id="armaduraImagemPreview" style="display: none" />
               <span
                 class="link-remover-imagem"
                 onclick="removerImagemArmadura()"
-                >Remover imagem</span
-              >
+                ><i class="ti ti-trash"></i> Remover imagem</span>
+
+              <div class="toggle-cargas">
+                <span class="toggle-cargas-texto">Usa cargas</span>
+                <label class="switch-cargas">
+                  <input
+                    type="checkbox"
+                    id="armaduraTemCargas"
+                    onchange="toggleCampoCargasArmadura()"
+                  />
+                  <span class="slider-cargas"></span>
+                </label>
+              </div>
 
               <div class="toggle-cargas">
   <span class="toggle-cargas-texto">Requer sintonização</span>
@@ -1714,7 +1851,7 @@
               />
 
               <div class="add-linha">
-                <button class="inv-add-btn" onclick="addArmadura()">+</button>
+                <button type="button" class="inv-add-btn btn-adicionar" onclick="addArmadura()"><i class="ti ti-plus"></i><span>Adicionar armadura</span></button>
               </div>
             </div>
           </div>
@@ -1781,7 +1918,7 @@
             class="titulo-secao titulo-toggle"
             onclick="toggleSecao('boxMorte', this)"
           >
-            <span>Pontos de Morte</span>
+            <span>Teste de morte</span>
             <span class="setinha">▼</span>
           </h2>
 
@@ -1845,19 +1982,21 @@
             </div>
           </div>
         </div>
-        </div>
+      </div>
       </div>
 
       <!-- ================= INVENTÁRIO ================= -->
       <div class="aba" id="inventario" style="display: none">
         <h2 class="titulo-secao">Inventário</h2>
 
-        <button class="btn-diario" onclick="toggleDiario()">📖 Diário</button>
+        <button class="btn-diario" onclick="toggleDiario()">Diário</button>
 
         <div id="diario-box" class="diario-box" style="display: none">
+          <div id="diarioAbas" class="diario-abas"></div>
+          <div id="diarioDica" class="diario-dica"></div>
           <textarea
             id="diario"
-            oninput="salvarTudo()"
+            oninput="aoDigitarDiario()"
             placeholder="Escreva aqui seu diário, anotações, pistas, missões, nomes, eventos..."
           ></textarea>
         </div>
@@ -1876,19 +2015,21 @@
               <input id="itemNome" placeholder="Nome do item" />
               <textarea id="itemDesc" placeholder="Descrição"></textarea>
 
+              <span class="mods-titulo">Modificações</span>
+              <div id="itemMods"></div>
+
               <input
                 type="file"
                 id="itemImagem"
                 accept="image/*"
                 onchange="previewItemImagem()"
+                style="display: none"
               />
               <label for="itemImagem" class="botao-upload"
-                >🖼 Adicionar imagem (opcional)</label
-              >
+                ><i class="ti ti-photo-plus"></i><span>Adicionar imagem <small>(opcional)</small></span></label>
               <img id="itemImagemPreview" style="display: none" />
               <span class="link-remover-imagem" onclick="removerImagemItem()"
-                >Remover imagem</span
-              >
+                ><i class="ti ti-trash"></i> Remover imagem</span>
 
               <input
                 id="itemQtd"
@@ -1918,14 +2059,39 @@
                   </label>
                 </div>
               </div>
+
+              <div class="toggle-cargas">
+                <span class="toggle-cargas-texto">É uma bolsa de dinheiro</span>
+                <label class="switch-cargas">
+                  <input type="checkbox" id="itemBolsa" onchange="alternarBolsaForm('item')" />
+                  <span class="slider-cargas"></span>
+                </label>
+              </div>
+
+              <div class="toggle-cargas">
+                <span class="toggle-cargas-texto">É um recipiente (mochila...)</span>
+                <label class="switch-cargas">
+                  <input type="checkbox" id="itemRecipiente" onchange="if (this.checked) document.getElementById('itemBolsa').checked = false; atualizarCampoGuardarEm()" />
+                  <span class="slider-cargas"></span>
+                </label>
+              </div>
+
+              <div id="boxItemGuardarEm" class="select-wrapper" style="display: none">
+                <select id="itemDentroDe"></select>
+              </div>
             </div>
 
             <div class="add-linha">
-              <button class="inv-add-btn" onclick="addItem()">+</button>
+              <button type="button" class="inv-add-btn btn-adicionar" onclick="addItem()"><i class="ti ti-plus"></i><span>Adicionar item</span></button>
             </div>
           </div>
 
           <ul id="lista" class="lista-sempre-visivel"></ul>
+
+          <div id="secaoRecipientes" style="display: none">
+            <h2 class="titulo-secao">Recipientes</h2>
+            <ul id="listaRecipientes" class="lista-recipientes"></ul>
+          </div>
           
           <div class="secao-toggle">
         <h2 class="titulo-secao titulo-toggle" onclick="toggleSecao('boxMapasForm', this)">
@@ -1937,14 +2103,14 @@
             <input id="mapaNome" placeholder="Nome do mapa" />
             <textarea id="mapaDesc" placeholder="Descrição do mapa"></textarea>
             <label class="botao-upload mapa-upload-label">
-              Escolher imagem
+              <i class="ti ti-photo-plus"></i><span>Escolher imagem do mapa</span>
               <input type="file" id="mapaImagem" accept="image/*" onchange="previewMapaImagem()" style="display:none" />
             </label>
             <div id="mapaPreviewBox" style="display:none">
               <img id="mapaPreview" class="mapa-preview-thumb" />
             </div>
             <div class="add-linha">
-              <button class="inv-add-btn" onclick="addMapa()">+</button>
+              <button type="button" class="inv-add-btn btn-adicionar" onclick="addMapa()"><i class="ti ti-plus"></i><span>Adicionar mapa</span></button>
             </div>
           </div>
         </div>
@@ -2001,427 +2167,88 @@
       <div class="aba" id="poderes" style="display: none">
         <h2 class="titulo-secao">Poderes e Magias</h2>
 
-        <div class="dt-box">
-          <h3 class="subtitulo-secao">DT</h3>
-
-          <div class="dt-linha">
-            <div class="campo">
-              <label for="dtBase">Base</label>
-              <input
-                id="dtBase"
-                type="text"
-                value="8"
-                oninput="
-                  atualizarDT();
-                  salvarTudo();
-                "
-              />
-            </div>
-
-            <div class="campo">
-              <label for="dtAtributo">Mod.</label>
-              <input
-                id="dtAtributo"
-                type="text"
-                value="0"
-                oninput="
-                  atualizarDT();
-                  salvarTudo();
-                "
-              />
-            </div>
-
-            <div class="campo">
-              <label for="dtProf">Prof.</label>
-              <input
-                id="dtProf"
-                type="text"
-                value="2"
-                oninput="
-                  atualizarDT();
-                  salvarTudo();
-                "
-              />
-            </div>
-          </div>
-
-          <div class="dt-resultado-box">
-            <span>DT Total</span>
-            <div id="dtTotal">10</div>
-          </div>
+        <!-- descansos -->
+        <div class="descanso-barra">
+          <button type="button" onclick="descansoCurto()"><i class="ti ti-coffee"></i> Descanso curto</button>
+          <button type="button" onclick="descansoLongo()"><i class="ti ti-moon"></i> Descanso longo</button>
         </div>
 
-        <div class="secao-toggle">
-          <h2
-            class="titulo-secao titulo-toggle"
-            onclick="toggleSecao('boxPoderForm', this)"
-          >
-            <span>Adicionar Poder</span>
-            <span class="setinha">▼</span>
-          </h2>
-
-          <div id="boxPoderForm" class="conteudo-toggle aberto">
-            <div class="poder-add">
-              <input id="poderNome" placeholder="Nome do poder" />
-
-              <div class="select-wrapper">
-                <select id="poderTipo" class="input-personagem">
-                  <option value="">Tipo de dano</option>
-                  <option value="fogo">🔥 Fogo</option>
-                  <option value="gelo">❄️ Gelo</option>
-                  <option value="raio">⚡ Raio</option>
-                  <option value="trovejante">🌩️ Trovejante</option>
-                  <option value="necrotico">💀 Necrótico</option>
-                  <option value="radiante">✨ Radiante</option>
-                  <option value="veneno">☠️ Veneno</option>
-                  <option value="agua">💧 Água</option>
-                  <option value="magico">☄️ Mágico</option>
-                  <option value="psiquico">🧠 Psíquico</option>
-                  <option value="corte">🔪 Corte</option>
-                  <option value="perfurante">📌 Perfurante</option>
-                  <option value="concussao">💥 Concussão</option>
-                  <option value="metal">⚙️ Metal</option>
-                  <option value="fisico">🗡️ Físico</option>
-                  <option value="vento">🍃 Vento</option>
-                  <option value="madeira">🌳 Madeira</option>
-                  <option value="terra">🌍 Terra</option>
-                  <option value="trevas">🌑 Trevas</option>
-                  <option value="luz">🌕 Luz</option>
-                  <option value="espirito">🌓 Espírito</option>
-                </select>
-              </div>
-
-              <input id="poderDano" placeholder="Dano (ex: 2d6, 1d8+3)" />
-
-              <div class="poder-linha">
-                <div class="select-wrapper">
-                  <select id="poderCirculo" class="input-personagem">
-                    <option value="">Sem círculo (Poder)</option>
-                    <option value="talento">Talento</option>
-                    <option value="passiva">Passiva</option>
-                    <option value="0">Círculo 0 (Truque)</option>
-                    <option value="1">Círculo 1</option>
-                    <option value="2">Círculo 2</option>
-                    <option value="3">Círculo 3</option>
-                    <option value="4">Círculo 4</option>
-                    <option value="5">Círculo 5</option>
-                    <option value="6">Círculo 6</option>
-                    <option value="7">Círculo 7</option>
-                    <option value="8">Círculo 8</option>
-                    <option value="9">Círculo 9</option>
-                  </select>
-                </div>
-
-                <input id="poderTempo" placeholder="Conjuração" />
-              </div>
-
-              <div class="poder-linha">
-                <input id="poderAlcance" placeholder="Alcance" />
-                <input id="poderDuracao" placeholder="Duração" />
-              </div>
-
-              <textarea
-                id="poderDesc"
-                placeholder="Descrição do poder"
-              ></textarea>
-              <div class="toggle-cargas">
-                <span class="toggle-cargas-texto">Possui usos</span>
-                <label class="switch-cargas">
-                  <input
-                    type="checkbox"
-                    id="poderTemCargas"
-                    onchange="toggleCampoCargasPoder()"
-                  />
-                  <span class="slider-cargas"></span>
-                </label>
-              </div>
-
-              <input
-                id="poderMaxCargas"
-                type="number"
-                min="1"
-                max="30"
-                placeholder="Qtd. de usos"
-                style="display: none"
-              />
-            </div>
-
-            <div class="add-linha">
-              <button class="inv-add-btn" onclick="addPoder()">+</button>
-            </div>
-          </div>
-
-          <div class="subtabs-poderes">
-  <button
-    class="subtab-poder active"
-    onclick="trocarSubAbaPoderes('poderes-comuns', this)"
-  >
-    Poderes<span class="subtab-contador" id="contadorPoderes"></span>
-  </button>
-  <button
-    class="subtab-poder"
-    onclick="trocarSubAbaPoderes('magias', this)"
-  >
-    Magias<span class="subtab-contador" id="contadorMagias"></span>
-  </button>
-  <button
-    class="subtab-poder"
-    onclick="trocarSubAbaPoderes('talentos', this)"
-  >
-    Talentos<span class="subtab-contador" id="contadorTalentos"></span>
-  </button>
-  <button
-    class="subtab-poder"
-    onclick="trocarSubAbaPoderes('passivas', this)"
-  >
-    Passivas<span class="subtab-contador" id="contadorPassivas"></span>
-  </button>
-</div>
-
-          <div id="subaba-poderes-comuns" class="subaba-poderes active">
-  <ul id="listaPoderesComuns" class="lista-sempre-visivel"></ul>
-</div>
-
-<div id="subaba-talentos" class="subaba-poderes" style="display: none">
-  <ul id="listaTalentos" class="lista-sempre-visivel"></ul>
-</div>
-
-<div id="subaba-passivas" class="subaba-poderes" style="display: none">
-  <ul id="listaPassivas" class="lista-sempre-visivel"></ul>
-</div>
-
-          <div id="subaba-magias" class="subaba-poderes" style="display: none">
-            <div class="subtabs-circulos">
-              <div class="bloco-circulos">
-                <button
-                  class="subtab-circulo active"
-                  onclick="trocarSubAbaCirculo(0, this)"
-                >
-                  0
-                </button>
-                <button
-                  class="subtab-circulo"
-                  onclick="trocarSubAbaCirculo(1, this)"
-                >
-                  1
-                </button>
-                <button
-                  class="subtab-circulo"
-                  onclick="trocarSubAbaCirculo(2, this)"
-                >
-                  2
-                </button>
-                <button
-                  class="subtab-circulo"
-                  onclick="trocarSubAbaCirculo(3, this)"
-                >
-                  3
-                </button>
-                <button
-                  class="subtab-circulo"
-                  onclick="trocarSubAbaCirculo(4, this)"
-                >
-                  4
-                </button>
-              </div>
-
-              <div class="bloco-circulos">
-                <button
-                  class="subtab-circulo"
-                  onclick="trocarSubAbaCirculo(5, this)"
-                >
-                  5
-                </button>
-                <button
-                  class="subtab-circulo"
-                  onclick="trocarSubAbaCirculo(6, this)"
-                >
-                  6
-                </button>
-                <button
-                  class="subtab-circulo"
-                  onclick="trocarSubAbaCirculo(7, this)"
-                >
-                  7
-                </button>
-                <button
-                  class="subtab-circulo"
-                  onclick="trocarSubAbaCirculo(8, this)"
-                >
-                  8
-                </button>
-                <button
-                  class="subtab-circulo"
-                  onclick="trocarSubAbaCirculo(9, this)"
-                >
-                  9
-                </button>
-              </div>
-            </div>
-
-            <!-- ================= CÍRCULOS ================= -->
-
-            <div id="circulo-0" class="circulo-box active">
-              <div class="gasto-circulo-box">
-                <div class="topo-slots-circulo">
-                  <span>Círculo 0</span>
-                  <button
-                    class="btn-editar-slots"
-                    onclick="editarQuantidadeSlotsCirculo(0)"
-                  >
-                    ✏️
-                  </button>
-                </div>
-                <div id="slotsCirculo0" class="slots-circulo"></div>
-              </div>
-              <ul id="listaMagiasCirculo0" class="lista-sempre-visivel"></ul>
-            </div>
-
-            <div id="circulo-1" class="circulo-box" style="display: none">
-              <div class="gasto-circulo-box">
-                <div class="topo-slots-circulo">
-                  <span>Círculo 1</span>
-                  <button
-                    class="btn-editar-slots"
-                    onclick="editarQuantidadeSlotsCirculo(1)"
-                  >
-                    ✏️
-                  </button>
-                </div>
-                <div id="slotsCirculo1" class="slots-circulo"></div>
-              </div>
-              <ul id="listaMagiasCirculo1" class="lista-sempre-visivel"></ul>
-            </div>
-
-            <div id="circulo-2" class="circulo-box" style="display: none">
-              <div class="gasto-circulo-box">
-                <div class="topo-slots-circulo">
-                  <span>Círculo 2</span>
-                  <button
-                    class="btn-editar-slots"
-                    onclick="editarQuantidadeSlotsCirculo(2)"
-                  >
-                    ✏️
-                  </button>
-                </div>
-                <div id="slotsCirculo2" class="slots-circulo"></div>
-              </div>
-              <ul id="listaMagiasCirculo2" class="lista-sempre-visivel"></ul>
-            </div>
-
-            <div id="circulo-3" class="circulo-box" style="display: none">
-              <div class="gasto-circulo-box">
-                <div class="topo-slots-circulo">
-                  <span>Círculo 3</span>
-                  <button
-                    class="btn-editar-slots"
-                    onclick="editarQuantidadeSlotsCirculo(3)"
-                  >
-                    ✏️
-                  </button>
-                </div>
-                <div id="slotsCirculo3" class="slots-circulo"></div>
-              </div>
-              <ul id="listaMagiasCirculo3" class="lista-sempre-visivel"></ul>
-            </div>
-
-            <div id="circulo-4" class="circulo-box" style="display: none">
-              <div class="gasto-circulo-box">
-                <div class="topo-slots-circulo">
-                  <span>Círculo 4</span>
-                  <button
-                    class="btn-editar-slots"
-                    onclick="editarQuantidadeSlotsCirculo(4)"
-                  >
-                    ✏️
-                  </button>
-                </div>
-                <div id="slotsCirculo4" class="slots-circulo"></div>
-              </div>
-              <ul id="listaMagiasCirculo4" class="lista-sempre-visivel"></ul>
-            </div>
-
-            <div id="circulo-5" class="circulo-box" style="display: none">
-              <div class="gasto-circulo-box">
-                <div class="topo-slots-circulo">
-                  <span>Círculo 5</span>
-                  <button
-                    class="btn-editar-slots"
-                    onclick="editarQuantidadeSlotsCirculo(5)"
-                  >
-                    ✏️
-                  </button>
-                </div>
-                <div id="slotsCirculo5" class="slots-circulo"></div>
-              </div>
-              <ul id="listaMagiasCirculo5" class="lista-sempre-visivel"></ul>
-            </div>
-
-            <div id="circulo-6" class="circulo-box" style="display: none">
-              <div class="gasto-circulo-box">
-                <div class="topo-slots-circulo">
-                  <span>Círculo 6</span>
-                  <button
-                    class="btn-editar-slots"
-                    onclick="editarQuantidadeSlotsCirculo(6)"
-                  >
-                    ✏️
-                  </button>
-                </div>
-                <div id="slotsCirculo6" class="slots-circulo"></div>
-              </div>
-              <ul id="listaMagiasCirculo6" class="lista-sempre-visivel"></ul>
-            </div>
-
-            <div id="circulo-7" class="circulo-box" style="display: none">
-              <div class="gasto-circulo-box">
-                <div class="topo-slots-circulo">
-                  <span>Círculo 7</span>
-                  <button
-                    class="btn-editar-slots"
-                    onclick="editarQuantidadeSlotsCirculo(7)"
-                  >
-                    ✏️
-                  </button>
-                </div>
-                <div id="slotsCirculo7" class="slots-circulo"></div>
-              </div>
-              <ul id="listaMagiasCirculo7" class="lista-sempre-visivel"></ul>
-            </div>
-
-            <div id="circulo-8" class="circulo-box" style="display: none">
-              <div class="gasto-circulo-box">
-                <div class="topo-slots-circulo">
-                  <span>Círculo 8</span>
-                  <button
-                    class="btn-editar-slots"
-                    onclick="editarQuantidadeSlotsCirculo(8)"
-                  >
-                    ✏️
-                  </button>
-                </div>
-                <div id="slotsCirculo8" class="slots-circulo"></div>
-              </div>
-              <ul id="listaMagiasCirculo8" class="lista-sempre-visivel"></ul>
-            </div>
-
-            <div id="circulo-9" class="circulo-box" style="display: none">
-              <div class="gasto-circulo-box">
-                <div class="topo-slots-circulo">
-                  <span>Círculo 9</span>
-                  <button
-                    class="btn-editar-slots"
-                    onclick="editarQuantidadeSlotsCirculo(9)"
-                  >
-                    ✏️
-                  </button>
-                </div>
-                <div id="slotsCirculo9" class="slots-circulo"></div>
-              </div>
-              <ul id="listaMagiasCirculo9" class="lista-sempre-visivel"></ul>
-            </div>
-          </div>
+        <!-- Poderes / Magias -->
+        <div class="pm-switch">
+          <button type="button" id="pmBtnPoderes" class="ativo" onclick="trocarVisaoPM('poderes')">Poderes <span id="contadorPoderes"></span></button>
+          <button type="button" id="pmBtnMagias" onclick="trocarVisaoPM('magias')">Magias <span id="contadorMagias"></span></button>
         </div>
+
+        <!-- ================= VISÃO PODERES ================= -->
+        <div id="pmPoderes">
+          <div class="pm-toolbar">
+            <div class="pm-busca">
+              <i class="ti ti-search"></i>
+              <input id="buscaPoder" placeholder="Buscar poder..." oninput="renderPoderes()" />
+            </div>
+            <button type="button" class="pm-icone-btn" id="btnModoCompacto" onclick="alternarModoCompacto()" title="Alternar lista compacta"><i class="ti ti-layout-list"></i></button>
+            <button type="button" class="pm-novo" onclick="abrirFormPoder(-1, '')"><i class="ti ti-plus"></i> Novo</button>
+          </div>
+          <div class="pm-filtros" id="filtrosOrigem"></div>
+          <div id="listaPoderesSecoes"></div>
+        </div>
+
+        <!-- ================= VISÃO MAGIAS ================= -->
+        <div id="pmMagias" style="display: none">
+          <div class="conjurador-cab">
+            <span>CD <b id="cabCD">10</b></span>
+            <span class="conjurador-sep">·</span>
+            <button type="button" class="cab-atk-btn" onclick="rolarAtaqueMagico()" title="Rolar ataque mágico">Ataque <b id="cabAtk">+2</b> 🎲</button>
+            <button type="button" class="pm-icone-btn" onclick="alternarAjusteCD()" title="Ajustar CD"><i class="ti ti-adjustments"></i></button>
+          </div>
+
+          <div class="dt-box" id="dtBoxMagia" style="display: none">
+            <div class="dt-linha">
+              <div class="campo">
+                <label for="dtBase">Base</label>
+                <input id="dtBase" type="text" value="8" oninput="atualizarDT(); salvarTudo();" />
+              </div>
+              <div class="campo">
+                <label for="dtAtributo">Mod. do atributo</label>
+                <input id="dtAtributo" type="text" value="0" oninput="atualizarDT(); salvarTudo();" />
+              </div>
+              <div class="campo">
+                <label for="dtProf">Proficiência</label>
+                <input id="dtProf" type="text" value="2" oninput="atualizarDT(); salvarTudo();" />
+              </div>
+            </div>
+            <div class="dt-resultado-box">
+              <span>CD Total</span>
+              <div id="dtTotal">10</div>
+            </div>
+          </div>
+
+          <div id="concentracaoBanner"></div>
+
+          <div class="grimorio-espacos">
+            <div class="grimorio-espacos-topo">
+              <span>Espaços de magia</span>
+              <button type="button" class="pm-icone-btn" onclick="abrirGerenciarEspacos()" title="Configurar espaços"><i class="ti ti-settings"></i></button>
+            </div>
+            <div id="painelEspacos"></div>
+          </div>
+
+          <div id="seletorCirculos" class="seletor-circulos"></div>
+
+          <div class="pm-toolbar">
+            <button type="button" class="pm-chip-toggle" id="btnSoPreparadas" onclick="alternarSoPreparadas()"><i class="ti ti-bookmark"></i> Só preparadas</button>
+            <button type="button" class="pm-icone-btn" onclick="alternarModoCompacto()" title="Alternar lista compacta"><i class="ti ti-layout-list"></i></button>
+            <button type="button" class="pm-novo" onclick="abrirFormPoder(-1, String(window._circuloSelecionado))"><i class="ti ti-plus"></i> Nova magia</button>
+          </div>
+
+          <ul id="listaMagias" class="lista-sempre-visivel"></ul>
+        </div>
+      </div>
+
+      <!-- ================= VEÍCULOS ================= -->
+      <div class="aba" id="veiculos" style="display: none">
+        <h2 class="titulo-secao">Veículos</h2>
+        <div id="veiculosConteudo"></div>
       </div>
     </div>
 
@@ -2527,6 +2354,8 @@
 
     <div id="btnSalvarFlutuante" style="position:fixed;top:20%;right:16px;z-index:99998;width:48px;height:48px;border-radius:50%;background:rgba(30,18,8,0.85);border:1px solid rgba(255,255,255,0.25);color:#fff;font-size:20px;box-shadow:0 4px 14px rgba(0,0,0,0.5);cursor:grab;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;">💾</div>
 
+    <div id="rolagemSheet" class="rolagem-sheet" style="display:none"></div>
+
     <div id="popup" class="popup" style="display: none">
       <div class="popup-content">
         <span class="fechar" onclick="fecharPopup()">&times;</span>
@@ -2574,11 +2403,16 @@
   collection,
   getDocs,
   deleteDoc,
-  updateDoc,
-  arrayUnion,
+  runTransaction,
   query,
   where,
-  onSnapshot
+  updateDoc,
+  arrayUnion,
+  onSnapshot,
+  addDoc,
+  orderBy,
+  limit,
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import {
@@ -2616,11 +2450,16 @@ import {
   window.deleteDoc = deleteDoc;
   window.updateDoc = updateDoc;
   window.arrayUnion = arrayUnion;
+  window.onSnapshot = onSnapshot;
   window.query = query;
   window.where = where;
   window.collection = collection;
   window.getDocs = getDocs;
-  window.onSnapshot = onSnapshot;
+  window.addDoc = addDoc;
+  window.orderBy = orderBy;
+  window.limit = limit;
+  window.writeBatch = writeBatch;
+  window.runTransaction = runTransaction;
 
   await setPersistence(auth, browserLocalPersistence);
 
@@ -2692,6 +2531,8 @@ import {
   const fichas = window.personagens || [];
 
 
+  const falhas = [];
+
   for (const ficha of fichas) {
     if (!ficha) continue;
     if (!ficha.id) {
@@ -2703,7 +2544,14 @@ import {
         ficha
       );
     } catch (erro) {
+      console.error(`Falha ao salvar ficha "${ficha.nome || ficha.id}":`, erro);
+      const tamKB = (new Blob([JSON.stringify(ficha)]).size / 1024).toFixed(0);
+      falhas.push(`${ficha.nome || "Sem nome"} (${tamKB} KB)`);
     }
+  }
+
+  if (falhas.length) {
+    throw new Error("Não foi possível salvar: " + falhas.join(", "));
   }
 
   await setDoc(
@@ -2730,15 +2578,30 @@ import {
   const fichasLocais =
     JSON.parse(localStorage.getItem("personagens")) || [];
 
-  const snapFichas = await getDocs(
-    collection(db, "usuarios", uid, "fichas")
-  );
+  let snapFichas;
+  try {
+    snapFichas = await getDocs(
+      collection(db, "usuarios", uid, "fichas")
+    );
+  } catch (erro) {
+    console.error("Falha ao ler fichas da nuvem:", erro);
+    alertBonito("Não consegui carregar suas fichas da nuvem. Usando os dados deste aparelho.");
+    if (typeof renderPersonagens === "function") renderPersonagens();
+    return;
+  }
 
   const fichasNuvem = [];
 
   snapFichas.forEach((docSnap) => {
     fichasNuvem.push(docSnap.data());
   });
+
+  // rede de segurança: guarda o que estava no aparelho antes de sobrescrever
+  if (fichasLocais.length > 0) {
+    try {
+      localStorage.setItem("personagens_backup", JSON.stringify(fichasLocais));
+    } catch (e) { console.warn("Sem espaço para backup local:", e); }
+  }
 
   if (fichasNuvem.length === 0 && fichasLocais.length > 0) {
     const confirmar = await confirmBonito(
@@ -2782,68 +2645,23 @@ async function salvarMonstrosNaNuvem() {
   const combates =
     JSON.parse(localStorage.getItem("combatesMestre")) || [];
 
-  const colecaoRef = collection(
-    db,
-    "usuarios",
-    uid,
-    "monstros"
-  );
-
-  // Pega tudo que existe atualmente no Firestore
-  const snapAtuais = await getDocs(colecaoRef);
-
-  const idsAtuais = new Set();
-
-  // Salva os objetos atuais
+  // 🔥 salva monstros separados
   for (const monstro of monstros) {
+
     if (!monstro.id) {
       monstro.id =
         Date.now() + Math.floor(Math.random() * 99999);
     }
 
-    const id = String(monstro.id);
-
-    idsAtuais.add(id);
-
     await setDoc(
-      doc(
-        db,
-        "usuarios",
-        uid,
-        "monstros",
-        id
-      ),
+      doc(db, "usuarios", uid, "monstros", String(monstro.id)),
       monstro
     );
   }
 
-  // ==========================================
-  // REMOVE DA NUVEM O QUE FOI EXCLUÍDO LOCALMENTE
-  // ==========================================
-
-  for (const docSnap of snapAtuais.docs) {
-    if (!idsAtuais.has(docSnap.id)) {
-      await deleteDoc(
-        doc(
-          db,
-          "usuarios",
-          uid,
-          "monstros",
-          docSnap.id
-        )
-      );
-    }
-  }
-
-  // Salva combates
+  // 🔥 combate separado
   await setDoc(
-    doc(
-      db,
-      "usuarios",
-      uid,
-      "estado",
-      "combate"
-    ),
+    doc(db, "usuarios", uid, "estado", "combate"),
     {
       combatesMestre: combates,
       atualizadoEm: new Date().toISOString()
@@ -2994,1282 +2812,515 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
     }
   };
 
-  // ================= PAINEL DE AMIGOS =================
+  
 
-  window.abrirPainelAmigos = function () {
-    document.getElementById("painelAmigosOverlay").style.display = "block";
-    const painel = document.getElementById("painelAmigos");
-    painel.style.display = "flex";
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      painel.style.transform = "translateX(0)";
-    }));
-    mostrarMeuNickname();
-    carregarAmigos();
-  };
+  function gerarTagAleatoria() {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
 
-  window.fecharPainelAmigos = function () {
-    const painel = document.getElementById("painelAmigos");
-    painel.style.transform = "translateX(-100%)";
-    setTimeout(() => {
-      painel.style.display = "none";
-      document.getElementById("painelAmigosOverlay").style.display = "none";
-    }, 300);
-  };
+async function tagDisponivel(nicknameLower, tag) {
+  const ref = doc(db, "tagsUsuario", `${nicknameLower}#${tag}`);
+  const snap = await getDoc(ref);
+  return !snap.exists();
+}
 
-  window.trocarAbaAmigos = function (aba) {
-    const btnAmigos = document.getElementById("tabAmigosBtn");
-    const btnGrupos = document.getElementById("tabGruposBtn");
-    const contAmigos = document.getElementById("abaAmigosConteudo");
-    const contGrupos = document.getElementById("abaGruposConteudo");
+let tagAtualSugerida = null;
 
-    if (aba === "amigos") {
-      contAmigos.style.display = "flex";
-      contGrupos.style.display = "none";
-      btnAmigos.style.background = "rgba(196,169,91,0.18)";
-      btnAmigos.style.color = "#E8CC80";
-      btnGrupos.style.background = "transparent";
-      btnGrupos.style.color = "#9A8A70";
+window.gerarNovaTagPreview = async function gerarNovaTagPreview() {
+  const nickname = document.getElementById("nicknameInput").value.trim();
+  const preview = document.getElementById("nicknameTagPreview");
+  const erro = document.getElementById("nicknameErro");
+  if (erro) erro.textContent = "";
+
+  if (nickname.length < 3) {
+    preview.textContent = "";
+    tagAtualSugerida = null;
+    return;
+  }
+
+  try {
+    const nicknameLower = nickname.toLowerCase();
+    let tentativas = 0;
+    let tag = gerarTagAleatoria();
+
+    while (!(await tagDisponivel(nicknameLower, tag)) && tentativas < 15) {
+      tag = gerarTagAleatoria();
+      tentativas++;
+    }
+
+    tagAtualSugerida = tag;
+    preview.textContent = `${nickname}#${tag}`;
+  } catch (e) {
+    console.error(e);
+    if (erro) erro.textContent = "Erro ao verificar disponibilidade: " + (e.code || e.message);
+  }
+};
+
+window.confirmarNickname = async () => {
+  const erro = document.getElementById("nicknameErro");
+  erro.textContent = "";
+
+  const nickname = document.getElementById("nicknameInput").value.trim();
+
+  if (nickname.length < 3 || nickname.length > 20) {
+    erro.textContent = "O nickname precisa ter entre 3 e 20 caracteres.";
+    return;
+  }
+  if (!/^[a-zA-Z0-9_ ]+$/.test(nickname)) {
+    erro.textContent = "Use só letras, números, espaço e _.";
+    return;
+  }
+
+  const nicknameLower = nickname.toLowerCase();
+  const uid = window.usuarioAtual.uid;
+
+  try {
+    if (!tagAtualSugerida) {
+      await window.gerarNovaTagPreview();
+    }
+    const tag = tagAtualSugerida;
+    await runTransaction(db, async (transaction) => {
+      const tagRef = doc(db, "tagsUsuario", `${nicknameLower}#${tag}`);
+      const tagSnap = await transaction.get(tagRef);
+      if (tagSnap.exists()) {
+        throw new Error("tag-ocupada");
+      }
+      transaction.set(tagRef, { uid });
+      transaction.set(
+        doc(db, "usuarios", uid),
+        { nickname, nicknameLower, tag },
+        { merge: true }
+      );
+    });
+
+    document.getElementById("modalNicknameOverlay").style.display = "none";
+    document.getElementById("modalNickname").style.display = "none";
+
+    abrirTelaModo();
+  } catch (e) {
+    if (e.message === "tag-ocupada") {
+      erro.textContent = "Esse nome ficou indisponível nesse instante, gerando outro número...";
+      await window.gerarNovaTagPreview();
     } else {
-      contAmigos.style.display = "none";
-      contGrupos.style.display = "flex";
-      btnGrupos.style.background = "rgba(196,169,91,0.18)";
-      btnGrupos.style.color = "#E8CC80";
-      btnAmigos.style.background = "transparent";
-      btnAmigos.style.color = "#9A8A70";
-      if (typeof window.carregarGrupos === "function") window.carregarGrupos();
-    }
-  };
-
-  async function mostrarMeuNickname() {
-    const label = document.getElementById("meuNicknameLabel");
-    if (!label || !window.usuarioAtual) return;
-    try {
-      const snap = await getDoc(doc(db, "usuarios", window.usuarioAtual.uid));
-      const dados = snap.exists() ? snap.data() : {};
-      window._meuNicknameCompleto = dados.nickname && dados.tag
-        ? `${dados.nickname}#${dados.tag}`
-        : "";
-      label.innerHTML = dados.nickname && dados.tag
-        ? `${escapeHtml(dados.nickname)}<span style="opacity:.5;">#${escapeHtml(dados.tag)}</span>`
-        : "";
-    } catch (e) {
+      erro.textContent = "Erro ao salvar: " + (e.code || e.message || "desconhecido");
       console.error(e);
     }
   }
+};
 
-  window.copiarMeuNickname = async function () {
-    const texto = window._meuNicknameCompleto;
-    if (!texto) return;
+async function verificarNicknameEContinuar() {
+  const uid = window.usuarioAtual.uid;
+  const snap = await getDoc(doc(db, "usuarios", uid));
+  const dados = snap.exists() ? snap.data() : {};
 
-    const btn = document.getElementById("btnCopiarNickname");
-    const iconeOriginal = btn.innerHTML;
+  if (dados.nickname && dados.tag) {
+    abrirTelaModo();
+  } else {
+    document.getElementById("modalNicknameOverlay").style.display = "block";
+    document.getElementById("modalNickname").style.display = "block";
+  }
+}
 
-    try {
-      await navigator.clipboard.writeText(texto);
-    } catch (e) {
-      const temp = document.createElement("textarea");
-      temp.value = texto;
-      temp.style.position = "fixed";
-      temp.style.opacity = "0";
-      document.body.appendChild(temp);
-      temp.select();
-      document.execCommand("copy");
-      document.body.removeChild(temp);
-    }
+document.addEventListener("input", (e) => {
+  if (e.target && e.target.id === "nicknameInput") {
+    clearTimeout(window._nicknameDebounce);
+    window._nicknameDebounce = setTimeout(window.gerarNovaTagPreview, 350);
+  }
+});
 
-    btn.innerHTML = `<i class="ti ti-check" style="color:#4a7c3a;"></i>`;
-    setTimeout(() => { btn.innerHTML = iconeOriginal; }, 1200);
-  };
+// ================= PAINEL DE AMIGOS =================
 
-  async function carregarAmigos() {
-    const lista = document.getElementById("listaAmigos");
-    const meuUid = window.usuarioAtual.uid;
-    lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;">Carregando...</p>`;
+window.abrirPainelAmigos = function () {
+  document.getElementById("painelAmigosOverlay").style.display = "block";
+  const painel = document.getElementById("painelAmigos");
+  painel.style.display = "flex";
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    painel.style.transform = "translateX(0)";
+  }));
+  mostrarMeuNickname();
+  carregarAmigos();
+};
 
-    try {
-      const [solicitacoesSnap, amigosSnap] = await Promise.all([
-        getDocs(collection(db, "usuarios", meuUid, "solicitacoesRecebidas")),
-        getDocs(collection(db, "usuarios", meuUid, "amigos"))
-      ]);
+window.fecharPainelAmigos = function () {
+  const painel = document.getElementById("painelAmigos");
+  painel.style.transform = "translateX(-100%)";
+  setTimeout(() => {
+    painel.style.display = "none";
+    document.getElementById("painelAmigosOverlay").style.display = "none";
+  }, 300);
+};
 
-      let html = "";
+window.trocarAbaAmigos = function (aba) {
+  const btnAmigos = document.getElementById("tabAmigosBtn");
+  const btnGrupos = document.getElementById("tabGruposBtn");
+  const contAmigos = document.getElementById("abaAmigosConteudo");
+  const contGrupos = document.getElementById("abaGruposConteudo");
 
-      if (!solicitacoesSnap.empty) {
-        html += `<div style="font-size:11px;color:#9A8A70;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Pedidos pendentes</div>`;
-        solicitacoesSnap.forEach(docSnap => {
-          const d = docSnap.data();
-          html += `
-            <div style="display:flex;align-items:center;gap:8px;background:rgba(196,169,91,0.08);border:1px solid rgba(196,169,91,0.2);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
-              <span style="flex:1;font-size:13px;color:#F8F4E3;">${escapeHtml(d.deNickname)}<span style="opacity:.5;">#${escapeHtml(d.deTag)}</span></span>              <button onclick="responderSolicitacao('${docSnap.id}', true)" style="width:26px;height:26px;padding:0;border-radius:50%;border:none;background:#4a7c3a;color:#fff;cursor:pointer;font-size:12px;">✓</button>
-            <button onclick="responderSolicitacao('${docSnap.id}', false)" style="width:26px;height:26px;padding:0;border-radius:50%;border:none;background:#7B1E28;color:#fff;cursor:pointer;font-size:12px;">✕</button>
-            </div>`;
-        });
-      }
+  if (aba === "amigos") {
+    contAmigos.style.display = "flex";
+    contGrupos.style.display = "none";
+    btnAmigos.style.background = "rgba(196,169,91,0.18)";
+    btnAmigos.style.color = "#E8CC80";
+    btnGrupos.style.background = "transparent";
+    btnGrupos.style.color = "#9A8A70";
+  } else {
+    contAmigos.style.display = "none";
+    contGrupos.style.display = "flex";
+    btnGrupos.style.background = "rgba(196,169,91,0.18)";
+    btnGrupos.style.color = "#E8CC80";
+    btnAmigos.style.background = "transparent";
+    btnAmigos.style.color = "#9A8A70";
+    carregarGrupos();
+  }
+};
 
-      if (!amigosSnap.empty) {
-        html += `<div style="font-size:11px;color:#9A8A70;text-transform:uppercase;letter-spacing:.08em;margin:${solicitacoesSnap.empty ? "0" : "14px"} 0 6px;">Seus amigos</div>`;
-        amigosSnap.forEach(docSnap => {
-          const d = docSnap.data();
-          html += `
-            <div onclick="abrirPerfil('${docSnap.id}')" style="cursor:pointer;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.12);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
-              <span style="flex:1;font-size:13px;color:#F8F4E3;">${escapeHtml(d.nickname)}<span style="opacity:.5;">#${escapeHtml(d.tag)}</span></span>
-            </div>`;
-        });
-      }
+async function mostrarMeuNickname() {
+  const label = document.getElementById("meuNicknameLabel");
+  if (!label || !window.usuarioAtual) return;
+  try {
+    const snap = await getDoc(doc(db, "usuarios", window.usuarioAtual.uid));
+    const dados = snap.exists() ? snap.data() : {};
+    window._meuNicknameCompleto = dados.nickname && dados.tag
+      ? `${dados.nickname}#${dados.tag}`
+      : "";
+    label.innerHTML = dados.nickname && dados.tag
+      ? `${escapeHtml(dados.nickname)}<span style="opacity:.5;">#${escapeHtml(dados.tag)}</span>`
+      : "";
+  } catch (e) {
+    console.error(e);
+  }
+}
 
-      if (solicitacoesSnap.empty && amigosSnap.empty) {
-        html = `<p style="color:#9A8A70;font-size:13px;text-align:center;padding:20px 0;font-style:italic;">Nenhum amigo ainda.</p>`;
-      }
+window.copiarMeuNickname = async function () {
+  const texto = window._meuNicknameCompleto;
+  if (!texto) return;
 
-      lista.innerHTML = html;
-    } catch (e) {
-      console.error(e);
-      lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Erro ao carregar: ${e.code || e.message}</p>`;
-    }
+  const btn = document.getElementById("btnCopiarNickname");
+  const iconeOriginal = btn.innerHTML;
+
+  try {
+    await navigator.clipboard.writeText(texto);
+  } catch (e) {
+    const temp = document.createElement("textarea");
+    temp.value = texto;
+    temp.style.position = "fixed";
+    temp.style.opacity = "0";
+    document.body.appendChild(temp);
+    temp.select();
+    document.execCommand("copy");
+    document.body.removeChild(temp);
   }
 
-  window.enviarSolicitacaoAmizade = async function () {
-    const input = document.getElementById("buscaAmigoInput");
-    const valor = input.value.trim();
+  btn.innerHTML = `<i class="ti ti-check" style="color:#4a7c3a;"></i>`;
+  setTimeout(() => { btn.innerHTML = iconeOriginal; }, 1200);
+};
 
-    const partes = valor.split("#");
-    if (partes.length !== 2 || !partes[0] || !partes[1]) {
-      alertBonito("Digite no formato Nickname#0000.");
-      return;
-    }
-    const nicknameLower = partes[0].trim().toLowerCase();
-    const tag = partes[1].trim();
-    const meuUid = window.usuarioAtual.uid;
+async function carregarAmigos() {
+  const lista = document.getElementById("listaAmigos");
+  const meuUid = window.usuarioAtual.uid;
+  lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;">Carregando...</p>`;
 
-    try {
-      const tagSnap = await getDoc(doc(db, "tagsUsuario", `${nicknameLower}#${tag}`));
-      if (!tagSnap.exists()) {
-        alertBonito("Nenhum usuário encontrado com esse nome.");
-        return;
-      }
-      const alvoUid = tagSnap.data().uid;
+  try {
+    const [solicitacoesSnap, amigosSnap] = await Promise.all([
+      getDocs(collection(db, "usuarios", meuUid, "solicitacoesRecebidas")),
+      getDocs(collection(db, "usuarios", meuUid, "amigos"))
+    ]);
 
-      if (alvoUid === meuUid) {
-        alertBonito("Você não pode adicionar a si mesmo.");
-        return;
-      }
+    let html = "";
 
-      const jaAmigo = await getDoc(doc(db, "usuarios", meuUid, "amigos", alvoUid));
-      if (jaAmigo.exists()) {
-        alertBonito("Vocês já são amigos.");
-        return;
-      }
-
-      const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
-      const meuDados = meuSnap.exists() ? meuSnap.data() : {};
-
-      await setDoc(doc(db, "usuarios", alvoUid, "solicitacoesRecebidas", meuUid), {
-        deUid: meuUid,
-        deNickname: meuDados.nickname || "",
-        deTag: meuDados.tag || "",
-        criadoEm: new Date().toISOString()
+    if (!solicitacoesSnap.empty) {
+      html += `<div style="font-size:11px;color:#9A8A70;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Pedidos pendentes</div>`;
+      solicitacoesSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        html += `
+          <div style="display:flex;align-items:center;gap:8px;background:rgba(196,169,91,0.08);border:1px solid rgba(196,169,91,0.2);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+            <span style="flex:1;font-size:13px;color:#F8F4E3;">${escapeHtml(d.deNickname)}<span style="opacity:.5;">#${escapeHtml(d.deTag)}</span></span>            <button onclick="responderSolicitacao('${docSnap.id}', true)" style="width:26px;height:26px;border-radius:50%;border:none;background:#4a7c3a;color:#fff;cursor:pointer;font-size:12px;">✓</button>
+            <button onclick="responderSolicitacao('${docSnap.id}', false)" style="width:26px;height:26px;border-radius:50%;border:none;background:#7B1E28;color:#fff;cursor:pointer;font-size:12px;">✕</button>
+          </div>`;
       });
-
-      input.value = "";
-      alertBonito("Solicitação enviada!");
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro ao enviar solicitação: " + (e.code || e.message));
-    }
-  };
-
-  window.responderSolicitacao = async function (deUid, aceitar) {
-    const meuUid = window.usuarioAtual.uid;
-    try {
-      const reqRef = doc(db, "usuarios", meuUid, "solicitacoesRecebidas", deUid);
-      const reqSnap = await getDoc(reqRef);
-      if (!reqSnap.exists()) return;
-      const d = reqSnap.data();
-
-      if (aceitar) {
-        const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
-        const meuDados = meuSnap.exists() ? meuSnap.data() : {};
-
-        await setDoc(doc(db, "usuarios", meuUid, "amigos", deUid), {
-          nickname: d.deNickname,
-          tag: d.deTag,
-          desde: new Date().toISOString()
-        });
-
-        await setDoc(doc(db, "usuarios", deUid, "amigos", meuUid), {
-          nickname: meuDados.nickname || "",
-          tag: meuDados.tag || "",
-          desde: new Date().toISOString()
-        });
-      }
-
-      await deleteDoc(reqRef);
-      carregarAmigos();
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro: " + (e.code || e.message));
-    }
-  };
-
-  window.confirmBonito = function (mensagem) {
-    return new Promise(resolve => {
-      document.getElementById("confirmBonitoTexto").textContent = mensagem;
-      document.getElementById("modalConfirmBonitoOverlay").style.display = "block";
-      document.getElementById("modalConfirmBonito").style.display = "block";
-      window._confirmBonitoResolve = (valor) => {
-        document.getElementById("modalConfirmBonitoOverlay").style.display = "none";
-        document.getElementById("modalConfirmBonito").style.display = "none";
-        window._confirmBonitoResolve = null;
-        resolve(valor);
-      };
-    });
-  };
-
-  window.alertBonito = function (mensagem) {
-    return new Promise(resolve => {
-      document.getElementById("alertBonitoTexto").textContent = mensagem;
-      document.getElementById("modalAlertBonitoOverlay").style.display = "block";
-      document.getElementById("modalAlertBonito").style.display = "block";
-      window._alertBonitoResolve = () => {
-        document.getElementById("modalAlertBonitoOverlay").style.display = "none";
-        document.getElementById("modalAlertBonito").style.display = "none";
-        window._alertBonitoResolve = null;
-        resolve();
-      };
-    });
-  };
-
-  window.promptBonito = function (mensagem, valorPadrao) {
-    return new Promise(resolve => {
-      document.getElementById("promptBonitoTexto").textContent = mensagem;
-      const input = document.getElementById("promptBonitoInput");
-      input.value = valorPadrao != null ? valorPadrao : "";
-      document.getElementById("modalPromptBonitoOverlay").style.display = "block";
-      document.getElementById("modalPromptBonito").style.display = "block";
-      setTimeout(() => input.focus(), 50);
-      window._promptBonitoResolve = (valor) => {
-        document.getElementById("modalPromptBonitoOverlay").style.display = "none";
-        document.getElementById("modalPromptBonito").style.display = "none";
-        window._promptBonitoResolve = null;
-        resolve(valor);
-      };
-    });
-  };
-
-  window.abrirAcoesMembro = function (uid, nickname, tag) {
-    document.getElementById("acoesMembroNome").textContent = `${nickname}#${tag}`;
-
-    document.getElementById("acoesMembroBtnPerfil").onclick = function () {
-      fecharAcoesMembro();
-      if (typeof window.abrirPerfil === "function") window.abrirPerfil(uid);
-      else alertBonito("Perfil ainda não foi portado pra essa versão.");
-    };
-
-    document.getElementById("acoesMembroBtnAmizade").onclick = function () {
-      fecharAcoesMembro();
-      window.enviarSolicitacaoAmizadePorUid(uid, nickname, tag);
-    };
-
-    document.getElementById("modalAcoesMembroOverlay").style.display = "block";
-    document.getElementById("modalAcoesMembro").style.display = "block";
-  };
-
-  window.fecharAcoesMembro = function () {
-    document.getElementById("modalAcoesMembroOverlay").style.display = "none";
-    document.getElementById("modalAcoesMembro").style.display = "none";
-  };
-
-  window.enviarSolicitacaoAmizadePorUid = async function (alvoUid, alvoNickname, alvoTag) {
-    const meuUid = window.usuarioAtual.uid;
-    if (alvoUid === meuUid) return;
-
-    try {
-      const jaAmigo = await getDoc(doc(db, "usuarios", meuUid, "amigos", alvoUid));
-      if (jaAmigo.exists()) {
-        alertBonito("Vocês já são amigos.");
-        return;
-      }
-
-      const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
-      const meuDados = meuSnap.exists() ? meuSnap.data() : {};
-
-      await setDoc(doc(db, "usuarios", alvoUid, "solicitacoesRecebidas", meuUid), {
-        deUid: meuUid,
-        deNickname: meuDados.nickname || "",
-        deTag: meuDados.tag || "",
-        criadoEm: new Date().toISOString()
-      });
-
-      alertBonito(`Solicitação enviada pra ${alvoNickname}!`);
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro ao enviar solicitação: " + (e.code || e.message));
-    }
-  };
-
-  // ================= GRUPOS =================
-
-  window.carregarGrupos = async function () {
-    const lista = document.getElementById("listaGrupos");
-    const meuUid = window.usuarioAtual.uid;
-    lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;">Carregando...</p>`;
-
-    let htmlConvites = "";
-    let htmlGrupos = "";
-
-    try {
-      const convitesSnap = await getDocs(collection(db, "usuarios", meuUid, "convitesGrupo"));
-      if (!convitesSnap.empty) {
-        htmlConvites += `<div style="font-size:11px;color:#9A8A70;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Convites pendentes</div>`;
-        convitesSnap.forEach(docSnap => {
-          const d = docSnap.data();
-          htmlConvites += `
-            <div style="display:flex;align-items:center;gap:8px;background:rgba(196,169,91,0.08);border:1px solid rgba(196,169,91,0.2);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
-              <div style="flex:1;">
-                <div style="font-size:13px;color:#F8F4E3;">${escapeHtml(d.nomeGrupo)}</div>
-                <div style="font-size:11px;color:#9A8A70;">de ${escapeHtml(d.deNickname)}<span style="opacity:.5;">#${escapeHtml(d.deTag)}</span></div>
-              </div>
-              <button onclick="responderConviteGrupo('${docSnap.id}', true)" style="width:26px;height:26px;padding:0;border-radius:50%;border:none;background:#4a7c3a;color:#fff;cursor:pointer;font-size:12px;">✓</button>
-              <button onclick="responderConviteGrupo('${docSnap.id}', false)" style="width:26px;height:26px;padding:0;border-radius:50%;border:none;background:#7B1E28;color:#fff;cursor:pointer;font-size:12px;">✕</button>
-            </div>`;
-        });
-      }
-    } catch (e) {
-      console.error("Erro ao carregar convites:", e);
-      htmlConvites = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Erro ao carregar convites: ${e.code || e.message}</p>`;
     }
 
-    try {
-      const gruposSnap = await getDocs(query(collection(db, "grupos"), where("membrosUids", "array-contains", meuUid)));
-      if (!gruposSnap.empty) {
-        htmlGrupos += `<div style="font-size:11px;color:#9A8A70;text-transform:uppercase;letter-spacing:.08em;margin:${htmlConvites ? "14px" : "0"} 0 6px;">Seus grupos</div>`;
-        gruposSnap.forEach(docSnap => {
-          const d = docSnap.data();
-          const souMestre = d.criadoPor === meuUid;
-          htmlGrupos += `
-            <div onclick="abrirDetalheGrupo('${docSnap.id}')" style="cursor:pointer;background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.15);border-radius:10px;padding:10px 12px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-size:14px;color:#F8F4E3;font-weight:bold;">${escapeHtml(d.nome)}</span>
-                ${souMestre ? `<span style="font-size:10px;color:#C4A95B;text-transform:uppercase;letter-spacing:.05em;">Mestre</span>` : ""}
-              </div>
-              <div style="font-size:12px;color:#9A8A70;margin-top:4px;">${(d.membros || []).length} membro${(d.membros || []).length > 1 ? "s" : ""}</div>
-            </div>`;
-        });
-      }
-    } catch (e) {
-      console.error("Erro ao carregar seus grupos:", e);
-      htmlGrupos = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Erro ao carregar seus grupos: ${e.code || e.message}</p>`;
-    }
-
-    const html = htmlConvites + htmlGrupos;
-    lista.innerHTML = html || `<p style="color:#9A8A70;font-size:13px;text-align:center;padding:20px 0;font-style:italic;">Nenhum grupo ainda.</p>`;
-  };
-
-  window.responderConviteGrupo = async function (grupoId, aceitar) {
-    const meuUid = window.usuarioAtual.uid;
-    try {
-      const conviteRef = doc(db, "usuarios", meuUid, "convitesGrupo", grupoId);
-
-      if (aceitar) {
-        const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
-        const meuDados = meuSnap.exists() ? meuSnap.data() : {};
-
-        const grupoRef = doc(db, "grupos", grupoId);
-        const novoMembro = { uid: meuUid, nickname: meuDados.nickname || "", tag: meuDados.tag || "", papel: "jogador" };
-
-        await updateDoc(grupoRef, {
-          membros: arrayUnion(novoMembro),
-          membrosUids: arrayUnion(meuUid)
-        });
-      }
-
-      await deleteDoc(conviteRef);
-      carregarGrupos();
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro: " + (e.code || e.message));
-    }
-  };
-
-  window.mostrarFormCriarGrupo = async function () {
-    document.getElementById("btnMostrarCriarGrupo").style.display = "none";
-    document.getElementById("formCriarGrupo").style.display = "block";
-
-    const meuUid = window.usuarioAtual.uid;
-    const lista = document.getElementById("listaAmigosParaGrupo");
-    lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;">Carregando...</p>`;
-
-    try {
-      const amigosSnap = await getDocs(collection(db, "usuarios", meuUid, "amigos"));
-      if (amigosSnap.empty) {
-        lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;font-style:italic;">Você ainda não tem amigos pra convidar.</p>`;
-        return;
-      }
-      let html = "";
+    if (!amigosSnap.empty) {
+      html += `<div style="font-size:11px;color:#9A8A70;text-transform:uppercase;letter-spacing:.08em;margin:${solicitacoesSnap.empty ? "0" : "14px"} 0 6px;">Seus amigos</div>`;
       amigosSnap.forEach(docSnap => {
         const d = docSnap.data();
         html += `
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F8F4E3;cursor:pointer;">
-            <input type="checkbox" class="checkAmigoGrupo" value="${docSnap.id}" data-nickname="${escapeHtml(d.nickname)}" data-tag="${escapeHtml(d.tag)}" style="width:auto;margin:0;">
-            ${escapeHtml(d.nickname)}<span style="opacity:.5;">#${escapeHtml(d.tag)}</span>
-          </label>`;
+          <div onclick="abrirPerfil('${docSnap.id}')" style="cursor:pointer;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.12);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+            <span style="flex:1;font-size:13px;color:#F8F4E3;">${escapeHtml(d.nickname)}<span style="opacity:.5;">#${escapeHtml(d.tag)}</span></span>
+          </div>`;
       });
-      lista.innerHTML = html;
-    } catch (e) {
-      console.error(e);
-      lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;">Erro ao carregar amigos.</p>`;
     }
-  };
 
-  window.cancelarCriarGrupo = function () {
-    document.getElementById("formCriarGrupo").style.display = "none";
-    document.getElementById("btnMostrarCriarGrupo").style.display = "block";
-    document.getElementById("nomeGrupoInput").value = "";
-  };
+    if (solicitacoesSnap.empty && amigosSnap.empty) {
+      html = `<p style="color:#9A8A70;font-size:13px;text-align:center;padding:20px 0;font-style:italic;">Nenhum amigo ainda.</p>`;
+    }
 
-  window.confirmarCriarGrupo = async function () {
-    const nome = document.getElementById("nomeGrupoInput").value.trim();
-    if (!nome) {
-      alertBonito("Digite um nome pro grupo.");
+    lista.innerHTML = html;
+  } catch (e) {
+    console.error(e);
+    lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Erro ao carregar: ${e.code || e.message}</p>`;
+  }
+}
+
+window.carregarGrupos = async function () {
+  const lista = document.getElementById("listaGrupos");
+  const meuUid = window.usuarioAtual.uid;
+  lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;">Carregando...</p>`;
+
+  // convites e grupos são buscados e renderizados de forma INDEPENDENTE —
+  // um erro em um dos dois nunca mais pode apagar o outro da tela
+  let htmlConvites = "";
+  let htmlGrupos = "";
+
+  try {
+    const convitesSnap = await getDocs(collection(db, "usuarios", meuUid, "convitesGrupo"));
+    if (!convitesSnap.empty) {
+      htmlConvites += `<div style="font-size:11px;color:#9A8A70;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Convites pendentes</div>`;
+      convitesSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        htmlConvites += `
+          <div style="display:flex;align-items:center;gap:8px;background:rgba(196,169,91,0.08);border:1px solid rgba(196,169,91,0.2);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+            <div style="flex:1;">
+              <div style="font-size:13px;color:#F8F4E3;">${escapeHtml(d.nomeGrupo)}</div>
+              <div style="font-size:11px;color:#9A8A70;">de ${escapeHtml(d.deNickname)}<span style="opacity:.5;">#${escapeHtml(d.deTag)}</span></div>
+            </div>
+            <button onclick="responderConviteGrupo('${docSnap.id}', true)" style="width:26px;height:26px;border-radius:50%;border:none;background:#4a7c3a;color:#fff;cursor:pointer;font-size:12px;">✓</button>
+            <button onclick="responderConviteGrupo('${docSnap.id}', false)" style="width:26px;height:26px;border-radius:50%;border:none;background:#7B1E28;color:#fff;cursor:pointer;font-size:12px;">✕</button>
+          </div>`;
+      });
+    }
+  } catch (e) {
+    console.error("Erro ao carregar convites:", e);
+    htmlConvites = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Erro ao carregar convites: ${e.code || e.message}</p>`;
+  }
+
+  try {
+    const gruposSnap = await getDocs(query(collection(db, "grupos"), where("membrosUids", "array-contains", meuUid)));
+    if (!gruposSnap.empty) {
+      htmlGrupos += `<div style="font-size:11px;color:#9A8A70;text-transform:uppercase;letter-spacing:.08em;margin:${htmlConvites ? "14px" : "0"} 0 6px;">Seus grupos</div>`;
+      gruposSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const souMestre = d.criadoPor === meuUid;
+        htmlGrupos += `
+          <div onclick="abrirDetalheGrupo('${docSnap.id}')" style="cursor:pointer;background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.15);border-radius:10px;padding:10px 12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:14px;color:#F8F4E3;font-weight:bold;">${escapeHtml(d.nome)}</span>
+              ${souMestre ? `<span style="font-size:10px;color:#C4A95B;text-transform:uppercase;letter-spacing:.05em;">Mestre</span>` : ""}
+            </div>
+            <div style="font-size:12px;color:#9A8A70;margin-top:4px;">${(d.membros || []).length} membro${(d.membros || []).length > 1 ? "s" : ""}</div>
+          </div>`;
+      });
+    }
+  } catch (e) {
+    console.error("Erro ao carregar seus grupos:", e);
+    htmlGrupos = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Erro ao carregar seus grupos: ${e.code || e.message}</p>`;
+  }
+
+  const html = htmlConvites + htmlGrupos;
+  lista.innerHTML = html || `<p style="color:#9A8A70;font-size:13px;text-align:center;padding:20px 0;font-style:italic;">Nenhum grupo ainda.</p>`;
+};
+
+window.responderConviteGrupo = async function (grupoId, aceitar) {
+  const meuUid = window.usuarioAtual.uid;
+  try {
+    const conviteRef = doc(db, "usuarios", meuUid, "convitesGrupo", grupoId);
+
+    if (aceitar) {
+      const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
+      const meuDados = meuSnap.exists() ? meuSnap.data() : {};
+
+      const grupoRef = doc(db, "grupos", grupoId);
+      const novoMembro = { uid: meuUid, nickname: meuDados.nickname || "", tag: meuDados.tag || "", papel: "jogador" };
+
+      await updateDoc(grupoRef, {
+        membros: arrayUnion(novoMembro),
+        membrosUids: arrayUnion(meuUid)
+      });
+    }
+
+    await deleteDoc(conviteRef);
+    carregarGrupos();
+  } catch (e) {
+    console.error(e);
+    alertBonito("Erro: " + (e.code || e.message));
+  }
+};
+
+window.mostrarFormCriarGrupo = async function () {
+  document.getElementById("btnMostrarCriarGrupo").style.display = "none";
+  document.getElementById("formCriarGrupo").style.display = "block";
+
+  const meuUid = window.usuarioAtual.uid;
+  const lista = document.getElementById("listaAmigosParaGrupo");
+  lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;">Carregando...</p>`;
+
+  try {
+    const amigosSnap = await getDocs(collection(db, "usuarios", meuUid, "amigos"));
+    if (amigosSnap.empty) {
+      lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;font-style:italic;">Você ainda não tem amigos pra convidar.</p>`;
+      return;
+    }
+    let html = "";
+    amigosSnap.forEach(docSnap => {
+      const d = docSnap.data();
+      html += `
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F8F4E3;cursor:pointer;">
+          <input type="checkbox" class="checkAmigoGrupo" value="${docSnap.id}" data-nickname="${escapeHtml(d.nickname)}" data-tag="${escapeHtml(d.tag)}" style="width:auto;margin:0;">
+          ${escapeHtml(d.nickname)}<span style="opacity:.5;">#${escapeHtml(d.tag)}</span>
+        </label>`;
+    });
+    lista.innerHTML = html;
+  } catch (e) {
+    console.error(e);
+    lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;">Erro ao carregar amigos.</p>`;
+  }
+};
+
+window.cancelarCriarGrupo = function () {
+  document.getElementById("formCriarGrupo").style.display = "none";
+  document.getElementById("btnMostrarCriarGrupo").style.display = "block";
+  document.getElementById("nomeGrupoInput").value = "";
+};
+
+window.confirmarCriarGrupo = async function () {
+  const nome = document.getElementById("nomeGrupoInput").value.trim();
+  if (!nome) {
+    alertBonito("Digite um nome pro grupo.");
+    return;
+  }
+
+  const meuUid = window.usuarioAtual.uid;
+  const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
+  const meuDados = meuSnap.exists() ? meuSnap.data() : {};
+
+  const checks = document.querySelectorAll(".checkAmigoGrupo:checked");
+  const convidados = Array.from(checks).map(chk => ({
+    uid: chk.value,
+    nickname: chk.dataset.nickname,
+    tag: chk.dataset.tag
+  }));
+
+  try {
+    const novoGrupoRef = doc(collection(db, "grupos"));
+    await setDoc(novoGrupoRef, {
+      nome,
+      criadoPor: meuUid,
+      criadoEm: new Date().toISOString(),
+      membros: [{
+        uid: meuUid,
+        nickname: meuDados.nickname || "",
+        tag: meuDados.tag || "",
+        papel: "mestre"
+      }],
+      membrosUids: [meuUid],
+      mestresUids: [meuUid]
+    });
+
+    for (const c of convidados) {
+      await setDoc(doc(db, "usuarios", c.uid, "convitesGrupo", novoGrupoRef.id), {
+        grupoId: novoGrupoRef.id,
+        nomeGrupo: nome,
+        deUid: meuUid,
+        deNickname: meuDados.nickname || "",
+        deTag: meuDados.tag || "",
+        criadoEm: new Date().toISOString()
+      });
+    }
+
+    window.cancelarCriarGrupo();
+    carregarGrupos();
+  } catch (e) {
+    console.error(e);
+    alertBonito("Erro ao criar grupo: " + (e.code || e.message));
+  }
+};
+
+window.enviarSolicitacaoAmizade = async function () {
+  const input = document.getElementById("buscaAmigoInput");
+  const valor = input.value.trim();
+
+  const partes = valor.split("#");
+  if (partes.length !== 2 || !partes[0] || !partes[1]) {
+    alertBonito("Digite no formato Nickname#0000.");
+    return;
+  }
+  const nicknameLower = partes[0].trim().toLowerCase();
+  const tag = partes[1].trim();
+  const meuUid = window.usuarioAtual.uid;
+
+  try {
+    const tagSnap = await getDoc(doc(db, "tagsUsuario", `${nicknameLower}#${tag}`));
+    if (!tagSnap.exists()) {
+      alertBonito("Nenhum usuário encontrado com esse nome.");
+      return;
+    }
+    const alvoUid = tagSnap.data().uid;
+
+    if (alvoUid === meuUid) {
+      alertBonito("Você não pode adicionar a si mesmo.");
       return;
     }
 
-    const meuUid = window.usuarioAtual.uid;
+    const jaAmigo = await getDoc(doc(db, "usuarios", meuUid, "amigos", alvoUid));
+    if (jaAmigo.exists()) {
+      alertBonito("Vocês já são amigos.");
+      return;
+    }
+
     const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
     const meuDados = meuSnap.exists() ? meuSnap.data() : {};
 
-    const checks = document.querySelectorAll(".checkAmigoGrupo:checked");
-    const convidados = Array.from(checks).map(chk => ({
-      uid: chk.value,
-      nickname: chk.dataset.nickname,
-      tag: chk.dataset.tag
-    }));
-
-    try {
-      const novoGrupoRef = doc(collection(db, "grupos"));
-      await setDoc(novoGrupoRef, {
-        nome,
-        criadoPor: meuUid,
-        criadoEm: new Date().toISOString(),
-        membros: [{
-          uid: meuUid,
-          nickname: meuDados.nickname || "",
-          tag: meuDados.tag || "",
-          papel: "mestre"
-        }],
-        membrosUids: [meuUid],
-        mestresUids: [meuUid]
-      });
-
-      for (const c of convidados) {
-        await setDoc(doc(db, "usuarios", c.uid, "convitesGrupo", novoGrupoRef.id), {
-          grupoId: novoGrupoRef.id,
-          nomeGrupo: nome,
-          deUid: meuUid,
-          deNickname: meuDados.nickname || "",
-          deTag: meuDados.tag || "",
-          criadoEm: new Date().toISOString()
-        });
-      }
-
-      window.cancelarCriarGrupo();
-      carregarGrupos();
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro ao criar grupo: " + (e.code || e.message));
-    }
-  };
-
-  window.abrirDetalheGrupo = async function (grupoId) {
-    window._grupoAtualId = grupoId;
-    const meuUid = window.usuarioAtual.uid;
-
-    document.getElementById("modalGrupoDetalheOverlay").style.display = "block";
-    document.getElementById("modalGrupoDetalhe").style.display = "block";
-    document.getElementById("detalheGrupoRenomear").style.display = "none";
-
-    const grupoSnap = await getDoc(doc(db, "grupos", grupoId));
-    if (!grupoSnap.exists()) {
-      fecharDetalheGrupo();
-      return;
-    }
-    const g = grupoSnap.data();
-    const souMestre = g.criadoPor === meuUid;
-
-    document.getElementById("detalheGrupoNome").textContent = g.nome;
-
-    const minhasFichas = window.personagens || [];
-    const membrosDiv = document.getElementById("detalheGrupoMembros");
-    membrosDiv.innerHTML = g.membros.map(m => `
-      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.12);border-radius:8px;padding:8px 10px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div ${m.uid !== meuUid ? `onclick="abrirAcoesMembro('${m.uid}','${escapeHtml(m.nickname)}','${escapeHtml(m.tag)}')" style="cursor:pointer;flex:1;font-size:13px;"` : `style="flex:1;font-size:13px;"`}>${escapeHtml(m.nickname)}<span style="opacity:.5;">#${escapeHtml(m.tag)}</span></div>
-          ${souMestre && m.uid !== meuUid ? `
-            <button onclick="alternarPapelMembro('${m.uid}')" style="font-size:10px;padding:4px 8px;border-radius:6px;border:1px solid rgba(196,169,91,0.3);background:transparent;color:#C4A95B;cursor:pointer;text-transform:uppercase;">${m.papel === "mestre" ? "Mestre" : "Jogador"}</button>
-            <button onclick="removerMembroGrupo('${m.uid}')" style="width:22px;height:22px;padding:0;border-radius:50%;border:none;background:#7B1E28;color:#fff;cursor:pointer;font-size:11px;">✕</button>
-          ` : `<span style="font-size:10px;color:#9A8A70;text-transform:uppercase;">${m.papel === "mestre" ? "Mestre" : "Jogador"}</span>`}
-        </div>
-        ${m.uid === meuUid ? `
-        <select id="selectFichaGrupo" style="margin-top:8px;width:100%;background:#1b120c;border:1px solid rgba(196,169,91,0.25);border-radius:6px;padding:6px 8px;color:#F8F4E3;font-size:12px;">
-          <option value="">— minha ficha nesse grupo —</option>
-          ${minhasFichas.map(f => `<option value="${String(f.id)}" ${String(f.id) === String(m.fichaId) ? "selected" : ""}>${escapeHtml(f.nome || "Sem nome")}</option>`).join("")}
-        </select>
-        <button onclick="window.salvarFichaGrupoBotao(this)" style="margin-top:6px;width:100%;padding:7px;border-radius:6px;border:none;background:#C4A95B;color:#1a0e05;font-weight:bold;font-size:12px;cursor:pointer;">Salvar vínculo</button>
-        <div id="statusFichaGrupo" style="font-size:11px;margin-top:4px;text-align:center;"></div>
-        ` : ""}
-      </div>
-    `).join("");
-
-    const acoesDiv = document.getElementById("detalheGrupoAcoes");
-    let acoesHtml = "";
-    if (souMestre) {
-      acoesHtml += `<button onclick="mostrarRenomearGrupo('${escapeHtml(g.nome)}')" style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(196,169,91,0.3);background:transparent;color:#E8CC80;font-size:13px;cursor:pointer;">Renomear grupo</button>`;
-      acoesHtml += `<button onclick="excluirGrupo()" style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(123,30,40,0.4);background:rgba(123,30,40,0.15);color:#e07a7a;font-size:13px;cursor:pointer;">Excluir grupo</button>`;
-    } else {
-      acoesHtml += `<button onclick="sairDoGrupo()" style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(123,30,40,0.4);background:rgba(123,30,40,0.15);color:#e07a7a;font-size:13px;cursor:pointer;">Sair do grupo</button>`;
-    }
-    acoesDiv.innerHTML = acoesHtml;
-  };
-
-  window.fecharDetalheGrupo = function () {
-    document.getElementById("modalGrupoDetalheOverlay").style.display = "none";
-    document.getElementById("modalGrupoDetalhe").style.display = "none";
-    window._grupoAtualId = null;
-  };
-
-  window.mostrarRenomearGrupo = function (nomeAtual) {
-    const div = document.getElementById("detalheGrupoRenomear");
-    div.style.display = "flex";
-    document.getElementById("renomearGrupoInput").value = nomeAtual;
-  };
-
-  window.salvarRenomearGrupo = async function () {
-    const novoNome = document.getElementById("renomearGrupoInput").value.trim();
-    if (!novoNome || !window._grupoAtualId) return;
-    try {
-      await updateDoc(doc(db, "grupos", window._grupoAtualId), { nome: novoNome });
-      await window.abrirDetalheGrupo(window._grupoAtualId);
-      carregarGrupos();
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro: " + (e.code || e.message));
-    }
-  };
-
-  window.alternarPapelMembro = async function (uidAlvo) {
-    const grupoId = window._grupoAtualId;
-    if (!grupoId) return;
-    try {
-      const grupoRef = doc(db, "grupos", grupoId);
-      const snap = await getDoc(grupoRef);
-      const g = snap.data();
-      const novosMembros = g.membros.map(m =>
-        m.uid === uidAlvo ? { ...m, papel: m.papel === "mestre" ? "jogador" : "mestre" } : m
-      );
-      const novosMestresUids = novosMembros.filter(m => m.papel === "mestre").map(m => m.uid);
-      await updateDoc(grupoRef, { membros: novosMembros, mestresUids: novosMestresUids });
-      await window.abrirDetalheGrupo(grupoId);
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro: " + (e.code || e.message));
-    }
-  };
-
-  window.removerMembroGrupo = async function (uidAlvo) {
-    const grupoId = window._grupoAtualId;
-    if (!grupoId) return;
-    if (!(await confirmBonito("Remover esse membro do grupo?"))) return;
-    try {
-      const grupoRef = doc(db, "grupos", grupoId);
-      const snap = await getDoc(grupoRef);
-      const g = snap.data();
-      await updateDoc(grupoRef, {
-        membros: g.membros.filter(m => m.uid !== uidAlvo),
-        membrosUids: g.membrosUids.filter(u => u !== uidAlvo),
-        mestresUids: (g.mestresUids || []).filter(u => u !== uidAlvo)
-      });
-      await window.abrirDetalheGrupo(grupoId);
-      carregarGrupos();
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro: " + (e.code || e.message));
-    }
-  };
-
-  window.sairDoGrupo = async function () {
-    const grupoId = window._grupoAtualId;
-    const meuUid = window.usuarioAtual.uid;
-    if (!grupoId) return;
-    if (!(await confirmBonito("Sair desse grupo?"))) return;
-    try {
-      const grupoRef = doc(db, "grupos", grupoId);
-      const snap = await getDoc(grupoRef);
-      const g = snap.data();
-      await updateDoc(grupoRef, {
-        membros: g.membros.filter(m => m.uid !== meuUid),
-        membrosUids: g.membrosUids.filter(u => u !== meuUid),
-        mestresUids: (g.mestresUids || []).filter(u => u !== meuUid)
-      });
-      fecharDetalheGrupo();
-      carregarGrupos();
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro: " + (e.code || e.message));
-    }
-  };
-
-  window.escolherFichaGrupo = async function (selectEl) {
-    const grupoId = window._grupoAtualId;
-    const meuUid = window.usuarioAtual.uid;
-    const novoFichaId = selectEl.value;
-    if (!grupoId) return;
-
-    const grupoRef = doc(db, "grupos", grupoId);
-    const snap = await getDoc(grupoRef);
-    const g = snap.data();
-
-    const novosMembros = g.membros.map(m =>
-      m.uid === meuUid ? { ...m, fichaId: novoFichaId || null } : m
-    );
-    await updateDoc(grupoRef, { membros: novosMembros });
-
-    if (novoFichaId) {
-      const mestresUids = g.membros.filter(m => m.papel === "mestre").map(m => m.uid);
-      await setDoc(doc(db, "usuarios", meuUid, "fichas", novoFichaId), {
-        grupoAtivo: grupoId,
-        mestresAutorizados: mestresUids
-      }, { merge: true });
-
-      // atualiza a cópia em memória também, pra não precisar recarregar a página
-      const fichaLocal = (window.personagens || []).find(f => String(f.id) === String(novoFichaId));
-      if (fichaLocal) fichaLocal.grupoAtivo = grupoId;
-    }
-  };
-
-  window.salvarFichaGrupoBotao = async function (btn) {
-    const select = document.getElementById("selectFichaGrupo");
-    const status = document.getElementById("statusFichaGrupo");
-    if (!select) return;
-
-    const grupoId = window._grupoAtualId;
-    const fichaEscolhida = select.value;
-
-    btn.disabled = true;
-    btn.textContent = "Salvando...";
-    status.textContent = "";
-
-    try {
-      await window.escolherFichaGrupo(select);
-
-      if (!fichaEscolhida) {
-        status.textContent = "✓ Vínculo removido.";
-        status.style.color = "#4a7c3a";
-      } else {
-        const confSnap = await getDoc(doc(db, "usuarios", window.usuarioAtual.uid, "fichas", fichaEscolhida));
-        const grupoAtivoSalvo = confSnap.exists() ? confSnap.data().grupoAtivo : null;
-
-        if (grupoAtivoSalvo === grupoId) {
-          status.textContent = "✓ Vínculo salvo e confirmado!";
-          status.style.color = "#4a7c3a";
-        } else {
-          status.textContent = "✗ Não confirmei o salvamento — tenta de novo.";
-          status.style.color = "#e07a7a";
-        }
-      }
-    } catch (e) {
-      console.error(e);
-      status.textContent = "✗ Erro: " + (e.code || e.message);
-      status.style.color = "#e07a7a";
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Salvar vínculo";
-    }
-  };
-
-  window.excluirGrupo = async function () {
-    const grupoId = window._grupoAtualId;
-    if (!grupoId) return;
-    if (!(await confirmBonito("Excluir esse grupo pra sempre? Não dá pra desfazer."))) return;
-    try {
-      await deleteDoc(doc(db, "grupos", grupoId));
-      fecharDetalheGrupo();
-      carregarGrupos();
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro: " + (e.code || e.message));
-    }
-  };
-
- window.abrirDarItem = async function (tipo, index) {
-    const ficha = window.personagens?.[personagemAtual];
-    if (!ficha) return;
-
-    if (!ficha.grupoAtivo) {
-      alertBonito("Essa ficha não está vinculada a nenhum grupo. Vá em Amigos → Grupos e escolha essa ficha num grupo primeiro.");
-      return;
-    }
-
-    window._darItemContexto = { tipo, index };
-
-    document.getElementById("modalDarItemOverlay").style.display = "block";
-    document.getElementById("modalDarItem").style.display = "block";
-
-    const lista = document.getElementById("listaDarItem");
-    lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;">Carregando...</p>`;
-
-    try {
-      const grupoSnap = await getDoc(doc(db, "grupos", ficha.grupoAtivo));
-      if (!grupoSnap.exists()) {
-        lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Esse grupo não existe mais. Vá em Amigos → Grupos e vincule essa ficha a um grupo válido.</p>`;
-        return;
-      }
-      const g = grupoSnap.data();
-      const meuUid = window.usuarioAtual.uid;
-      const outros = g.membros.filter(m => m.uid !== meuUid && m.fichaId);
-
-      if (outros.length === 0) {
-        lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;">Ninguém do grupo tem uma ficha vinculada ainda.</p>`;
-        return;
-      }
-
-      lista.innerHTML = outros.map(m => `
-        <button onclick="window.confirmarDarItem('${m.uid}', '${m.fichaId}', '${escapeHtml(m.nickname)}')" style="width:100%;text-align:left;padding:10px 12px;border-radius:8px;border:1px solid rgba(196,169,91,0.2);background:rgba(255,255,255,0.03);color:#F8F4E3;font-size:13px;cursor:pointer;">
-          ${escapeHtml(m.nickname)}<span style="opacity:.5;">#${escapeHtml(m.tag)}</span>
-        </button>
-      `).join("");
-    } catch (e) {
-      console.error(e);
-      if (e.code === "permission-denied") {
-        lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Esse grupo não existe mais. Vá em Amigos → Grupos e vincule essa ficha a um grupo válido.</p>`;
-      } else {
-        lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Erro: ${e.code || e.message}</p>`;
-      }
-    }
-  };
-
-  window.fecharDarItem = function () {
-    document.getElementById("modalDarItemOverlay").style.display = "none";
-    document.getElementById("modalDarItem").style.display = "none";
-    window._darItemContexto = null;
-  };
-
-  window.confirmarDarItem = async function (uidDestino, fichaIdDestino, nomeDestino) {
-    const ctx = window._darItemContexto;
-    if (!ctx) return;
-
-    const ficha = window.personagens[personagemAtual];
-    const arrays = { inventario, armas, armaduras };
-    const arr = arrays[ctx.tipo];
-    const item = arr?.[ctx.index];
-    if (!item) return;
-
-    if (!(await confirmBonito(`Dar "${item.nome || "esse item"}" pra ${nomeDestino}?`))) return;
-
-    try {
-      const meuUid = window.usuarioAtual.uid;
-      const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
-      const meuDados = meuSnap.exists() ? meuSnap.data() : {};
-
-      await setDoc(doc(collection(db, "usuarios", uidDestino, "itensRecebidos")), {
-        tipo: ctx.tipo,
-        item,
-        deUid: meuUid,
-        deNickname: meuDados.nickname || "",
-        deTag: meuDados.tag || "",
-        fichaDestinoId: fichaIdDestino,
-        automatico: false,
-        criadoEm: new Date().toISOString()
-      });
-
-      arr.splice(ctx.index, 1);
-      if (ctx.tipo === "inventario") { window.inventario = inventario; renderInv(); }
-      if (ctx.tipo === "armas") { window.armas = armas; renderArmas(); }
-      if (ctx.tipo === "armaduras") { window.armaduras = armaduras; renderArmaduras(); }
-      salvarTudo();
-
-      window.fecharDarItem();
-      alertBonito("Item enviado!");
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro ao dar item: " + (e.code || e.message));
-    }
-  };
-
-  window.abrirDarItemMestre = async function (itemId) {
-    const campanha = campanhasMaster[campanhaAtualMaster];
-    if (!campanha) return;
-
-    if (!campanha.grupoVinculado) {
-      alertBonito("Essa campanha não tem grupo vinculado. Edite a campanha e escolha um grupo primeiro.");
-      return;
-    }
-
-    let item = (campanha.itensMaster || []).find(i => String(i.id) === String(itemId));
-    if (!item) item = (itensPadrao || []).find(i => String(i.id) === String(itemId));
-    if (!item) item = (campanha.mapasMaster || []).find(i => String(i.id) === String(itemId));
-    if (!item) return;
-
-    window._darItemMestreContexto = item;
-    const lista = document.getElementById("listaDarItemMestre");
-    lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;">Carregando jogadores...</p>`;
-    document.getElementById("modalDarItemMestreOverlay").style.display = "block";
-    document.getElementById("modalDarItemMestre").style.display = "block";
-
-    getDoc(doc(db, "grupos", campanha.grupoVinculado)).then(snap => {
-      if (!snap.exists()) {
-        lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Esse grupo não existe mais. Edite a campanha e escolha outro.</p>`;
-        return;
-      }
-      const g = snap.data();
-      const meuUid = window.usuarioAtual.uid;
-      const jogadores = g.membros.filter(m => m.uid !== meuUid && m.fichaId);
-
-      if (jogadores.length === 0) {
-        lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;font-style:italic;">Nenhum jogador vinculou uma ficha a esse grupo ainda.</p>`;
-        return;
-      }
-
-      lista.innerHTML = jogadores.map(m => `
-        <button onclick="window.confirmarDarItemMestre('${m.uid}','${m.fichaId}','${escapeHtml(m.nickname)}')" style="width:100%;text-align:left;padding:10px 12px;border-radius:8px;border:1px solid rgba(196,169,91,0.2);background:rgba(255,255,255,0.03);color:#F8F4E3;font-size:13px;cursor:pointer;">${escapeHtml(m.nickname)}<span style="opacity:.5;">#${escapeHtml(m.tag)}</span></button>
-      `).join("");
-    }).catch(e => {
-      console.error(e);
-      if (e.code === "permission-denied") {
-        lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Esse grupo não existe mais. Edite a campanha e escolha outro.</p>`;
-      } else {
-        lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Erro ao carregar jogadores.</p>`;
-      }
+    await setDoc(doc(db, "usuarios", alvoUid, "solicitacoesRecebidas", meuUid), {
+      deUid: meuUid,
+      deNickname: meuDados.nickname || "",
+      deTag: meuDados.tag || "",
+      criadoEm: new Date().toISOString()
     });
-  };
 
-  window.fecharDarItemMestre = function () {
-    document.getElementById("modalDarItemMestreOverlay").style.display = "none";
-    document.getElementById("modalDarItemMestre").style.display = "none";
-  };
-
-  window.confirmarDarItemMestre = async function (uidDestino, fichaIdDestino, nomeDestino) {
-    const itemOriginal = window._darItemMestreContexto;
-    if (!itemOriginal) return;
-
-    if (!(await confirmBonito(`Dar "${itemOriginal.nome}" pra ${nomeDestino}?`))) return;
-
-    try {
-      const meuUid = window.usuarioAtual.uid;
-      const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
-      const meuDados = meuSnap.exists() ? meuSnap.data() : {};
-
-      const categoria = itemOriginal._tipo === "mapa" ? "mapas" : (itemOriginal.categoria || "inventario");
-
-      let itemParaJogador;
-      if (categoria === "mapas") {
-        itemParaJogador = {
-          nome: itemOriginal.nome,
-          desc: itemOriginal.desc || "",
-          imagemUrl: itemOriginal.imagem || "",
-          imagemDeleteUrl: "",
-          anotacoes: []
-        };
-      } else if (categoria === "armas") {
-        itemParaJogador = {
-          nome: itemOriginal.nome,
-          dano: itemOriginal.dano || "",
-          desc: itemOriginal.descricao || itemOriginal.efeito || "",
-          temCargas: false
-        };
-      } else if (categoria === "armaduras") {
-        itemParaJogador = {
-          nome: itemOriginal.nome,
-          ca: itemOriginal.ca || "",
-          desc: itemOriginal.descricao || itemOriginal.efeito || "",
-          temCargas: false
-        };
-      } else {
-        itemParaJogador = {
-          nome: itemOriginal.nome,
-          qtd: 1,
-          desc: itemOriginal.descricao || itemOriginal.efeito || ""
-        };
-      }
-
-      await setDoc(doc(collection(db, "usuarios", uidDestino, "itensRecebidos")), {
-        tipo: categoria,
-        item: itemParaJogador,
-        deUid: meuUid,
-        deNickname: meuDados.nickname || "",
-        deTag: meuDados.tag || "",
-        fichaDestinoId: fichaIdDestino,
-        automatico: false,
-        criadoEm: new Date().toISOString()
-      });
-
-      window.fecharDarItemMestre();
-      alertBonito("Item enviado!");
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro ao dar item: " + (e.code || e.message));
-    }
-  };
-
-  window.abrirInboxItens = async function () {
-    document.getElementById("modalInboxItensOverlay").style.display = "block";
-    document.getElementById("modalInboxItens").style.display = "block";
-    await window.renderInboxItens();
-  };
-
-  window.fecharInboxItens = function () {
-    document.getElementById("modalInboxItensOverlay").style.display = "none";
-    document.getElementById("modalInboxItens").style.display = "none";
-  };
-
-  window.renderInboxItens = async function () {
-    const lista = document.getElementById("listaInboxItens");
-    const meuUid = window.usuarioAtual.uid;
-
-    lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;">Carregando...</p>`;
-
-    try {
-      const snap = await getDocs(collection(db, "usuarios", meuUid, "itensRecebidos"));
-
-      if (snap.empty) {
-        lista.innerHTML = `<p style="color:#9A8A70;font-size:13px;text-align:center;padding:16px 0;font-style:italic;">Nada por aqui.</p>`;
-        atualizarBadgeInboxItens(0);
-        return;
-      }
-
-      let html = "";
-      snap.forEach(docSnap => {
-        const d = docSnap.data();
-        html += `
-          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.15);border-radius:10px;padding:10px 12px;">
-            <div style="font-size:13px;color:#F8F4E3;font-weight:bold;">${escapeHtml(d.item?.nome || "Sem nome")}</div>
-            <div style="font-size:11px;color:#9A8A70;margin:2px 0 8px;">de ${escapeHtml(d.deNickname)}<span style="opacity:.5;">#${escapeHtml(d.deTag)}</span> · ${d.tipo}</div>
-            <div style="display:flex;gap:8px;">
-              <button onclick="window.aceitarItemRecebido('${docSnap.id}')" style="flex:1;padding:6px;border-radius:6px;border:none;background:#4a7c3a;color:#fff;font-size:12px;cursor:pointer;">Aceitar</button>
-              <button onclick="window.recusarItemRecebido('${docSnap.id}')" style="flex:1;padding:6px;border-radius:6px;border:none;background:#7B1E28;color:#fff;font-size:12px;cursor:pointer;">Recusar</button>
-            </div>
-          </div>`;
-      });
-      lista.innerHTML = html;
-      atualizarBadgeInboxItens(snap.size);
-    } catch (e) {
-      console.error(e);
-      lista.innerHTML = `<p style="color:#e07a7a;font-size:12px;text-align:center;">Erro: ${e.code || e.message}</p>`;
-    }
-  };
-
-  function atualizarBadgeInboxItens(n) {
-    const badge = document.getElementById("badgeInboxItens");
-    if (!badge) return;
-    if (n > 0) {
-      badge.style.display = "flex";
-      badge.textContent = n;
-    } else {
-      badge.style.display = "none";
-    }
+    input.value = "";
+    alertBonito("Solicitação enviada!");
+  } catch (e) {
+    console.error(e);
+    alertBonito("Erro ao enviar solicitação: " + (e.code || e.message));
   }
+};
 
-  window.aceitarItemRecebido = async function (docId) {
-    const meuUid = window.usuarioAtual.uid;
-    try {
-      const ref = doc(db, "usuarios", meuUid, "itensRecebidos", docId);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) return;
-      const d = snap.data();
+window.responderSolicitacao = async function (deUid, aceitar) {
+  const meuUid = window.usuarioAtual.uid;
+  try {
+    const reqRef = doc(db, "usuarios", meuUid, "solicitacoesRecebidas", deUid);
+    const reqSnap = await getDoc(reqRef);
+    if (!reqSnap.exists()) return;
+    const d = reqSnap.data();
 
-      const ficha = (window.personagens || []).find(f => String(f.id) === String(d.fichaDestinoId));
-      if (!ficha) {
-        alertBonito("A ficha que devia receber esse item não existe mais na sua conta.");
-        await deleteDoc(ref);
-        window.renderInboxItens();
-        return;
-      }
-
-      ficha[d.tipo] = ficha[d.tipo] || [];
-      ficha[d.tipo].push(d.item);
-
-      if (typeof salvarPersonagens === "function") salvarPersonagens();
-
-      if (personagemAtual !== null && window.personagens[personagemAtual]?.id === ficha.id) {
-        if (d.tipo === "inventario") { inventario = ficha.inventario; window.inventario = inventario; renderInv(); }
-        if (d.tipo === "armas") { armas = ficha.armas; window.armas = armas; renderArmas(); }
-        if (d.tipo === "armaduras") { armaduras = ficha.armaduras; window.armaduras = armaduras; renderArmaduras(); }
-      }
-
-      await deleteDoc(ref);
-      window.renderInboxItens();
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro ao aceitar: " + (e.code || e.message));
-    }
-  };
-
-  window.recusarItemRecebido = async function (docId) {
-    const meuUid = window.usuarioAtual.uid;
-    try {
-      const ref = doc(db, "usuarios", meuUid, "itensRecebidos", docId);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) return;
-      const d = snap.data();
-
+    if (aceitar) {
       const meuSnap = await getDoc(doc(db, "usuarios", meuUid));
       const meuDados = meuSnap.exists() ? meuSnap.data() : {};
 
-      await setDoc(doc(collection(db, "usuarios", d.deUid, "itensRecebidos")), {
-        tipo: d.tipo,
-        item: d.item,
-        deUid: meuUid,
-        deNickname: meuDados.nickname || "",
-        deTag: meuDados.tag || "",
-        fichaDestinoId: null,
-        fichaOrigemDevolucao: true,
-        automatico: true,
-        criadoEm: new Date().toISOString()
+      await setDoc(doc(db, "usuarios", meuUid, "amigos", deUid), {
+        nickname: d.deNickname,
+        tag: d.deTag,
+        desde: new Date().toISOString()
       });
 
-      await deleteDoc(ref);
-      window.renderInboxItens();
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro ao recusar: " + (e.code || e.message));
-    }
-  };
-
-  window.abrirPerfil = async function (uid) {
-    const meuUid = window.usuarioAtual.uid;
-    const ehMeu = uid === meuUid;
-    window._perfilUidAberto = uid;
-    window._perfilEhMeu = ehMeu;
-
-    document.getElementById("modalPerfilOverlay").style.display = "block";
-    document.getElementById("modalPerfil").style.display = "block";
-    document.getElementById("btnSalvarBio").style.display = "none";
-    document.getElementById("perfilBioEdit").style.display = "none";
-    document.getElementById("perfilBioView").style.display = "block";
-
-    try {
-      const snap = await getDoc(doc(db, "usuarios", uid));
-      const d = snap.exists() ? snap.data() : {};
-
-      document.getElementById("perfilNomeTag").innerHTML = d.nickname
-        ? `${escapeHtml(d.nickname)}<span style="opacity:.5;">#${escapeHtml(d.tag)}</span>`
-        : "";
-
-      document.getElementById("perfilFundo").style.backgroundImage = d.fotoFundo ? `url('${d.fotoFundo}')` : "none";
-      document.getElementById("perfilAvatar").style.backgroundImage = d.fotoPerfil ? `url('${d.fotoPerfil}')` : "none";
-
-      const corBase = d.corBase || "#0e0907";
-      const corNome = d.corNome || "#E8CC80";
-      const corLinha = d.corLinha || "rgba(196,169,91,0.3)";
-
-      const corTexto = corContraste(corBase);
-      document.getElementById("modalPerfil").style.backgroundColor = corBase;
-      document.getElementById("modalPerfil").style.setProperty("--perfil-linha", corLinha);
-      document.getElementById("modalPerfil").style.setProperty("--perfil-texto", corTexto);
-      document.getElementById("perfilNomeTag").style.color = corNome;
-
-      document.getElementById("corBaseInput").value = corBase;
-      document.getElementById("corNomeInput").value = corNome;
-      document.getElementById("corLinhaInput").value = corLinha.startsWith("#") ? corLinha : "#c4a95b";
-      document.getElementById("corBaseSwatch").style.background = corBase;
-      document.getElementById("corNomeSwatch").style.background = corNome;
-      document.getElementById("corLinhaSwatch").style.background = corLinha.startsWith("#") ? corLinha : "#c4a95b";
-      document.getElementById("perfilCoresBtn").style.display = ehMeu ? "flex" : "none";
-      document.getElementById("perfilCoresBox").style.display = "none";
-      const bioView = document.getElementById("perfilBioView");
-      bioView.textContent = d.bio || (ehMeu ? "Adicione uma bio..." : "Sem bio ainda.");
-      document.getElementById("perfilBioEdit").value = d.bio || "";
-
-      document.getElementById("btnMudarFundo").style.display = ehMeu ? "block" : "none";
-      document.getElementById("btnMudarAvatar").style.display = ehMeu ? "block" : "none";
-      document.getElementById("btnEscolherDestaque").style.display = ehMeu ? "block" : "none";
-      document.getElementById("btnVerMeuPerfil").style.display = ehMeu ? "none" : "block";
-      bioView.onclick = ehMeu ? mostrarEditarBio : null;
-      bioView.style.cursor = ehMeu ? "pointer" : "default";
-
-      const showcase = document.getElementById("perfilShowcase");
-      const destaque = d.personagensDestaque || [];
-      if (destaque.length === 0) {
-        showcase.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:#9A8A70;font-size:12px;font-style:italic;padding:10px 0;">Nenhum personagem em destaque.</p>`;
-      } else {
-        window._perfilDestaqueAtual = destaque;
-        showcase.innerHTML = destaque.map((f, i) => `
-          <div onclick="abrirPreviewFicha(${i})" style="cursor:pointer;background:rgba(255,255,255,0.05);border:1px solid var(--perfil-linha, rgba(196,169,91,0.3));border-radius:10px;overflow:hidden;">
-            <div style="height:80px;background-image:url('${f.imagem || ""}');background-size:cover;background-position:center;background-color:#1b120c;"></div>
-            <div style="padding:8px;">
-              <div style="font-size:12px;font-weight:bold;color:var(--perfil-texto, #F8F4E3);">${escapeHtml(f.nome || "Sem nome")}</div>
-              <div style="font-size:11px;color:var(--perfil-texto, #9A8A70);opacity:.75;">${escapeHtml(f.classe || "")}${f.nivel ? " · Nv " + escapeHtml(String(f.nivel)) : ""}</div>
-              ${!ehMeu && f.publica ? `<button onclick="event.stopPropagation(); pegarFichaPublica('${uid}','${f.fichaId}')" style="margin-top:6px;width:100%;padding:5px;border-radius:6px;border:none;background:#C4A95B;color:#1a0e05;font-size:11px;font-weight:bold;cursor:pointer;">Pegar</button>` : ""}
-            </div>
-          </div>
-        `).join("");
-      }
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro ao carregar perfil: " + (e.code || e.message));
-    }
-  };
-
-  window.fecharPerfil = function () {
-    document.getElementById("modalPerfilOverlay").style.display = "none";
-    document.getElementById("modalPerfil").style.display = "none";
-  };
-
-  window.mostrarEditarBio = function () {
-    document.getElementById("perfilBioView").style.display = "none";
-    document.getElementById("perfilBioEdit").style.display = "block";
-    document.getElementById("btnSalvarBio").style.display = "block";
-  };
-
-  window.salvarBioPerfil = async function () {
-    const bio = document.getElementById("perfilBioEdit").value.trim();
-    try {
-      await setDoc(doc(db, "usuarios", window.usuarioAtual.uid), { bio }, { merge: true });
-      window.abrirPerfil(window.usuarioAtual.uid);
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro ao salvar bio: " + (e.code || e.message));
-    }
-  };
-
-  window.uploadImagemPerfil = async function (input, tipo) {
-    if (!input.files || !input.files[0]) return;
-    try {
-      const base64 = await comprimirImagem(input.files[0]);
-      const resultado = await uploadImagemFirebase(base64, tipo);
-      if (resultado.erro || !resultado.url) {
-        alertBonito("Não consegui enviar a imagem. Tente outra.");
-        return;
-      }
-      const campo = tipo === "fundo" ? "fotoFundo" : "fotoPerfil";
-      await setDoc(doc(db, "usuarios", window.usuarioAtual.uid), { [campo]: resultado.url }, { merge: true });
-      window.abrirPerfil(window.usuarioAtual.uid);
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro ao enviar imagem: " + (e.code || e.message));
-    } finally {
-      input.value = "";
-    }
-  };
-
-  window.abrirEscolherDestaque = async function () {
-    document.getElementById("modalEscolherDestaqueOverlay").style.display = "block";
-    document.getElementById("modalEscolherDestaque").style.display = "block";
-
-    const lista = document.getElementById("listaEscolherDestaque");
-    const fichas = window.personagens || [];
-    if (fichas.length === 0) {
-      lista.innerHTML = `<p style="color:#9A8A70;font-size:12px;text-align:center;">Você ainda não tem fichas.</p>`;
-      return;
+      await setDoc(doc(db, "usuarios", deUid, "amigos", meuUid), {
+        nickname: meuDados.nickname || "",
+        tag: meuDados.tag || "",
+        desde: new Date().toISOString()
+      });
     }
 
-    let idsDestaque = [];
-    try {
-      const snap = await getDoc(doc(db, "usuarios", window.usuarioAtual.uid));
-      const destaqueAtual = (snap.exists() && snap.data().personagensDestaque) || [];
-      idsDestaque = destaqueAtual.map(d => String(d.fichaId));
-    } catch (e) {
-      console.error(e);
-    }
+    await deleteDoc(reqRef);
+    carregarAmigos();
+  } catch (e) {
+    console.error(e);
+    alertBonito("Erro: " + (e.code || e.message));
+  }
+};
 
-    lista.innerHTML = fichas.map((f, i) => {
-      const jaExibida = idsDestaque.includes(String(f.id));
-      return `
-      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(196,169,91,0.15);border-radius:10px;padding:10px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="flex:1;font-size:13px;">${escapeHtml(f.nome || "Sem nome")} <span style="color:#9A8A70;font-size:11px;">${escapeHtml(f.classe || "")}</span></span>
-          <button type="button" onclick="var el=document.getElementById('opcoesFicha${i}');el.style.display = el.style.display === 'none' ? 'flex' : 'none';" style="background:none;border:none;color:#C4A95B;font-size:15px;cursor:pointer;padding:2px;">⚙</button>
-        </div>
-        <div id="opcoesFicha${i}" style="display:none;flex-direction:column;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(196,169,91,0.12);">
-          <label style="display:flex;align-items:center;justify-content:space-between;font-size:12px;cursor:pointer;gap:8px;">
-            <span>Exibir ficha</span>
-            <input type="checkbox" class="checkDestaqueFicha" data-index="${i}" ${jaExibida ? "checked" : ""} style="width:auto;margin:0;">
-          </label>
-          <label style="display:flex;align-items:center;justify-content:space-between;font-size:12px;cursor:pointer;gap:8px;">
-            <span>Permitir que a ficha seja copiada</span>
-            <input type="checkbox" class="checkPublicaFicha" data-index="${i}" ${f.publica ? "checked" : ""} style="width:auto;margin:0;">
-          </label>
-        </div>
-      </div>`;
-    }).join("");
-  };
+window.criarGrupo = () => alertBonito("Em breve: criar grupo.");
 
-  window.fecharEscolherDestaque = function () {
-    document.getElementById("modalEscolherDestaqueOverlay").style.display = "none";
-    document.getElementById("modalEscolherDestaque").style.display = "none";
-  };
-
-  window.salvarDestaquePerfil = async function () {
-    const checksExibir = document.querySelectorAll(".checkDestaqueFicha:checked");
-    if (checksExibir.length > 4) {
-      alertBonito("Escolha no máximo 4 pra exibir.");
-      return;
-    }
-
-    const fichas = window.personagens || [];
-
-    document.querySelectorAll(".checkPublicaFicha").forEach(chk => {
-      const i = parseInt(chk.dataset.index);
-      if (fichas[i]) fichas[i].publica = chk.checked;
-    });
-
-    const destaque = Array.from(checksExibir).map(chk => {
-      const f = fichas[parseInt(chk.dataset.index)];
-      const arma = (f.armas || [])[0];
-      const armadura = (f.armaduras || [])[0];
-      const poderes = (f.poderes || []).slice(0, 3);
-      return {
-        fichaId: String(f.id),
-        nome: f.nome || "",
-        classe: f.classe || "",
-        nivel: f.nivel || "",
-        imagem: f.imagem || "",
-        publica: !!f.publica,
-        previewLore: (f.lore || "").trim().slice(0, 220),
-        previewEquip: arma
-          ? { tipo: "arma", nome: arma.nome || "", extra: arma.dano || "" }
-          : (armadura ? { tipo: "armadura", nome: armadura.nome || "", extra: armadura.ca ? "CA " + armadura.ca : "" } : null),
-        previewPoderes: poderes.map(p => p.nome || "").filter(Boolean)
-      };
-    });
-
-    try {
-      window.personagens = fichas;
-      if (typeof salvarPersonagens === "function") await salvarPersonagens();
-      await setDoc(doc(db, "usuarios", window.usuarioAtual.uid), { personagensDestaque: destaque }, { merge: true });
-      window.fecharEscolherDestaque();
-      window.abrirPerfil(window.usuarioAtual.uid);
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro ao salvar: " + (e.code || e.message));
-    }
-  };
-
-  window.pegarFichaPublica = async function (donoUid, fichaId) {
-    if (!(await confirmBonito("Copiar essa ficha pra sua conta?"))) return;
-    try {
-      const snap = await getDoc(doc(db, "usuarios", donoUid, "fichas", fichaId));
-      if (!snap.exists()) {
-        alertBonito("Essa ficha não está mais disponível.");
-        return;
-      }
-      const original = snap.data();
-      const copia = JSON.parse(JSON.stringify(original));
-      copia.id = Date.now() + Math.floor(Math.random() * 99999);
-      copia.nome = (original.nome || "Sem nome") + " (cópia)";
-      copia.publica = false;
-
-      window.personagens.push(copia);
-      if (typeof salvarPersonagens === "function") salvarPersonagens();
-      if (typeof renderPersonagens === "function") renderPersonagens();
-
-      alertBonito("Ficha copiada! Ela já está na sua lista de personagens.");
-    } catch (e) {
-      console.error(e);
-      alertBonito("Erro ao copiar ficha: " + (e.code || e.message));
-    }
-  };
-
-  window.sairConta = async () => {
+  window.sairConta = async () => {  
   try {
     await signOut(auth);
 
@@ -4306,12 +3357,18 @@ window.carregarMonstrosDaNuvem = carregarMonstrosDaNuvem;
 
     if (loginBox) loginBox.style.display = "none";
 
-    abrirTelaModo();
+    await verificarNicknameEContinuar();
 
     await carregarFichasDaNuvem();
     await carregarMonstrosDaNuvem();
     await carregarCampanhasMasterFirebase();
+    await carregarRacasCustomFirebase();
     await migrarCompendioParaGlobal();
+
+    setTimeout(() => {
+      if (typeof window.carregarGruposParaCampanha === "function") window.carregarGruposParaCampanha();
+      if (typeof window.processarDevolucoesAutomaticas === "function") window.processarDevolucoesAutomaticas();
+    }, 1500);
 
   }  else {
   window.usuarioAtual = null;
