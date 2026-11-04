@@ -1257,7 +1257,7 @@ async function salvarEdicaoItem(index) {
     recipiente,
     dentroDe,
     bolsa,
-    moedas: bolsa ? normalizarMoedas(anterior.moedas) : anterior.moedas,
+    ...(bolsa ? { moedas: normalizarMoedas(anterior.moedas) } : {}),
     modificacoes: [...(window._modsTemp.editItem || [])],
   };
 
@@ -1303,8 +1303,7 @@ function editarArma(index) {
       <label class="popup-label">Nome</label>
       <input id="editArmaNome" value="${arma.nome || ""}">
 
-      <label class="popup-label">Dano</label>
-      <input id="editArmaDano" value="${arma.dano || ""}">
+      ${camposAtaqueArmaHTML("editArma", arma)}
 
       <label class="popup-label">Descrição</label>
       <textarea id="editArmaDesc">${arma.desc || ""}</textarea>
@@ -1504,6 +1503,7 @@ async function salvarEdicaoArma(index) {
   sintonizado,
   imagemUrl,
   imagemDeleteUrl,
+  ...lerCamposAtaqueArma("editArma"),
 };
 
   editArmaImagemBase64Temp = "";
@@ -1522,7 +1522,7 @@ function controlarHeader(mostrar) {
   }
 }
 
-const ORDEM_ABAS_FICHA = ["personagem", "atributos", "combate", "inventario", "poderes", "veiculos"];
+const ORDEM_ABAS_FICHA = ["personagem", "atributos", "combate", "inventario", "poderes", "veiculos", "companheiros"];
 window._abaFichaAtualId = window._abaFichaAtualId || "personagem";
 
 function trocarAba(id, btn = null) {
@@ -3166,6 +3166,8 @@ function carregarPersonagem(index) {
   saves = p.saves || {};
   exaustao = p.exaustao ?? 0;
   concentracaoAtiva = p.concentracao || "";
+  abasOcultas = Array.isArray(p.abasOcultas) ? p.abasOcultas : [];
+  if (typeof aplicarAbasVisiveis === "function") setTimeout(aplicarAbasVisiveis, 0);
   moedas = normalizarMoedas(p.moedas);
   migrarMoedasParaBolsa();
   if (typeof pararEscutasVeiculos === "function") pararEscutasVeiculos();
@@ -3191,6 +3193,11 @@ function carregarPersonagem(index) {
   renderDominio();
   restaurarSecoes();
   renderArmaduras();
+  if (typeof renderCompanheiros === "function") {
+    window._comp = window._comp || {};
+    window._comp.aberto = null;
+    renderCompanheiros();
+  }
 
   setTimeout(() => {
   }, 100);
@@ -3255,6 +3262,7 @@ p.nivel = document.getElementById("nivel")?.value || "";
   p.exaustao = exaustao;
   p.morte = morte;
   p.concentracao = concentracaoAtiva || "";
+  p.abasOcultas = abasOcultas;
   p.moedas = normalizarMoedas(moedas);
   p.dominio = dominio;
 
@@ -3306,6 +3314,7 @@ window.abrirPerfil = async function (uid) {
   try {
     const snap = await getDoc(doc(db, "usuarios", uid));
     const d = snap.exists() ? snap.data() : {};
+    window._perfilDados = d;
 
     document.getElementById("perfilNomeTag").innerHTML = d.nickname
       ? `${escapeHtml(d.nickname)}<span style="opacity:.5;">#${escapeHtml(d.tag)}</span>`
@@ -3358,6 +3367,7 @@ window.abrirPerfil = async function (uid) {
         </div>
       `).join("");
     }
+    if (typeof renderPerfilExtras === "function") renderPerfilExtras(uid, ehMeu, d);
   } catch (e) {
     console.error(e);
     alertBonito("Erro ao carregar perfil: " + (e.code || e.message));
@@ -4314,7 +4324,7 @@ async function addItem() {
 
   const novoItem = {
     bolsa,
-    moedas: bolsa ? normalizarMoedas(editandoItem >= 0 ? inventario[editandoItem]?.moedas : {}) : undefined,
+    ...(bolsa ? { moedas: normalizarMoedas(editandoItem >= 0 ? inventario[editandoItem]?.moedas : {}) } : {}),
     modificacoes: consumirModsTemp("item"),
     id: editandoItem >= 0 ? (inventario[editandoItem]?.id || gerarIdItem()) : gerarIdItem(),
     nome,
@@ -4887,6 +4897,9 @@ function acoesVerItemHTML(item, index) {
   }
 
   botoes.push(`<button type="button" onclick="fecharPopup(); window.abrirDarItem('inventario', ${index})"><i class="ti ti-gift"></i><span>Dar</span></button>`);
+  if (typeof podeIrProComp === "function" && podeIrProComp(item) && listaComp().length) {
+    botoes.push(`<button type="button" onclick="abrirEscolherCompParaItem(${index})"><span class="comp-emoji">🐾</span><span>Pro bicho</span></button>`);
+  }
   botoes.push(`<button type="button" class="pv-editar" onclick="editarItem(${index})"><i class="ti ti-pencil"></i><span>Editar</span></button>`);
   botoes.push(`<button type="button" class="perigo" onclick="fecharPopup(); removerItem(${index})"><i class="ti ti-trash"></i><span>Remover</span></button>`);
 
@@ -5021,6 +5034,7 @@ async function addArma() {
     sintonizado,
     imagemUrl,
     imagemDeleteUrl,
+    ...lerCamposAtaqueArma("arma"),
   };
 
   if (editandoArma >= 0) {
@@ -5062,6 +5076,7 @@ async function addArma() {
   }
 
   armaImagemBase64Temp = "";
+  limparCamposAtaqueArma("arma");
   document.getElementById("armaImagem").value = "";
   document.getElementById("armaImagemPreview").style.display = "none";
 }
@@ -5098,26 +5113,22 @@ function renderArmas() {
         : "";
 
 
+    li.classList.add("arma-card2");
     li.innerHTML = `
       <button type="button" class="drag-handle" aria-label="Arrastar para reordenar">⠿</button>
 
       <div class="arma-info" onclick="verArma(${index})">
-        <strong class="arma-nome">
-  ${esc(arma.nome) || "Sem nome"}
-  ${
-    arma.requerSintonia
-      ? `<span class="item-tag-sintonia ${arma.sintonizado ? "ativo" : ""}">${arma.sintonizado ? "Sintonizado" : "Requer sintonia"}</span>`
-      : ""
-  }
-</strong>
-        <p class="arma-dano-preview">${esc(arma.dano) || "Sem dano"}</p>
+        <div class="arma2-topo">
+          ${arma.imagemUrl ? `<img class="arma2-img" src="${esc(arma.imagemUrl)}" alt="">` : ""}
+          <div class="arma2-titulo">
+            <strong class="arma-nome">${esc(arma.nome) || "Sem nome"}</strong>
+            ${arma.requerSintonia ? `<span class="item-tag-sintonia ${arma.sintonizado ? "ativo" : ""}">${arma.sintonizado ? "Sintonizado" : "Requer sintonia"}</span>` : ""}
+          </div>
+        </div>
+        <div class="arma-calc" data-arma-calc="${index}">${armaCalcChipsHTML(arma)}</div>
         ${modsChipsHTML(arma.modificacoes)}
-
-<p class="arma-desc-preview">
-  ${arma.desc ? esc(arma.desc).substring(0, 60) + (arma.desc.length > 60 ? "..." : "") : "Sem descrição"}
-</p>
-
-${cargasHTML}
+        ${arma.desc ? `<p class="arma2-desc">${esc(arma.desc)}</p>` : ""}
+        ${cargasHTML}
       </div>
 
       <div class="card-acoes-ico">
@@ -5147,7 +5158,12 @@ function verArma(index) {
   const html = popupVerHTML({
     imagem: arma.imagemUrl,
     infos: [
-      ["Dano", esc(arma.dano) || "—", true],
+      ...(armaUsaCalculo(arma)
+        ? [
+            ["Ataque", `${fmtBonus(calcAtaqueArma(arma).total)} <small class="arma-conta">${esc(calcAtaqueArma(arma).conta) || "sem bônus"}</small>`, true],
+            ["Dano", esc(danoArmaTexto(arma)) || "—", true],
+          ]
+        : [["Dano", esc(arma.dano) || "—", true]]),
       ["Cargas", pvCargas(arma)],
       ["Sintonia", pvSintonia(arma)],
     ],
@@ -6428,7 +6444,11 @@ function abrirTelaModo() {
   const tela = document.getElementById("tela-modo");
   tela.style.display = "flex";
 
-  // reset estado da tela
+  // reset estado da tela (o visual de selecionado fica no data-sel; sem limpar ele, o botão aparecia mas não funcionava)
+  delete tela.dataset.sel;
+  window._tmEntrando = false;
+  const btnE = document.getElementById('tmBtnEntrar');
+  if (btnE) btnE.classList.remove('apertado');
   if (typeof tmSelected !== 'undefined') {
     window.tmSelected = null;
     const cj = document.getElementById('tmCardJornada');
@@ -6442,7 +6462,8 @@ function abrirTelaModo() {
     const btn = document.getElementById('tmBtnEntrar');
     if (btn) { btn.disabled = true; btn.style.cssText = 'width:90%;max-width:380px;padding:18px 32px;border-radius:9999px;border:1px solid rgba(78, 78, 78, 0.4);background:transparent;color:rgba(100, 100, 100, 0.5);font-family:Cinzel,serif;font-size:18px;font-weight:700;letter-spacing:0.18em;cursor:not-allowed;transition:all 0.4s ease;margin:0 auto 28px auto;display:block;text-align:center;overflow:hidden;'; }
     const desc = document.getElementById('tmDesc');
-    if (desc) desc.innerHTML = '<p style="font-style:italic;font-size:13px;color:rgba(154,138,112,0.45);">Toque em um caminho para revelar seu destino…</p>';
+    if (desc) desc.innerHTML = '<p class="tm-dica">✦ Toque em um caminho para escolher ✦</p>';
+    ['tmDivJornada','tmDivGrimorio'].forEach(function (id) { const d = document.getElementById(id); if (d) { d.style.width = ''; d.style.background = ''; } });
     document.getElementById('tmBgJornada').style.opacity = '0';
     document.getElementById('tmBgGrimorio').style.opacity = '0';
   }
@@ -7858,7 +7879,14 @@ window.abrirDarItemMestre = async function (itemId) {
   let item = (campanha.itensMaster || []).find(i => String(i.id) === String(itemId));
   if (!item) item = (itensPadrao || []).find(i => String(i.id) === String(itemId));
   if (!item) item = (campanha.mapasMaster || []).find(i => String(i.id) === String(itemId));
-  if (!item) return;
+  // itens e mapas criados pelo mestre ficam no compêndio (monstrosMestre)
+  if (!item) item = (typeof monstrosMestre !== "undefined" ? monstrosMestre : []).find(i => String(i.id) === String(itemId));
+  // último recurso: o item que está aberto agora na ficha do compêndio
+  if (!item && window._entradaSessaoAtual && String(window._entradaSessaoAtual.id) === String(itemId)) item = window._entradaSessaoAtual;
+  if (!item) {
+    alertBonito("Não encontrei esse item. Feche e abra ele de novo no compêndio.");
+    return;
+  }
 
   window._darItemMestreContexto = item;
 
@@ -9178,14 +9206,19 @@ function renderAtaques(texto) {
       aoIniciar(e);
     }, { passive: false });
 
-    document.addEventListener("touchmove", (e) => {
+    // o toque continua chegando no próprio botão mesmo saindo de cima dele,
+    // então não precisa escutar a página inteira (isso travava a rolagem no celular)
+    btn.addEventListener("touchmove", (e) => {
       if (arrastando) e.preventDefault();
       aoMover(e);
     }, { passive: false });
 
-    document.addEventListener("touchend", (e) => {
+    btn.addEventListener("touchend", (e) => {
       aoSoltar(e);
-    }, { passive: false });
+    });
+    btn.addEventListener("touchcancel", (e) => {
+      aoSoltar(e);
+    });
   }
 
   if (document.readyState === "loading") {
@@ -12685,6 +12718,7 @@ window._modsTemp = window._modsTemp || {};
 function montarEditorMods(containerId, chave, modsIniciais) {
   const box = document.getElementById(containerId);
   if (!box) return;
+  if (window._modsEditando) delete window._modsEditando[chave];
   window._modsTemp[chave] = Array.isArray(modsIniciais) ? modsIniciais.map((m) => ({ ...m })) : (window._modsTemp[chave] || []);
   box.className = "mods-editor";
   box.dataset.chave = chave;
@@ -12706,14 +12740,25 @@ function renderModsTemp(chave) {
   const lista = document.getElementById("modsLista_" + chave);
   if (!lista) return;
   const mods = window._modsTemp[chave] || [];
+  const editando = window._modsEditando?.[chave];
   lista.innerHTML = mods.length
     ? mods
-        .map(
-          (m, i) => `
+        .map((m, i) =>
+          editando === i
+            ? `
+        <div class="mods-linha editando">
+          <div class="mods-linha-campos">
+            <input value="${esc(m.nome || "")}" placeholder="Nome" oninput="editarCampoModTemp('${chave}', ${i}, 'nome', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();fecharEdicaoModTemp('${chave}')}">
+            <input value="${esc(m.efeito || "")}" placeholder="Efeito" oninput="editarCampoModTemp('${chave}', ${i}, 'efeito', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();fecharEdicaoModTemp('${chave}')}">
+          </div>
+          <button type="button" class="mods-ok" onclick="fecharEdicaoModTemp('${chave}')" title="Pronto"><i class="ti ti-check"></i></button>
+        </div>`
+            : `
         <div class="mods-linha">
-          <div class="mods-linha-texto">
+          <div class="mods-linha-texto" onclick="abrirEdicaoModTemp('${chave}', ${i})" title="Toque para editar">
             <strong>${esc(m.nome)}</strong>${m.efeito ? `<span>${esc(m.efeito)}</span>` : ""}
           </div>
+          <button type="button" class="mods-editar" onclick="abrirEdicaoModTemp('${chave}', ${i})" title="Editar"><i class="ti ti-pencil"></i></button>
           <button type="button" onclick="removerModTemp('${chave}', ${i})" title="Remover"><i class="ti ti-x"></i></button>
         </div>`,
         )
@@ -12736,6 +12781,38 @@ function adicionarModTemp(chave) {
 
 function removerModTemp(chave, i) {
   (window._modsTemp[chave] || []).splice(i, 1);
+  if (window._modsEditando) delete window._modsEditando[chave];
+  renderModsTemp(chave);
+}
+
+window._modsEditando = window._modsEditando || {};
+function abrirEdicaoModTemp(chave, i) {
+  window._modsEditando[chave] = i;
+  renderModsTemp(chave);
+  const inp = document.querySelector(`#modsLista_${chave} .mods-linha.editando input`);
+  if (inp) {
+    inp.focus();
+    inp.setSelectionRange(inp.value.length, inp.value.length);
+  }
+}
+function editarCampoModTemp(chave, i, campo, valor) {
+  const m = (window._modsTemp[chave] || [])[i];
+  if (m) m[campo] = valor;
+}
+function fecharEdicaoModTemp(chave) {
+  const mods = window._modsTemp[chave] || [];
+  const i = window._modsEditando[chave];
+  const m = mods[i];
+  if (m) {
+    m.nome = (m.nome || "").trim();
+    m.efeito = (m.efeito || "").trim();
+    if (!m.nome && !m.efeito) mods.splice(i, 1);
+    else if (!m.nome) {
+      m.nome = m.efeito;
+      m.efeito = "";
+    }
+  }
+  delete window._modsEditando[chave];
   renderModsTemp(chave);
 }
 
@@ -13772,7 +13849,7 @@ function rolarExpressao(expr, dobrarDados) {
 }
 
 function extrairDados(texto) {
-  const m = String(texto || "").match(/\d*\s*d\s*\d+(\s*[+-]\s*\d+(?!\s*d))*/i);
+  const m = String(texto || "").match(/(?<![a-zà-ú])\d*\s*d\s*\d+(\s*[+-]\s*\d+(?!\s*d\s*\d))*/i);
   return m ? m[0].replace(/\s+/g, "") : "";
 }
 
@@ -13781,7 +13858,7 @@ function fmtBonus(n) {
 }
 
 // teste com d20: rotulo, bonus, modo ("normal" | "vantagem" | "desvantagem")
-function rolarD20(rotulo, bonus, modo, extras) {
+function rolarD20(rotulo, bonus, modo, extras, composicao) {
   modo = modo || "normal";
   const a = dado(20);
   const b = modo === "normal" ? null : dado(20);
@@ -13792,13 +13869,14 @@ function rolarD20(rotulo, bonus, modo, extras) {
   const detalhe =
     `d20 <b>${escolhido}</b>` +
     (descartado != null ? ` <s>${descartado}</s>` : "") +
-    (bonus ? ` ${bonus >= 0 ? "+" : "−"} ${Math.abs(bonus)}` : "");
+    (composicao ? ` ${composicao}` : bonus ? ` ${bonus >= 0 ? "+" : "−"} ${Math.abs(bonus)}` : "");
 
   const r = {
     rotulo,
     total,
     detalhe,
-    textoSimples: `d20 ${escolhido}${descartado != null ? ` (${descartado})` : ""}${bonus ? ` ${fmtBonus(bonus)}` : ""}`,
+    textoSimples: `d20 ${escolhido}${descartado != null ? ` (${descartado})` : ""}${composicao ? ` ${composicao}` : bonus ? ` ${fmtBonus(bonus)}` : ""}`,
+    composicao: composicao || "",
     modo,
     nat: escolhido === 20 ? "crit" : escolhido === 1 ? "falha" : "",
     tipo: "d20",
@@ -13877,7 +13955,7 @@ function fecharRolagem() {
 function rerolar(modo) {
   const r = window._ultimaRolagem;
   if (!r || r.tipo !== "d20") return;
-  rolarD20(r.rotulo, r.bonus, modo, r.extras);
+  rolarD20(r.rotulo, r.bonus, modo, r.extras, r.composicao);
 }
 
 function rerolarDano(critico) {
@@ -13980,6 +14058,10 @@ function abrirBandejaDados() {
       <label class="bandeja-compart">
         <input type="checkbox" ${compart ? "checked" : ""} onchange="salvarPrefCompartilhar(this.checked)">
         <span>Mostrar minhas rolagens pro grupo</span>
+      </label>
+      <label class="bandeja-compart">
+        <input type="checkbox" ${lerPrefAvisosGrupo() ? "checked" : ""} onchange="salvarPrefAvisosGrupo(this.checked)">
+        <span>Avisos das rolagens dos outros</span>
       </label>
 
       <div class="bandeja-abas">
@@ -14129,7 +14211,24 @@ function escutarRolagensGrupo(grupoId) {
   }
 }
 
+function lerPrefAvisosGrupo() {
+  try {
+    return localStorage.getItem("avisosRolagensGrupo") !== "0";
+  } catch (e) {
+    return true;
+  }
+}
+
+function salvarPrefAvisosGrupo(v) {
+  try {
+    localStorage.setItem("avisosRolagensGrupo", v ? "1" : "0");
+  } catch (e) {}
+  if (!v) document.querySelectorAll(".toast-rolagem").forEach((t) => t.remove());
+}
+
 function toastRolagemGrupo(r) {
+  // desligado: as rolagens continuam na aba "Grupo" da bandeja, só não aparece o aviso
+  if (!lerPrefAvisosGrupo()) return;
   const t = document.createElement("div");
   t.className = "toast-rolagem " + (r.nat || "");
   t.innerHTML = `<span>🎲 <b>${esc(r.personagem || "Alguém")}</b> · ${esc(r.rotulo)}</span><strong>${r.total}</strong>`;
@@ -15184,6 +15283,4598 @@ function alternarBolsaForm(prefixo) {
   }
 }
 
+/* =====================================================================
+   ESCOLHER ABAS (engrenagem na aba Personagem)
+   Cada ficha guarda quais abas ficam escondidas (p.abasOcultas).
+   ===================================================================== */
+var NOMES_ABAS = {
+  personagem: ["👤", "Personagem"],
+  atributos: ["📊", "Atributos"],
+  combate: ["⚔️", "Combate"],
+  inventario: ["🎒", "Inventário"],
+  poderes: ["🔥", "Poderes e Magias"],
+  estilo: ["💀", "Estilo (Devil Trigger)"],
+  veiculos: ["🐴", "Veículos"],
+  companheiros: ["🐾", "Companheiros"],
+};
+var abasOcultas = [];
+
+function idAbaDoBotao(btn) {
+  const m = (btn.getAttribute("onclick") || "").match(/trocarAba\('(\w+)'/);
+  return m ? m[1] : null;
+}
+
+function aplicarAbasVisiveis() {
+  const ocultas = new Set(abasOcultas);
+  document.querySelectorAll("#ficha .tabs .tab-btn").forEach((btn) => {
+    const id = idAbaDoBotao(btn);
+    if (!id || id === "personagem") return;
+    btn.style.display = ocultas.has(id) ? "none" : "";
+  });
+  const atual = document.querySelector("#ficha .aba.active");
+  if (atual && ocultas.has(atual.id)) trocarAba("personagem");
+}
+
+function abrirConfigAbas() {
+  const ids = [...document.querySelectorAll("#ficha .tabs .tab-btn")].map(idAbaDoBotao).filter(Boolean);
+  const ocultas = new Set(abasOcultas);
+  const linhas = ids
+    .map((id) => {
+      const [ic, nome] = NOMES_ABAS[id] || ["•", id];
+      const fixa = id === "personagem";
+      return `
+      <div class="toggle-cargas cfg-aba ${fixa ? "fixa" : ""}">
+        <span class="toggle-cargas-texto"><span class="cfg-aba-ic">${ic}</span> ${nome}${fixa ? ` <small>(sempre aparece)</small>` : ""}</span>
+        <label class="switch-cargas">
+          <input type="checkbox" data-cfg-aba="${id}" ${ocultas.has(id) ? "" : "checked"} ${fixa ? "disabled" : ""}>
+          <span class="slider-cargas"></span>
+        </label>
+      </div>`;
+    })
+    .join("");
+  abrirPopup(
+    "Abas da ficha",
+    `<div class="popup-form"><p class="pm-dica">Escolha quais abas aparecem na barra de baixo. Dá pra mudar quando quiser.</p>${linhas}
+      <span class="mods-titulo" style="margin-top:12px;display:block">Avisos</span>
+      <div class="toggle-cargas cfg-aba">
+        <span class="toggle-cargas-texto"><span class="cfg-aba-ic">🎲</span> Rolagens dos outros jogadores</span>
+        <label class="switch-cargas">
+          <input type="checkbox" id="cfgAvisosGrupo" ${lerPrefAvisosGrupo() ? "checked" : ""}>
+          <span class="slider-cargas"></span>
+        </label>
+      </div>
+      <p class="pm-dica" style="margin-top:4px">Desligado, o pop-up some, mas as rolagens continuam em 🎲 Dados → Grupo.</p>
+      <button type="button" class="popup-salvar-btn" onclick="salvarConfigAbas()">Salvar</button></div>`,
+    true,
+    null,
+  );
+}
+
+function salvarConfigAbas() {
+  const ocultas = [];
+  document.querySelectorAll("#popup [data-cfg-aba]").forEach((el) => {
+    if (!el.checked && el.dataset.cfgAba !== "personagem") ocultas.push(el.dataset.cfgAba);
+  });
+  abasOcultas = ocultas;
+  const av = document.getElementById("cfgAvisosGrupo");
+  if (av) salvarPrefAvisosGrupo(av.checked);
+  aplicarAbasVisiveis();
+  salvarTudo();
+  fecharPopup();
+  if (typeof mostrarToastMundo === "function") mostrarToastMundo("Configuração salva");
+}
+
+function alternarAbaVisivel(id, visivel) {
+  const s = new Set(abasOcultas);
+  if (visivel) s.delete(id);
+  else s.add(id);
+  abasOcultas = [...s];
+  aplicarAbasVisiveis();
+  salvarTudo();
+}
+
+/* =====================================================================
+   ARMAS: atributo, proficiência e bônus calculados automaticamente
+   ===================================================================== */
+var SIGLAS_ATRIBUTO = { forca: "FOR", destreza: "DES", constituicao: "CON", inteligencia: "INT", sabedoria: "SAB", carisma: "CAR" };
+
+// arma criada antes dessa função não tem o campo → continua no jeito antigo
+function armaUsaCalculo(arma) {
+  return !!arma && arma.atributoAtaque !== undefined;
+}
+
+function calcAtaqueArma(arma) {
+  const termos = [];
+  const attr = arma.atributoAtaque || "";
+  if (attr && NOMES_ATRIBUTO[attr]) termos.push({ rot: SIGLAS_ATRIBUTO[attr], n: modAtributo(attr) });
+  if (arma.somarProf) termos.push({ rot: "Prof", n: get("bonusProf") });
+  const extra = parseInt(arma.bonusAtaque) || 0;
+  if (extra) termos.push({ rot: "Bônus", n: extra });
+  const total = termos.reduce((a, t) => a + t.n, 0);
+  return {
+    total,
+    termos,
+    conta: termos.map((t) => `${t.rot} ${fmtBonus(t.n)}`).join(" · "),
+    composicao: termos.map((t) => `${t.n < 0 ? "−" : "+"} ${t.rot} ${Math.abs(t.n)}`).join(" "),
+  };
+}
+
+function bonusDanoArma(arma) {
+  let n = parseInt(arma.bonusDano) || 0;
+  if (arma.somarAtribDano && arma.atributoAtaque && NOMES_ATRIBUTO[arma.atributoAtaque]) n += modAtributo(arma.atributoAtaque);
+  return n;
+}
+
+// junta os dados da arma com o bônus fixo: "1d8+1" + 4 → "1d8+5"
+function exprDanoArma(arma) {
+  const base = extrairDados(arma?.dano);
+  if (!base) return "";
+  if (!armaUsaCalculo(arma)) return base;
+  const dadosTermos = [];
+  let fixo = bonusDanoArma(arma);
+  (base.match(/[+-]?[^+-]+/g) || []).forEach((t) => {
+    if (/d/i.test(t)) dadosTermos.push(t.replace(/^\+/, ""));
+    else fixo += parseInt(t) || 0;
+  });
+  let expr = dadosTermos.map((t, i) => (i && !/^-/.test(t) ? "+" + t : t)).join("");
+  if (fixo) expr += fixo > 0 ? `+${fixo}` : `${fixo}`;
+  return expr;
+}
+
+// texto do dano com o bônus já somado (mantém o resto, ex: "cortante")
+function danoArmaTexto(arma) {
+  const txt = String(arma?.dano || "");
+  const expr = exprDanoArma(arma);
+  if (!expr) return txt;
+  return txt.replace(/(?<![a-zà-ú])\d*\s*d\s*\d+(\s*[+-]\s*\d+(?!\s*d\s*\d))*/i, expr);
+}
+
+// separa "2d6+7 cortante" em { expr: "2d6+7", tipo: "cortante" }
+function separarDanoArma(arma) {
+  const txt = String(arma?.dano || "").trim();
+  const re = /(?<![a-zà-ú])\d*\s*d\s*\d+(\s*[+-]\s*\d+(?!\s*d\s*\d))*/i;
+  if (!re.test(txt)) return { expr: txt, tipo: "", rolavel: false };
+  const expr = armaUsaCalculo(arma) ? exprDanoArma(arma) : extrairDados(txt);
+  const tipo = txt.replace(re, "").replace(/\s{2,}/g, " ").replace(/^[\s,.;-]+|[\s,.;-]+$/g, "");
+  return { expr, tipo, rolavel: true };
+}
+
+// dano no card: só o texto "Dano: 2d6+7 cortante" (o ataque e as rolagens ficam no popup)
+function armaCalcChipsHTML(arma) {
+  if (!String(arma.dano || "").trim()) return "";
+  const texto = armaUsaCalculo(arma) ? danoArmaTexto(arma) : arma.dano;
+  return `<p class="arma-dano-preview">Dano: ${esc(texto)}</p>`;
+}
+
+// atualiza só os números dos cards quando atributo/proficiência mudam
+function atualizarCalculosArmas() {
+  document.querySelectorAll("#listaArmas [data-arma-calc]").forEach((el) => {
+    const arma = armas[parseInt(el.dataset.armaCalc)];
+    if (arma) el.innerHTML = armaCalcChipsHTML(arma);
+  });
+}
+
+(function () {
+  if (typeof atualizarTudo !== "function" || atualizarTudo._comArmas) return;
+  const orig = atualizarTudo;
+  atualizarTudo = function () {
+    const r = orig.apply(this, arguments);
+    try { atualizarCalculosArmas(); } catch (e) {}
+    return r;
+  };
+  atualizarTudo._comArmas = true;
+  window.atualizarTudo = atualizarTudo;
+})();
+
+/* ---------- campos no formulário (criar e editar) ---------- */
+function camposAtaqueArmaHTML(prefixo, arma) {
+  const novo = !armaUsaCalculo(arma);
+  const attr = novo ? "forca" : arma.atributoAtaque || "";
+  const prof = novo ? true : !!arma.somarProf;
+  const somaDano = novo ? true : !!arma.somarAtribDano;
+  const bAtk = novo ? "" : arma.bonusAtaque || "";
+  const bDano = novo ? "" : arma.bonusDano || "";
+  const opts = [`<option value="" ${attr === "" ? "selected" : ""}>Nenhum</option>`]
+    .concat(Object.keys(NOMES_ATRIBUTO).map((k) => `<option value="${k}" ${k === attr ? "selected" : ""}>${NOMES_ATRIBUTO[k]}</option>`))
+    .join("");
+  const up = `atualizarPreviewAtaqueArma('${prefixo}')`;
+  return `
+    <div class="arma-atk-box" id="${prefixo}AtkBox">
+      <div class="arma-atk-topo">
+        <span class="mods-titulo"><i class="ti ti-flame"></i> Dano e ataque</span>
+      </div>
+      <label class="arma-atk-campo">
+        <span>Dano (dados e tipo)</span>
+        <input id="${prefixo}Dano" value="${esc(arma?.dano || "")}" placeholder="Ex: 2d6 cortante" oninput="${up}" autocomplete="off">
+      </label>
+      <div class="arma-atk-resultado" id="${prefixo}AtkPreview"></div>
+      <label class="arma-atk-campo">
+        <span>Atributo usado</span>
+        <select id="${prefixo}Atrib" onchange="${up}">${opts}</select>
+      </label>
+      <div class="arma-atk-linha">
+        <label class="arma-atk-campo"><span>Bônus no ataque</span><input id="${prefixo}BonusAtk" type="number" placeholder="0" value="${esc(String(bAtk))}" oninput="${up}"></label>
+        <label class="arma-atk-campo"><span>Bônus no dano</span><input id="${prefixo}BonusDano" type="number" placeholder="0" value="${esc(String(bDano))}" oninput="${up}"></label>
+      </div>
+      <div class="toggle-cargas">
+        <span class="toggle-cargas-texto">Somar proficiência no ataque</span>
+        <label class="switch-cargas"><input type="checkbox" id="${prefixo}SomaProf" ${prof ? "checked" : ""} onchange="${up}"><span class="slider-cargas"></span></label>
+      </div>
+      <div class="toggle-cargas">
+        <span class="toggle-cargas-texto">Somar atributo no dano</span>
+        <label class="switch-cargas"><input type="checkbox" id="${prefixo}SomaDano" ${somaDano ? "checked" : ""} onchange="${up}"><span class="slider-cargas"></span></label>
+      </div>
+    </div>`;
+}
+
+function lerCamposAtaqueArma(prefixo) {
+  const sel = document.getElementById(prefixo + "Atrib");
+  if (!sel) return {};
+  return {
+    atributoAtaque: sel.value || "",
+    somarProf: !!document.getElementById(prefixo + "SomaProf")?.checked,
+    somarAtribDano: !!document.getElementById(prefixo + "SomaDano")?.checked,
+    bonusAtaque: parseInt(document.getElementById(prefixo + "BonusAtk")?.value) || 0,
+    bonusDano: parseInt(document.getElementById(prefixo + "BonusDano")?.value) || 0,
+  };
+}
+
+function atualizarPreviewAtaqueArma(prefixo) {
+  const out = document.getElementById(prefixo + "AtkPreview");
+  if (!out) return;
+  const danoEl = document.getElementById(prefixo === "arma" ? "armaDano" : "editArmaDano");
+  const tmp = { ...lerCamposAtaqueArma(prefixo), dano: danoEl?.value || "" };
+  const atk = calcAtaqueArma(tmp);
+  const dano = danoArmaTexto(tmp);
+  const sep = separarDanoArma(tmp);
+  out.innerHTML = `
+    <div class="aar-dano"><small>Dano</small><b>${esc(sep.expr || "—")}</b>${sep.tipo ? `<span>${esc(sep.tipo)}</span>` : ""}</div>
+    <div class="aar-atk"><small>Ataque</small><b>${fmtBonus(atk.total)}</b></div>`;
+}
+
+function montarCamposAtaqueFormArma() {
+  const box = document.getElementById("armaCamposAtaque");
+  if (!box) return;
+  box.innerHTML = camposAtaqueArmaHTML("arma", null);
+  atualizarPreviewAtaqueArma("arma");
+}
+
+function limparCamposAtaqueArma() {
+  montarCamposAtaqueFormArma();
+}
+
+// prévia ao vivo também no popup de editar
+document.addEventListener("input", (e) => {
+  if (e.target && e.target.id === "editArmaDano") atualizarPreviewAtaqueArma("editArma");
+});
+
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", montarCamposAtaqueFormArma);
+else montarCamposAtaqueFormArma();
+
+// prévia do popup de editar assim que ele abre
+(function () {
+  const orig = editarArma;
+  editarArma = function (index) {
+    const r = orig.apply(this, arguments);
+    atualizarPreviewAtaqueArma("editArma");
+    return r;
+  };
+  window.editarArma = editarArma;
+})();
+
+/* ---------- rolagens ---------- */
+function rolarAtaqueArma(index, attr) {
+  const arma = armas[index];
+  if (!arma) return;
+  if (!armaUsaCalculo(arma)) {
+    // arma antiga: jeito de antes (FOR/DES + proficiência)
+    attr = attr || "forca";
+    const bonus = modAtributo(attr) + get("bonusProf");
+    const outro = attr === "forca" ? "destreza" : "forca";
+    const extras = [{ rotulo: `Usar ${outro === "forca" ? "FOR" : "DES"}`, acao: () => rolarAtaqueArma(index, outro) }];
+    if (extrairDados(arma.dano)) extras.push({ rotulo: "Dano", acao: () => rolarDanoArma(index, attr) });
+    rolarD20(`Ataque · ${arma.nome || "arma"}`, bonus, "normal", extras);
+    return;
+  }
+  const atk = calcAtaqueArma(arma);
+  const extras = extrairDados(arma.dano) ? [{ rotulo: "Dano", acao: () => rolarDanoArma(index) }] : [];
+  rolarD20(`Ataque · ${arma.nome || "arma"}`, atk.total, "normal", extras, atk.composicao);
+}
+
+function rolarDanoArma(index, attr) {
+  const arma = armas[index];
+  const expr = exprDanoArma(arma);
+  if (!expr) return;
+  rolarDano(`Dano · ${arma.nome || "arma"}`, expr, false, [
+    { rotulo: "Ataque", acao: () => rolarAtaqueArma(index, attr) },
+  ]);
+}
+
+/* =====================================================================
+   COMPANHEIROS (pets, montarias, familiares, invocações, ajudantes)
+   Ficam na própria ficha: p.companheiros = [...]
+   ===================================================================== */
+var TIPOS_COMP = {
+  fera: ["🐺", "Fera"],
+  montaria: ["🐎", "Montaria"],
+  familiar: ["🦉", "Familiar"],
+  invocacao: ["✨", "Invocação"],
+  ajudante: ["🧑", "Ajudante"],
+  outro: ["🐾", "Outro"],
+};
+var ATRIBS_COMP = ["forca", "destreza", "constituicao", "inteligencia", "sabedoria", "carisma"];
+window._comp = window._comp || { aberto: null, imgTemp: "" };
+
+function listaComp() {
+  const p = personagens[personagemAtual];
+  if (!p) return [];
+  if (!Array.isArray(p.companheiros)) p.companheiros = [];
+  return p.companheiros;
+}
+function acharComp(id) {
+  return listaComp().find((c) => String(c.id) === String(id));
+}
+function salvarComp() {
+  salvarTudo();
+}
+function modComp(c, attr) {
+  const v = parseInt(c?.atributos?.[attr]);
+  return isNaN(v) ? null : Math.floor((v - 10) / 2);
+}
+function iconeComp(c) {
+  return (TIPOS_COMP[c?.tipo] || TIPOS_COMP.outro)[0];
+}
+function medalhaoComp(c) {
+  return `<div class="veic-medalhao comp-medalhao">${
+    c.imagemUrl ? `<img src="${esc(c.imagemUrl)}" alt="">` : `<span class="comp-emoji">${iconeComp(c)}</span>`
+  }</div>`;
+}
+function calcAtaqueComp(c, a) {
+  const termos = [];
+  const m = a.atributo ? modComp(c, a.atributo) : null;
+  if (m !== null) termos.push({ rot: SIGLAS_ATRIBUTO[a.atributo], n: m });
+  const b = parseInt(a.bonusAtaque) || 0;
+  if (b) termos.push({ rot: "Bônus", n: b });
+  return {
+    total: termos.reduce((s, t) => s + t.n, 0),
+    composicao: termos.map((t) => `${t.n < 0 ? "−" : "+"} ${t.rot} ${Math.abs(t.n)}`).join(" "),
+  };
+}
+function exprDanoComp(c, a) {
+  const fake = {
+    dano: a.dano,
+    atributoAtaque: "",
+    somarAtribDano: false,
+    bonusDano: (parseInt(a.bonusDano) || 0) + (a.somarAtribDano && a.atributo ? modComp(c, a.atributo) || 0 : 0),
+  };
+  return { expr: exprDanoArma(fake), texto: danoArmaTexto(fake) };
+}
+
+/* ---------- render ---------- */
+function corVidaComp(pct) {
+  return pct > 0.5 ? "#7fbf6a" : pct > 0.25 ? "#e0a84a" : "#d9584a";
+}
+
+// retrato redondo com a vida desenhada num anel em volta
+function retratoComp(c, grande) {
+  const max = parseInt(c.pvMax) || 0;
+  const pv = c.pv ?? max;
+  const pct = max > 0 ? Math.max(0, Math.min(1, pv / max)) : 1;
+  const cor = max > 0 ? corVidaComp(pct) : "rgba(216,181,106,0.55)";
+  return `
+    <div class="comp-retrato ${grande ? "grande" : ""} ${max > 0 && pv <= 0 ? "caido" : ""}" style="--pct:${pct * 100}%; --anel:${cor}">
+      <div class="comp-retrato-in">${
+        c.imagemUrl ? `<img src="${esc(c.imagemUrl)}" alt="">` : `<span class="comp-emoji">${iconeComp(c)}</span>`
+      }</div>
+    </div>`;
+}
+
+function renderCompanheiros() {
+  const box = document.getElementById("companheirosConteudo");
+  if (!box || personagemAtual === null) return;
+  const lista = listaComp();
+  if (window._comp.aberto) {
+    const c = acharComp(window._comp.aberto);
+    if (c) return renderDetalheComp(box, c);
+    window._comp.aberto = null;
+  }
+  box.innerHTML = lista.length
+    ? `<div class="comp-grade">
+        ${lista.map(cardCompHTML).join("")}
+        <button type="button" class="comp-card-novo" onclick="abrirFormComp()"><i class="ti ti-plus"></i><span>Novo companheiro</span></button>
+      </div>`
+    : `<div class="comp-vazio">
+        <div class="comp-vazio-pegadas"><span class="comp-emoji">🐾</span></div>
+        <strong>Nenhum companheiro ainda</strong>
+        <p>Domou um lobo? Ganhou um cavalo? Invocou um familiar? Ele mora aqui, com vida, ataques e habilidades.</p>
+        <button type="button" class="comp-card-novo largo" onclick="abrirFormComp()"><i class="ti ti-plus"></i><span>Novo companheiro</span></button>
+      </div>`;
+}
+
+function cardCompHTML(c) {
+  const t = TIPOS_COMP[c.tipo] || TIPOS_COMP.outro;
+  const max = parseInt(c.pvMax) || 0;
+  const pv = c.pv ?? max;
+  return `
+    <div class="comp-card" onclick="abrirComp('${esc(String(c.id))}')">
+      ${retratoComp(c)}
+      <strong class="comp-card-nome">${esc(c.nome || "Sem nome")}</strong>
+      <span class="comp-tipo"><span class="comp-emoji">${t[0]}</span>${t[1]}</span>
+      ${c.especie ? `<small class="comp-card-esp">${esc(c.especie)}</small>` : ""}
+      <div class="comp-card-stats">
+        ${max > 0 ? `<span><i class="ti ti-heart"></i>${pv}<small>/${max}</small></span>` : ""}
+        ${c.ca ? `<span><i class="ti ti-shield"></i>${esc(String(c.ca))}</span>` : ""}
+      </div>
+    </div>`;
+}
+
+function pipsVinculoComp(c, id) {
+  const v = c.vinculo || {};
+  const max = parseInt(v.max) || 0;
+  const atual = parseInt(v.atual) || 0;
+  if (max > 0 && max <= 10) {
+    return `<div class="comp-pips">${Array.from({ length: max }, (_, i) =>
+      `<button type="button" class="comp-pip ${i < atual ? "on" : ""}" onclick="definirVinculoComp('${id}', ${i + 1 === atual ? i : i + 1})" aria-label="${i + 1}"></button>`).join("")}</div>`;
+  }
+  return `<div class="comp-vinc-num"><button type="button" onclick="mudarVinculoComp('${id}',-1)">−</button><b>${atual}${max ? `<small>/${max}</small>` : ""}</b><button type="button" onclick="mudarVinculoComp('${id}',1)">+</button></div>`;
+}
+
+function definirVinculoComp(id, n) {
+  const c = acharComp(id);
+  if (!c || !c.vinculo) return;
+  c.vinculo.atual = Math.max(0, n);
+  salvarComp();
+  renderCompanheiros();
+}
+
+function trocarAbaComp(aba) {
+  window._comp.aba = aba;
+  renderCompanheiros();
+}
+
+function renderDetalheComp(box, c) {
+  const t = TIPOS_COMP[c.tipo] || TIPOS_COMP.outro;
+  const id = esc(String(c.id));
+  const max = parseInt(c.pvMax) || 0;
+  const pv = c.pv ?? max;
+  const vinc = c.vinculo || {};
+  const aba = window._comp.aba || "ataques";
+  const nAtk = (c.ataques || []).length;
+  const nHab = (c.habilidades || []).length;
+  const nIt = (c.itens || []).length;
+
+  const atributos = ATRIBS_COMP.map((a) => {
+    const m = modComp(c, a);
+    return m === null
+      ? `<div class="comp-at vazio"><span>${SIGLAS_ATRIBUTO[a]}</span><b>—</b></div>`
+      : `<button type="button" class="comp-at" onclick="rolarAtribComp('${id}','${a}')"><span>${SIGLAS_ATRIBUTO[a]}</span><b>${fmtBonus(m)}</b><small>${esc(String(c.atributos[a]))}</small></button>`;
+  }).join("");
+  const temAttr = ATRIBS_COMP.some((a) => modComp(c, a) !== null);
+
+  let conteudo = "";
+  if (aba === "ataques") {
+    conteudo =
+      (nAtk
+        ? (c.ataques || [])
+            .map((a, i) => {
+              const atk = calcAtaqueComp(c, a);
+              const dn = exprDanoComp(c, a);
+              return `
+            <div class="comp-golpe" onclick="abrirFormAtaqueComp('${id}', ${i})">
+              <div class="comp-golpe-info">
+                <strong>${esc(a.nome || "Ataque")}</strong>
+                ${a.desc ? `<span>${esc(a.desc)}</span>` : ""}
+              </div>
+              <div class="comp-golpe-dados">
+                <button type="button" class="comp-dado atk" onclick="event.stopPropagation(); rolarAtaqueComp('${id}', ${i})"><small>acerto</small><b>${fmtBonus(atk.total)}</b></button>
+                ${dn.expr
+                  ? `<button type="button" class="comp-dado dano" onclick="event.stopPropagation(); rolarDanoComp('${id}', ${i})"><small>dano</small><b>${esc(dn.texto)}</b></button>`
+                  : a.dano ? `<span class="comp-dado dano parado"><small>dano</small><b>${esc(a.dano)}</b></span>` : ""}
+              </div>
+            </div>`;
+            })
+            .join("")
+        : `<p class="comp-nada">Nenhum ataque ainda. Mordida, coice, garras...</p>`) +
+      `<button type="button" class="comp-add-linha" onclick="abrirFormAtaqueComp('${id}')"><i class="ti ti-plus"></i> Adicionar ataque</button>`;
+  } else if (aba === "habilidades") {
+    conteudo =
+      (nHab
+        ? (c.habilidades || [])
+            .map((h, i) => `
+            <div class="comp-hab" onclick="abrirFormHabComp('${id}', ${i})">
+              <strong>${esc(h.nome || "Habilidade")}</strong>
+              ${h.desc ? `<p>${esc(h.desc)}</p>` : ""}
+            </div>`)
+            .join("")
+        : `<p class="comp-nada">Nenhuma habilidade ainda. Faro, truques, comandos que ele conhece...</p>`) +
+      `<button type="button" class="comp-add-linha" onclick="abrirFormHabComp('${id}')"><i class="ti ti-plus"></i> Adicionar habilidade</button>`;
+  } else if (aba === "itens") {
+    conteudo =
+      (nIt
+        ? `<div class="comp-alforje">${(c.itens || [])
+            .map((it, i) => `
+            <div class="comp-item">
+              <span class="comp-item-nome">${esc(it.nome)}${(it.qtd || 1) > 1 ? ` <small>x${it.qtd}</small>` : ""}</span>
+              <button type="button" class="comp-item-btn" title="Passar pro meu inventário" onclick="pegarItemComp('${id}', ${i})"><i class="ti ti-arrow-bar-up"></i></button>
+              <button type="button" class="comp-item-btn perigo" title="Jogar fora" onclick="removerItemComp('${id}', ${i})"><i class="ti ti-x"></i></button>
+            </div>`)
+            .join("")}</div>`
+        : `<p class="comp-nada">Ele não está carregando nada.</p>`) +
+      `<div class="comp-add-duplo">
+        <button type="button" class="comp-add-linha" onclick="abrirInventarioParaComp('${id}')"><i class="ti ti-backpack"></i> Do meu inventário</button>
+        <button type="button" class="comp-add-linha" onclick="abrirFormItemComp('${id}')"><i class="ti ti-plus"></i> Item novo</button>
+      </div>`;
+  } else {
+    conteudo = `<textarea class="comp-notas" placeholder="Como conseguiu, do que gosta, comandos que conhece..." oninput="notasComp('${id}', this.value)">${esc(c.notas || "")}</textarea>`;
+  }
+
+  const abaBtn = (k, ic, rot, n) =>
+    `<button type="button" class="${aba === k ? "ativo" : ""}" onclick="trocarAbaComp('${k}')"><i class="ti ${ic}"></i><span>${rot}</span>${n ? `<small>${n}</small>` : ""}</button>`;
+
+  box.innerHTML = `
+    <div class="comp-det">
+      <div class="comp-det-topo">
+        <button type="button" class="comp-voltar" onclick="fecharComp()" aria-label="Voltar"><i class="ti ti-chevron-left"></i></button>
+        <div class="comp-det-acoes">
+          <button type="button" class="comp-ico" title="Editar" onclick="abrirFormComp('${id}')"><i class="ti ti-pencil"></i></button>
+          <button type="button" class="comp-ico perigo" title="Remover companheiro" onclick="removerComp('${id}')"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+
+      <div class="comp-perfil">
+        ${retratoComp(c, true)}
+        <strong class="comp-perfil-nome">${esc(c.nome || "Sem nome")}</strong>
+        <span class="comp-tipo"><span class="comp-emoji">${t[0]}</span>${t[1]}</span>
+        ${c.especie ? `<small class="comp-perfil-esp">${esc(c.especie)}</small>` : ""}
+
+        ${max > 0
+          ? `<div class="comp-vida">
+              <button type="button" onclick="alterarPVComp('${id}', -1)" aria-label="Menos 1">−</button>
+              <button type="button" class="comp-vida-num" onclick="alterarPVCompValor('${id}')" title="Dano ou cura de uma vez">
+                <i class="ti ti-heart-filled" style="color:${corVidaComp(Math.max(0, pv / max))}"></i><b>${pv}</b><small>/ ${max}</small>
+              </button>
+              <button type="button" onclick="alterarPVComp('${id}', 1)" aria-label="Mais 1">+</button>
+            </div>
+            <small class="comp-dica">toque no número para dano ou cura de uma vez</small>`
+          : ""}
+      </div>
+
+      <div class="comp-pilulas">
+        <div class="comp-pilula"><i class="ti ti-shield"></i><span>CA</span><b>${esc(String(c.ca || "—"))}</b></div>
+        <div class="comp-pilula"><i class="ti ti-route"></i><span>Desloc.</span><b>${esc(c.desloc || "—")}</b></div>
+      </div>
+
+      ${vinc.ativo
+        ? `<div class="comp-vinculo-box"><span><i class="ti ti-heart-handshake"></i> ${esc(vinc.nome || "Vínculo")}</span>${pipsVinculoComp(c, id)}</div>`
+        : ""}
+
+      ${temAttr ? `<div class="comp-ats">${atributos}</div>` : ""}
+
+      <div class="comp-abas">
+        ${abaBtn("ataques", "ti-paw", "Ataques", nAtk)}
+        ${abaBtn("habilidades", "ti-sparkles", "Habilidades", nHab)}
+        ${abaBtn("itens", "ti-backpack", "Carrega", nIt)}
+        ${abaBtn("notas", "ti-notes", "Notas", 0)}
+      </div>
+      <div class="comp-aba-conteudo">${conteudo}</div>
+    </div>`;
+}
+
+function abrirComp(id) {
+  window._comp.aberto = id;
+  renderCompanheiros();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function fecharComp() {
+  window._comp.aberto = null;
+  renderCompanheiros();
+}
+
+/* ---------- criar / editar ---------- */
+function abrirFormComp(id) {
+  const c = id ? acharComp(id) : null;
+  const e = c || { tipo: "fera", atributos: {}, vinculo: {} };
+  const v = e.vinculo || {};
+  window._comp.imgTemp = "";
+  const html = `
+    <div class="popup-form">
+      <label class="popup-label">Tipo</label>
+      <div class="veic-tipos" id="cTipo" data-valor="${esc(e.tipo || "fera")}">
+        ${Object.entries(TIPOS_COMP)
+          .map(([k, [ic, rot]]) => `<button type="button" class="veic-tipo-opt ${k === (e.tipo || "fera") ? "ativo" : ""}" onclick="escolherTipoComp(this, '${k}')"><span class="comp-emoji">${ic}</span><small>${rot}</small></button>`)
+          .join("")}
+      </div>
+
+      <label class="popup-label">Nome</label>
+      <input id="cNome" value="${esc(e.nome || "")}" placeholder="Ex: Fenrir">
+      <label class="popup-label">Espécie / descrição curta</label>
+      <input id="cEspecie" value="${esc(e.especie || "")}" placeholder="Ex: Lobo cinzento, domado na floresta">
+
+      <div class="pf-duplo">
+        <div><span class="pf-mini">PV máximo</span><input id="cPvMax" type="number" min="0" value="${e.pvMax || ""}" placeholder="Ex: 11"></div>
+        <div><span class="pf-mini">CA</span><input id="cCA" value="${esc(String(e.ca || ""))}" placeholder="Ex: 13"></div>
+      </div>
+      <span class="pf-mini">Deslocamento</span>
+      <input id="cDesloc" value="${esc(e.desloc || "")}" placeholder="Ex: 12 m">
+
+      <label class="popup-label">Atributos <small>(opcional)</small></label>
+      <div class="comp-attrs-form">
+        ${ATRIBS_COMP.map((a) => `<label><span>${SIGLAS_ATRIBUTO[a]}</span><input id="cAttr_${a}" type="number" value="${esc(String(e.atributos?.[a] ?? ""))}" placeholder="—"></label>`).join("")}
+      </div>
+
+      <div class="toggle-cargas" style="margin-top:6px;">
+        <span class="toggle-cargas-texto">Contador de vínculo / lealdade</span>
+        <label class="switch-cargas"><input type="checkbox" id="cVincAtivo" ${v.ativo ? "checked" : ""} onchange="document.getElementById('cVincBox').style.display=this.checked?'grid':'none'"><span class="slider-cargas"></span></label>
+      </div>
+      <div class="pf-duplo" id="cVincBox" style="display:${v.ativo ? "grid" : "none"}">
+        <div><span class="pf-mini">Nome do contador</span><input id="cVincNome" value="${esc(v.nome || "")}" placeholder="Vínculo"></div>
+        <div><span class="pf-mini">Máximo</span><input id="cVincMax" type="number" min="0" value="${v.max || ""}" placeholder="Ex: 5"></div>
+      </div>
+
+      <label class="popup-label">Imagem (opcional)</label>
+      <input type="file" id="cImagem" accept="image/*" onchange="previewImagemComp(this)">
+      <label for="cImagem" class="botao-upload"><i class="ti ti-photo-plus"></i><span>${e.imagemUrl ? "Trocar imagem" : "Adicionar imagem"}</span></label>
+      <img id="cImagemPreview" src="${esc(e.imagemUrl || "")}" style="display:${e.imagemUrl ? "block" : "none"}; width:100%; max-height:200px; object-fit:cover; border-radius:12px;">
+      ${e.imagemUrl ? `<span class="link-remover-imagem" onclick="window._comp.imgTemp='REMOVIDA'; document.getElementById('cImagemPreview').style.display='none'"><i class="ti ti-trash"></i> Remover imagem</span>` : ""}
+
+      <button class="popup-salvar-btn" id="cSalvar" onclick="salvarFormComp(${id ? `'${esc(String(id))}'` : "null"})">${id ? "Salvar" : "Criar companheiro"}</button>
+    </div>`;
+  abrirPopup(id ? `Editar ${e.nome || "companheiro"}` : "Novo companheiro", html, true, null);
+}
+
+function escolherTipoComp(btn, tipo) {
+  const box = document.getElementById("cTipo");
+  if (!box) return;
+  box.dataset.valor = tipo;
+  box.querySelectorAll(".veic-tipo-opt").forEach((b) => b.classList.toggle("ativo", b === btn));
+}
+
+function previewImagemComp(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    window._comp.imgTemp = r.result;
+    const img = document.getElementById("cImagemPreview");
+    if (img) {
+      img.src = r.result;
+      img.style.display = "block";
+    }
+  };
+  r.readAsDataURL(f);
+}
+
+async function salvarFormComp(id) {
+  const nome = document.getElementById("cNome")?.value.trim();
+  if (!nome) return document.getElementById("cNome")?.focus();
+  const btn = document.getElementById("cSalvar");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Salvando...";
+  }
+  const atual = id ? acharComp(id) : null;
+  const pvMax = Math.max(0, parseInt(document.getElementById("cPvMax").value) || 0);
+  const atributos = {};
+  ATRIBS_COMP.forEach((a) => {
+    const n = parseInt(document.getElementById("cAttr_" + a)?.value);
+    if (!isNaN(n)) atributos[a] = n;
+  });
+  const vincAtivo = !!document.getElementById("cVincAtivo")?.checked;
+  const vincMax = Math.max(0, parseInt(document.getElementById("cVincMax")?.value) || 0);
+  const vincAntes = atual?.vinculo?.atual ?? 0;
+
+  const dados = {
+    nome,
+    tipo: document.getElementById("cTipo")?.dataset.valor || "fera",
+    especie: document.getElementById("cEspecie").value.trim(),
+    pvMax,
+    ca: document.getElementById("cCA").value.trim(),
+    desloc: document.getElementById("cDesloc").value.trim(),
+    atributos,
+    vinculo: { ativo: vincAtivo, nome: document.getElementById("cVincNome")?.value.trim() || "", max: vincMax, atual: vincMax ? Math.min(vincAntes, vincMax) : vincAntes },
+  };
+
+  let imagemUrl = atual?.imagemUrl || "";
+  let imagemDeleteUrl = atual?.imagemDeleteUrl || "";
+  if (window._comp.imgTemp === "REMOVIDA") {
+    imagemUrl = "";
+    imagemDeleteUrl = "";
+  } else if (window._comp.imgTemp) {
+    const up = await uploadImagemFirebase(window._comp.imgTemp, "companheiro");
+    if (up.url) {
+      imagemUrl = up.url;
+      imagemDeleteUrl = up.deleteUrl || "";
+    } else alertBonito(_mensagemErroUpload("O companheiro vai ser salvo sem a imagem nova."));
+  }
+  dados.imagemUrl = imagemUrl;
+  dados.imagemDeleteUrl = imagemDeleteUrl;
+
+  if (atual) {
+    Object.assign(atual, dados);
+    if (pvMax && (atual.pv == null || atual.pv > pvMax)) atual.pv = pvMax;
+  } else {
+    listaComp().push({ id: gerarIdItem(), ...dados, pv: pvMax, ataques: [], habilidades: [], itens: [], notas: "" });
+  }
+  window._comp.imgTemp = "";
+  salvarComp();
+  fecharPopup();
+  renderCompanheiros();
+}
+
+async function removerComp(id) {
+  const c = acharComp(id);
+  if (!c) return;
+  if (!(await confirmBonito(`Remover ${c.nome || "esse companheiro"}? Ataques, habilidades e itens dele somem junto.`))) return;
+  const p = personagens[personagemAtual];
+  p.companheiros = listaComp().filter((x) => x !== c);
+  window._comp.aberto = null;
+  salvarComp();
+  renderCompanheiros();
+}
+
+/* ---------- PV e vínculo ---------- */
+function alterarPVComp(id, delta) {
+  const c = acharComp(id);
+  if (!c) return;
+  const max = parseInt(c.pvMax) || 0;
+  c.pv = Math.max(0, Math.min(max, (c.pv ?? max) + delta));
+  salvarComp();
+  renderCompanheiros();
+}
+async function alterarPVCompValor(id) {
+  const v = await promptBonito("Dano (ex: -7) ou cura (ex: 5):", "");
+  const n = parseInt(v);
+  if (n) alterarPVComp(id, n);
+}
+function mudarVinculoComp(id, delta) {
+  const c = acharComp(id);
+  if (!c || !c.vinculo) return;
+  const max = parseInt(c.vinculo.max) || 0;
+  let n = (parseInt(c.vinculo.atual) || 0) + delta;
+  n = Math.max(0, max ? Math.min(max, n) : n);
+  c.vinculo.atual = n;
+  salvarComp();
+  renderCompanheiros();
+}
+
+/* ---------- rolagens ---------- */
+function rolarAtribComp(id, attr) {
+  const c = acharComp(id);
+  const m = modComp(c, attr);
+  if (m === null) return;
+  rolarD20(`${NOMES_ATRIBUTO[attr]} · ${c.nome || "companheiro"}`, m, "normal", [], `${m < 0 ? "−" : "+"} ${SIGLAS_ATRIBUTO[attr]} ${Math.abs(m)}`);
+}
+function rolarAtaqueComp(id, i) {
+  const c = acharComp(id);
+  const a = c?.ataques?.[i];
+  if (!a) return;
+  const atk = calcAtaqueComp(c, a);
+  const extras = exprDanoComp(c, a).expr ? [{ rotulo: "Dano", acao: () => rolarDanoComp(id, i) }] : [];
+  rolarD20(`${a.nome || "Ataque"} · ${c.nome || "companheiro"}`, atk.total, "normal", extras, atk.composicao);
+}
+function rolarDanoComp(id, i) {
+  const c = acharComp(id);
+  const a = c?.ataques?.[i];
+  if (!a) return;
+  const { expr } = exprDanoComp(c, a);
+  if (!expr) return;
+  rolarDano(`Dano · ${a.nome || "ataque"} (${c.nome || "companheiro"})`, expr, false, [{ rotulo: "Ataque", acao: () => rolarAtaqueComp(id, i) }]);
+}
+
+/* ---------- ataques ---------- */
+function abrirFormAtaqueComp(id, i) {
+  const c = acharComp(id);
+  if (!c) return;
+  const a = i != null ? c.ataques[i] : { atributo: ATRIBS_COMP.find((x) => modComp(c, x) !== null) ? "forca" : "", somarAtribDano: true };
+  const sid = esc(String(id));
+  const opts = [`<option value="">Nenhum</option>`]
+    .concat(ATRIBS_COMP.map((k) => `<option value="${k}" ${k === a.atributo ? "selected" : ""}>${NOMES_ATRIBUTO[k]}${modComp(c, k) !== null ? ` (${fmtBonus(modComp(c, k))})` : ""}</option>`))
+    .join("");
+  const html = `
+    <div class="popup-form">
+      <label class="popup-label">Nome</label>
+      <input id="caNome" value="${esc(a.nome || "")}" placeholder="Ex: Mordida">
+      <label class="popup-label">Dano</label>
+      <input id="caDano" value="${esc(a.dano || "")}" placeholder="Ex: 2d4 perfurante" oninput="previewAtaqueComp('${sid}')">
+      <div class="arma-atk-box">
+        <div class="arma-atk-topo"><span class="mods-titulo"><i class="ti ti-sword"></i> Ataque e dano</span><span class="arma-atk-preview" id="caPreview"></span></div>
+        <label class="arma-atk-campo"><span>Atributo do companheiro</span><select id="caAtrib" onchange="previewAtaqueComp('${sid}')">${opts}</select></label>
+        <div class="arma-atk-linha">
+          <label class="arma-atk-campo"><span>Bônus no ataque</span><input id="caBonusAtk" type="number" placeholder="0" value="${a.bonusAtaque || ""}" oninput="previewAtaqueComp('${sid}')"></label>
+          <label class="arma-atk-campo"><span>Bônus no dano</span><input id="caBonusDano" type="number" placeholder="0" value="${a.bonusDano || ""}" oninput="previewAtaqueComp('${sid}')"></label>
+        </div>
+        <div class="toggle-cargas">
+          <span class="toggle-cargas-texto">Somar atributo no dano</span>
+          <label class="switch-cargas"><input type="checkbox" id="caSomaDano" ${a.somarAtribDano ? "checked" : ""} onchange="previewAtaqueComp('${sid}')"><span class="slider-cargas"></span></label>
+        </div>
+      </div>
+      <label class="popup-label">Descrição (opcional)</label>
+      <textarea id="caDesc" placeholder="Ex: se acertar, o alvo faz teste ou cai">${esc(a.desc || "")}</textarea>
+      <button class="popup-salvar-btn" onclick="salvarAtaqueComp('${sid}', ${i != null ? i : "null"})">${i != null ? "Salvar" : "Adicionar ataque"}</button>
+      ${i != null ? `<button type="button" class="veic-btn-sec perigo" onclick="removerAtaqueComp('${sid}', ${i})"><i class="ti ti-trash"></i> Remover ataque</button>` : ""}
+    </div>`;
+  abrirPopup(i != null ? `Editar ${a.nome || "ataque"}` : "Novo ataque", html, true, null);
+  previewAtaqueComp(id);
+}
+function lerAtaqueComp() {
+  return {
+    nome: document.getElementById("caNome")?.value.trim() || "",
+    dano: document.getElementById("caDano")?.value.trim() || "",
+    atributo: document.getElementById("caAtrib")?.value || "",
+    bonusAtaque: parseInt(document.getElementById("caBonusAtk")?.value) || 0,
+    bonusDano: parseInt(document.getElementById("caBonusDano")?.value) || 0,
+    somarAtribDano: !!document.getElementById("caSomaDano")?.checked,
+    desc: document.getElementById("caDesc")?.value.trim() || "",
+  };
+}
+function previewAtaqueComp(id) {
+  const c = acharComp(id);
+  const out = document.getElementById("caPreview");
+  if (!c || !out) return;
+  const a = lerAtaqueComp();
+  const dn = exprDanoComp(c, a);
+  out.innerHTML = `Ataque <b>${fmtBonus(calcAtaqueComp(c, a).total)}</b>${dn.texto ? ` · Dano <b>${esc(dn.texto)}</b>` : ""}`;
+}
+function salvarAtaqueComp(id, i) {
+  const c = acharComp(id);
+  if (!c) return;
+  const a = lerAtaqueComp();
+  if (!a.nome) return document.getElementById("caNome")?.focus();
+  if (!Array.isArray(c.ataques)) c.ataques = [];
+  if (i != null) c.ataques[i] = a;
+  else c.ataques.push(a);
+  salvarComp();
+  fecharPopup();
+  renderCompanheiros();
+}
+async function removerAtaqueComp(id, i) {
+  const c = acharComp(id);
+  if (!c || !(await confirmBonito(`Remover o ataque "${c.ataques[i]?.nome || ""}"?`))) return;
+  c.ataques.splice(i, 1);
+  salvarComp();
+  fecharPopup();
+  renderCompanheiros();
+}
+
+/* ---------- habilidades ---------- */
+function abrirFormHabComp(id, i) {
+  const c = acharComp(id);
+  if (!c) return;
+  const h = i != null ? c.habilidades[i] : {};
+  const sid = esc(String(id));
+  const html = `
+    <div class="popup-form">
+      <label class="popup-label">Nome</label>
+      <input id="chNome" value="${esc(h.nome || "")}" placeholder="Ex: Faro aguçado">
+      <label class="popup-label">Descrição</label>
+      <textarea id="chDesc" placeholder="O que ela faz">${esc(h.desc || "")}</textarea>
+      <button class="popup-salvar-btn" onclick="salvarHabComp('${sid}', ${i != null ? i : "null"})">${i != null ? "Salvar" : "Adicionar habilidade"}</button>
+      ${i != null ? `<button type="button" class="veic-btn-sec perigo" onclick="removerHabComp('${sid}', ${i})"><i class="ti ti-trash"></i> Remover habilidade</button>` : ""}
+    </div>`;
+  abrirPopup(i != null ? h.nome || "Habilidade" : "Nova habilidade", html, true, null);
+}
+function salvarHabComp(id, i) {
+  const c = acharComp(id);
+  if (!c) return;
+  const nome = document.getElementById("chNome")?.value.trim();
+  if (!nome) return document.getElementById("chNome")?.focus();
+  const h = { nome, desc: document.getElementById("chDesc")?.value.trim() || "" };
+  if (!Array.isArray(c.habilidades)) c.habilidades = [];
+  if (i != null) c.habilidades[i] = h;
+  else c.habilidades.push(h);
+  salvarComp();
+  fecharPopup();
+  renderCompanheiros();
+}
+async function removerHabComp(id, i) {
+  const c = acharComp(id);
+  if (!c || !(await confirmBonito(`Remover "${c.habilidades[i]?.nome || ""}"?`))) return;
+  c.habilidades.splice(i, 1);
+  salvarComp();
+  fecharPopup();
+  renderCompanheiros();
+}
+
+/* ---------- itens carregados ---------- */
+function abrirFormItemComp(id) {
+  const sid = esc(String(id));
+  const html = `
+    <div class="popup-form">
+      <label class="popup-label">Item</label>
+      <input id="ciNome" placeholder="Ex: Alforje com rações">
+      <label class="popup-label">Quantidade</label>
+      <input id="ciQtd" type="number" min="1" value="1">
+      <button class="popup-salvar-btn" onclick="salvarItemComp('${sid}')">Adicionar</button>
+    </div>`;
+  abrirPopup("Item do companheiro", html, true, null);
+  setTimeout(() => document.getElementById("ciNome")?.focus(), 50);
+}
+function salvarItemComp(id) {
+  const c = acharComp(id);
+  const nome = document.getElementById("ciNome")?.value.trim();
+  if (!c || !nome) return;
+  const qtd = Math.max(1, parseInt(document.getElementById("ciQtd")?.value) || 1);
+  if (!Array.isArray(c.itens)) c.itens = [];
+  const igual = c.itens.find((x) => x.nome.toLowerCase() === nome.toLowerCase());
+  if (igual) igual.qtd = (igual.qtd || 1) + qtd;
+  else c.itens.push({ nome, qtd });
+  salvarComp();
+  fecharPopup();
+  renderCompanheiros();
+}
+async function removerItemComp(id, i) {
+  const c = acharComp(id);
+  const it = c?.itens?.[i];
+  if (!it || !(await confirmBonito(`Jogar fora "${it.nome}"?`))) return;
+  c.itens.splice(i, 1);
+  salvarComp();
+  renderCompanheiros();
+}
+function pegarItemComp(id, i) {
+  const c = acharComp(id);
+  const it = c?.itens?.[i];
+  if (!it) return;
+  const base = { ...it };
+  delete base.id;
+  const igual = inventario.find(
+    (x) => x && !x.recipiente && !x.bolsa && !x.dentroDe && chaveMesclagem("inventario", x) && chaveMesclagem("inventario", x) === chaveMesclagem("inventario", base),
+  );
+  if (igual) igual.qtd = (parseInt(igual.qtd) || 1) + (parseInt(it.qtd) || 1);
+  else inventario.push({ desc: "", ...base, id: gerarIdItem(), qtd: it.qtd || 1, dentroDe: "" });
+  c.itens.splice(i, 1);
+  if (typeof renderInv === "function") renderInv();
+  salvarComp();
+  renderCompanheiros();
+  if (typeof mostrarToastMundo === "function") mostrarToastMundo(`${it.nome} foi pro seu inventário`);
+}
+
+/* ---------- anotações ---------- */
+function notasComp(id, txt) {
+  const c = acharComp(id);
+  if (!c) return;
+  c.notas = txt;
+  clearTimeout(window._comp.tNotas);
+  window._comp.tNotas = setTimeout(salvarComp, 600);
+}
+
+/* ---------- mandar item do inventário pro companheiro ---------- */
+function podeIrProComp(item) {
+  if (!item || item.bolsa) return false;
+  if (item.recipiente && typeof filhosDoRecipiente === "function" && filhosDoRecipiente(item.id).length) return false;
+  return true;
+}
+
+function abrirEscolherCompParaItem(index) {
+  const item = inventario[index];
+  if (!item) return;
+  const lista = listaComp();
+  if (lista.length === 1) return mandarItemProComp(lista[0].id, index);
+  const html = `
+    <div class="comp-escolha">
+      ${lista
+        .map(
+          (c) => `<button type="button" class="comp-escolha-op" onclick="mandarItemProComp('${esc(String(c.id))}', ${index})">
+            ${retratoComp(c)}
+            <span><strong>${esc(c.nome || "Sem nome")}</strong><small>${(TIPOS_COMP[c.tipo] || TIPOS_COMP.outro)[1]} · carrega ${(c.itens || []).length}</small></span>
+          </button>`,
+        )
+        .join("")}
+    </div>`;
+  abrirPopup(`Dar "${item.nome}" pra quem?`, html, true, null);
+}
+
+function abrirInventarioParaComp(cid) {
+  const c = acharComp(cid);
+  if (!c) return;
+  const op = inventario
+    .map((it, i) => ({ it, i }))
+    .filter(({ it }) => podeIrProComp(it))
+    .map(
+      ({ it, i }) => `<button type="button" class="comp-inv-op" onclick="mandarItemProComp('${esc(String(cid))}', ${i})">
+        <span>${esc(it.nome || "Sem nome")}${(it.qtd || 1) > 1 ? ` <small>x${it.qtd}</small>` : ""}</span>
+        <i class="ti ti-chevron-right"></i>
+      </button>`,
+    )
+    .join("");
+  abrirPopup(
+    `Dar pro ${c.nome || "companheiro"}`,
+    op ? `<div class="comp-inv-lista">${op}</div>` : `<p class="comp-nada">Nada no inventário que dê pra passar. Bolsas de dinheiro e mochilas com coisas dentro ficam com você.</p>`,
+    true,
+    null,
+  );
+}
+
+async function mandarItemProComp(cid, index) {
+  const c = acharComp(cid);
+  const item = inventario[index];
+  if (!c || !item) return;
+  const tem = parseInt(item.qtd) || 1;
+  let quantos = tem;
+  if (tem > 1) {
+    const r = await promptBonito(`Quantos "${item.nome}" pro ${c.nome || "companheiro"}? (tem ${tem})`, String(tem));
+    if (r == null || !parseInt(r)) return;
+    quantos = Math.max(1, Math.min(tem, parseInt(r)));
+  }
+  const copia = { ...item };
+  delete copia.id;
+  copia.dentroDe = "";
+  copia.qtd = quantos;
+  if (!Array.isArray(c.itens)) c.itens = [];
+  const chave = chaveMesclagem("inventario", copia);
+  const igual = chave && c.itens.find((x) => chaveMesclagem("inventario", x) === chave);
+  if (igual) igual.qtd = (parseInt(igual.qtd) || 1) + quantos;
+  else c.itens.push(copia);
+
+  if (quantos >= tem) inventario.splice(index, 1);
+  else item.qtd = tem - quantos;
+
+  renderInv();
+  salvarComp();
+  fecharPopup();
+  if (window._comp.aberto) {
+    window._comp.aba = "itens";
+    renderCompanheiros();
+  }
+  if (typeof mostrarToastMundo === "function") mostrarToastMundo(`${quantos > 1 ? quantos + "x " : ""}${item.nome} foi pro ${c.nome || "companheiro"}`);
+}
+
+var VERSAO_FICHA = "web-2026-11-04zb";
+console.log("%cFicha Ígnea " + VERSAO_FICHA, "color:#d8b56a;font-weight:bold");
+
+/* ---------- tela de login ---------- */
+function alternarSenhaLogin() {
+  const inp = document.getElementById("loginSenha");
+  const btn = document.getElementById("loginOlho");
+  if (!inp) return;
+  const mostrar = inp.type === "password";
+  inp.type = mostrar ? "text" : "password";
+  if (btn) {
+    btn.innerHTML = `<i class="ti ${mostrar ? "ti-eye-off" : "ti-eye"}"></i>`;
+    btn.setAttribute("aria-label", mostrar ? "Esconder senha" : "Mostrar senha");
+  }
+  inp.focus();
+}
+
+(function prepararLogin() {
+  const iniciar = () => {
+    try {
+      const salvo = localStorage.getItem("ultimoEmailLogin");
+      const inp = document.getElementById("loginEmail");
+      if (salvo && inp && !inp.value) inp.value = salvo;
+    } catch (e) {}
+    const rod = document.getElementById("loginRodape");
+    if (rod && typeof VERSAO_FICHA !== "undefined") rod.textContent = "Ficha Ígnea · versão " + VERSAO_FICHA.split(" ")[0];
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar);
+  else iniciar();
+})();
+
+function abrirCriarConta() {
+  const emailLogin = document.getElementById("loginEmail")?.value.trim() || "";
+  const enter = (prox) => `onkeydown="if(event.key==='Enter'){event.preventDefault();${prox}}"`;
+  const html = `
+    <div class="popup-form cc-form">
+      <p class="cc-intro">Com uma conta, suas fichas ficam salvas na nuvem e você pode abrir em qualquer aparelho, entrar em grupos com os amigos e jogar com o mestre.</p>
+
+      <label class="popup-label">Email</label>
+      <input id="ccEmail" type="email" inputmode="email" autocomplete="email" placeholder="seuemail@exemplo.com" value="${esc(emailLogin)}" ${enter("document.getElementById('ccSenha').focus();")}>
+
+      <label class="popup-label">Senha</label>
+      <div class="lg-senha cc-senha">
+        <input id="ccSenha" type="password" autocomplete="new-password" placeholder="Mínimo 6 caracteres" ${enter("document.getElementById('ccConfirma').focus();")}>
+        <button type="button" class="lg-olho" onclick="alternarSenhaCC(this)" aria-label="Mostrar senha"><i class="ti ti-eye"></i></button>
+      </div>
+
+      <label class="popup-label">Confirmar senha</label>
+      <input id="ccConfirma" type="password" autocomplete="new-password" placeholder="Digite a senha de novo" ${enter("criarContaPopup();")}>
+
+      <div id="ccErro" class="login-erro cc-erro"></div>
+
+      <button type="button" class="inv-add-btn btn-adicionar cc-criar" id="ccCriar" onclick="criarContaPopup()"><span>Criar conta</span></button>
+      <p class="cc-depois">Depois de criar, você escolhe seu nome de jogador (é como seus amigos te encontram).</p>
+    </div>`;
+  abrirPopup("Criar conta", html, true, null);
+  setTimeout(() => document.getElementById(emailLogin ? "ccSenha" : "ccEmail")?.focus(), 60);
+}
+
+function alternarSenhaCC(btn) {
+  const mostrar = document.getElementById("ccSenha")?.type === "password";
+  ["ccSenha", "ccConfirma"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.type = mostrar ? "text" : "password";
+  });
+  if (btn) btn.innerHTML = `<i class="ti ${mostrar ? "ti-eye-off" : "ti-eye"}"></i>`;
+}
+
+/* =====================================================================
+   PERFIL: mural, elogios, conquistas, títulos, estatísticas de dados,
+   procurando mesa, status, ações, molduras e fundos
+   usuarios/{uid}                 → stats, conquistas, titulo, moldura, efeitoFundo,
+                                    procurandoMesa, vistoEm, atividade, mostrarStatus
+   usuarios/{uid}/recados/{id}    → recados do mural (só amigos escrevem)
+   usuarios/{uid}/elogios/{deUid} → selos que cada amigo deu
+   ===================================================================== */
+
+var SELOS_ELOGIO = [
+  { id: "rp", ic: "🎭", nome: "Bom de RP" },
+  { id: "justo", ic: "⚖️", nome: "Mestre justo" },
+  { id: "nat20", ic: "🎲", nome: "Rei do nat 20" },
+  { id: "salvou", ic: "🛡️", nome: "Salvou o grupo" },
+  { id: "estrategista", ic: "🧠", nome: "Estrategista" },
+  { id: "comico", ic: "😂", nome: "Alívio cômico" },
+  { id: "narrador", ic: "📜", nome: "Narrador nato" },
+  { id: "leal", ic: "🤝", nome: "Parceiro leal" },
+];
+
+var CONQUISTAS = [
+  { id: "primeira_rolagem", ic: "🎲", nome: "Primeiros dados", desc: "Rolou o primeiro dado no app.", titulo: "Aprendiz dos Dados", ok: (c) => c.stats.rolagens >= 1 },
+  { id: "nat20", ic: "✨", nome: "Crítico!", desc: "Tirou o primeiro 20 natural.", titulo: "Tocado pela Sorte", ok: (c) => c.stats.nat20 >= 1 },
+  { id: "nat20_10", ic: "🌟", nome: "Favorito dos deuses", desc: "10 vezes 20 natural.", titulo: "Favorito dos Deuses", ok: (c) => c.stats.nat20 >= 10 },
+  { id: "nat1_10", ic: "💀", nome: "Dado amaldiçoado", desc: "10 vezes 1 natural.", titulo: "Amaldiçoado dos Dados", ok: (c) => c.stats.nat1 >= 10 },
+  { id: "rol_100", ic: "🔥", nome: "Mão quente", desc: "100 rolagens.", titulo: "Mão Quente", ok: (c) => c.stats.rolagens >= 100 },
+  { id: "rol_1000", ic: "☄️", nome: "Lenda das rolagens", desc: "1000 rolagens.", titulo: "Lenda das Rolagens", ok: (c) => c.stats.rolagens >= 1000 },
+  { id: "dano_50", ic: "💥", nome: "Golpe devastador", desc: "Rolou 50 ou mais de dano de uma vez.", titulo: "Destruidor", ok: (c) => c.stats.maiorDano >= 50 },
+  { id: "por_um_fio", ic: "🩸", nome: "Por um fio", desc: "Ficou com 1 PV e continuou de pé.", titulo: "Sobrevivente", ok: (c) => !!c.stats.porUmFio },
+  { id: "fichas_3", ic: "📚", nome: "Colecionador de heróis", desc: "Tem 3 fichas ou mais.", titulo: "Colecionador de Heróis", ok: (c) => c.nFichas >= 3 },
+  { id: "domador", ic: "🐾", nome: "Domador", desc: "Tem um companheiro numa ficha.", titulo: "Domador de Feras", ok: (c) => c.temCompanheiro },
+  { id: "grupo", ic: "🏕️", nome: "Companhia formada", desc: "Entrou num grupo.", titulo: "Membro da Companhia", ok: (c) => c.emGrupo },
+  { id: "mestre", ic: "📖", nome: "Narrador", desc: "Criou a primeira campanha.", titulo: "Narrador", ok: (c) => c.nCampanhas >= 1 },
+  { id: "mestre_3", ic: "🗺️", nome: "Mestre de mundos", desc: "3 campanhas ou mais.", titulo: "Mestre de Mundos", ok: (c) => c.nCampanhas >= 3 },
+  { id: "amigos_5", ic: "🍻", nome: "Taverneiro popular", desc: "5 amigos ou mais.", titulo: "Taverneiro Popular", ok: (c) => c.nAmigos >= 5 },
+  { id: "elogiado_10", ic: "🏅", nome: "Querido da mesa", desc: "Recebeu 10 elogios.", titulo: "Querido da Mesa", ok: (c) => c.nElogios >= 10 },
+];
+
+// molduras do avatar e efeitos do fundo: livre, por conquista ou por plano pago
+var MOLDURAS = [
+  { id: "", nome: "Simples" },
+  { id: "ouro", nome: "Ouro" },
+  { id: "brasas", nome: "Brasas", conquista: "nat20" },
+  { id: "runas", nome: "Runas", conquista: "mestre" },
+  { id: "sangue", nome: "Sangue", conquista: "nat1_10" },
+  { id: "natureza", nome: "Natureza", conquista: "domador" },
+  { id: "lendaria", nome: "Lendária", plano: true },
+  { id: "gelo", nome: "Gelo", plano: true },
+];
+var EFEITOS_FUNDO = [
+  { id: "", nome: "Nenhum" },
+  { id: "nevoa", nome: "Névoa", conquista: "grupo" },
+  { id: "estrelas", nome: "Estrelas", conquista: "rol_100" },
+  { id: "brasas", nome: "Brasas subindo", plano: true },
+  { id: "runas", nome: "Runas girando", plano: true },
+];
+
+var DIAS_SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+
+window._pf = window._pf || { uid: null, ehMeu: false, d: {}, ehAmigo: false, recados: [], elogios: [], unsubRecados: null };
+
+function pfStatsVazias() {
+  return { rolagens: 0, d20: 0, nat20: 0, nat1: 0, maiorDano: 0, porUmFio: false };
+}
+
+/* ---------- estatísticas de dados (contadas no próprio aparelho e salvas no perfil) ---------- */
+window._pfStats = null;
+window._pfStatsCarregando = null;
+
+async function pfGarantirStats() {
+  if (window._pfStats) return window._pfStats;
+  if (window._pfStatsCarregando) return window._pfStatsCarregando;
+  window._pfStatsCarregando = (async () => {
+    let base = pfStatsVazias();
+    try {
+      const uid = window.usuarioAtual?.uid;
+      if (uid && window.getDoc) {
+        const s = await getDoc(doc(db, "usuarios", uid));
+        if (s.exists() && s.data().stats) base = { ...base, ...s.data().stats };
+      }
+    } catch (e) {}
+    window._pfStats = base;
+    return base;
+  })();
+  return window._pfStatsCarregando;
+}
+
+function pfSalvarStatsDepois() {
+  clearTimeout(window._pfStatsTimer);
+  window._pfStatsTimer = setTimeout(async () => {
+    const uid = window.usuarioAtual?.uid;
+    if (!uid || !window._pfStats || !window.setDoc) return;
+    try {
+      await setDoc(doc(db, "usuarios", uid), { stats: window._pfStats }, { merge: true });
+    } catch (e) {
+      console.warn("stats:", e.code || e.message);
+    }
+  }, 4000);
+}
+
+async function pfContarRolagem(r) {
+  if (!window.usuarioAtual) return;
+  const st = await pfGarantirStats();
+  st.rolagens = (st.rolagens || 0) + 1;
+  if (r.tipo === "d20") {
+    st.d20 = (st.d20 || 0) + 1;
+    if (r.nat === "crit") st.nat20 = (st.nat20 || 0) + 1;
+    if (r.nat === "falha") st.nat1 = (st.nat1 || 0) + 1;
+  } else if (r.tipo === "expr") {
+    st.maiorDano = Math.max(st.maiorDano || 0, parseInt(r.total) || 0);
+  }
+  pfSalvarStatsDepois();
+}
+
+(function () {
+  if (typeof registrarRolagem !== "function" || registrarRolagem._pf) return;
+  const orig = registrarRolagem;
+  registrarRolagem = function (r) {
+    const out = orig.apply(this, arguments);
+    try { pfContarRolagem(r); } catch (e) {}
+    return out;
+  };
+  registrarRolagem._pf = true;
+  window.registrarRolagem = registrarRolagem;
+})();
+
+// "Por um fio": ficar com exatamente 1 PV numa ficha com 10+ de vida máxima
+(function () {
+  if (typeof atualizarHP !== "function" || atualizarHP._pf) return;
+  const orig = atualizarHP;
+  atualizarHP = function () {
+    const out = orig.apply(this, arguments);
+    try {
+      if (typeof vidaAtual !== "undefined" && vidaAtual === 1 && get("vidaMax") >= 10 && window.usuarioAtual) {
+        pfGarantirStats().then((st) => {
+          if (!st.porUmFio) {
+            st.porUmFio = true;
+            pfSalvarStatsDepois();
+          }
+        });
+      }
+    } catch (e) {}
+    return out;
+  };
+  atualizarHP._pf = true;
+  window.atualizarHP = atualizarHP;
+})();
+
+/* ---------- status: online / jogando ---------- */
+function pfAtividadeAgora() {
+  const ficha = document.getElementById("ficha");
+  const master = document.getElementById("masterIgnea");
+  if (ficha && ficha.style.display === "block" && personagemAtual !== null && personagens[personagemAtual]) {
+    return `Jogando com ${personagens[personagemAtual].nome || "uma ficha"}`;
+  }
+  if (master && master.style.display && master.style.display !== "none") return "Mestrando";
+  return "";
+}
+
+async function pfBatimento() {
+  const uid = window.usuarioAtual?.uid;
+  if (!uid || !window.setDoc || document.visibilityState === "hidden") return;
+  try {
+    await setDoc(doc(db, "usuarios", uid), { vistoEm: Date.now(), atividade: { texto: pfAtividadeAgora(), em: Date.now() } }, { merge: true });
+  } catch (e) {}
+}
+setInterval(pfBatimento, 120000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") pfBatimento(); });
+setTimeout(pfBatimento, 8000);
+
+function pfStatusTexto(d) {
+  if (d.mostrarStatus === false || !d.vistoEm) return "";
+  const diff = Date.now() - d.vistoEm;
+  if (diff < 4 * 60 * 1000) {
+    const at = d.atividade?.texto && Date.now() - (d.atividade.em || 0) < 4 * 60 * 1000 ? ` · ${esc(d.atividade.texto)}` : "";
+    return `<span class="pf-online"></span>Online${at}`;
+  }
+  return `Visto ${tempoRelativo(d.vistoEm)}`;
+}
+
+/* ---------- conquistas ---------- */
+async function pfContextoConquistas(uid) {
+  const st = { ...pfStatsVazias(), ...(await pfGarantirStats()) };
+  let nAmigos = 0;
+  try {
+    nAmigos = (await getDocs(collection(db, "usuarios", uid, "amigos"))).docs.length;
+  } catch (e) {}
+  return {
+    stats: st,
+    nFichas: (personagens || []).length,
+    temCompanheiro: (personagens || []).some((p) => Array.isArray(p.companheiros) && p.companheiros.length),
+    emGrupo: (personagens || []).some((p) => p.grupoAtivo),
+    nCampanhas: (typeof campanhasMaster !== "undefined" ? campanhasMaster : []).length,
+    nAmigos,
+    nElogios: window._pf.elogios.reduce((s, e) => s + (e.selos || []).length, 0),
+  };
+}
+
+async function pfAtualizarConquistas(uid) {
+  const ctx = await pfContextoConquistas(uid);
+  const ganhas = CONQUISTAS.filter((c) => {
+    try { return c.ok(ctx); } catch (e) { return false; }
+  }).map((c) => c.id);
+  const antes = (window._pf.d.conquistas || []).slice().sort().join(",");
+  window._pf.ctx = ctx;
+  if (ganhas.slice().sort().join(",") !== antes) {
+    window._pf.d.conquistas = ganhas;
+    try {
+      await setDoc(doc(db, "usuarios", uid), { conquistas: ganhas, stats: ctx.stats }, { merge: true });
+    } catch (e) {}
+  }
+  return ganhas;
+}
+
+function pfTemConquista(id) {
+  return (window._pf.d.conquistas || []).includes(id);
+}
+
+function pfTituloTexto(d) {
+  const c = CONQUISTAS.find((x) => x.id === d.titulo);
+  return c && (d.conquistas || []).includes(c.id) ? c.titulo : "";
+}
+
+/* ---------- render principal ---------- */
+async function renderPerfilExtras(uid, ehMeu, d) {
+  const pf = window._pf;
+  pf.uid = uid;
+  pf.ehMeu = ehMeu;
+  pf.d = { ...d };
+  pf.recados = [];
+  pf.elogios = [];
+  pf.ehAmigo = false;
+  if (pf.unsubRecados) { pf.unsubRecados(); pf.unsubRecados = null; }
+
+  pfAplicarVisual(d);
+  pfRenderCabecalho();
+  document.getElementById("perfilExtras").innerHTML = `<p class="pf-vazio">Carregando...</p>`;
+  document.getElementById("perfilAcoes").innerHTML = "";
+  pfRenderProcurando();
+
+  const meuUid = window.usuarioAtual.uid;
+  try {
+    if (!ehMeu) pf.ehAmigo = (await getDoc(doc(db, "usuarios", meuUid, "amigos", uid))).exists();
+  } catch (e) {}
+  try {
+    pf.elogios = (await getDocs(collection(db, "usuarios", uid, "elogios"))).docs.map((x) => ({ id: x.id, ...x.data() }));
+  } catch (e) {
+    pf.elogios = [];
+  }
+  if (ehMeu) await pfAtualizarConquistas(uid);
+
+  pfRenderAcoes();
+  pfRenderCabecalho();
+  pfRenderExtras();
+  pfEsconderVazios();
+
+  try {
+    pf.unsubRecados = onSnapshot(
+      query(collection(db, "usuarios", uid, "recados"), orderBy("em", "desc"), limit(30)),
+      (snap) => {
+        if (window._pf.uid !== uid) return;
+        pf.recados = snap.docs.map((x) => ({ id: x.id, ...x.data() }));
+        pfRenderMural();
+      },
+      (err) => console.warn("recados:", err.code || err.message),
+    );
+  } catch (e) {}
+}
+
+// fecha a escuta do mural junto com o perfil
+(function () {
+  const orig = window.fecharPerfil;
+  window.fecharPerfil = function () {
+    if (window._pf.unsubRecados) { window._pf.unsubRecados(); window._pf.unsubRecados = null; }
+    window._pf.uid = null;
+    return orig.apply(this, arguments);
+  };
+})();
+
+// no perfil dos outros, some com as partes vazias (no seu fica tudo, com as dicas)
+function pfEsconderVazios() {
+  const { ehMeu, d, ehAmigo } = window._pf;
+  const bio = document.getElementById("perfilBioView");
+  const showcase = document.getElementById("perfilShowcase");
+  const rotuloPers = showcase?.previousElementSibling;
+  const semPers = !(d.personagensDestaque || []).length;
+  const semBio = !(d.bio || "").trim();
+  const mostrar = (el, sim) => { if (el) el.style.display = sim ? "" : "none"; };
+  if (ehMeu) {
+    mostrar(bio, true); mostrar(showcase, true); mostrar(rotuloPers, true);
+    document.getElementById("pfPerfilVazio")?.remove();
+    return;
+  }
+  mostrar(bio, !semBio);
+  mostrar(showcase, !semPers);
+  mostrar(rotuloPers, !semPers);
+  const semConq = !(d.conquistas || []).length;
+  const semDados = !(d.stats && d.stats.rolagens);
+  const semElogios = !window._pf.elogios.length;
+  mostrar(document.getElementById("pfSecConquistas"), !semConq);
+  mostrar(document.getElementById("pfSecDados"), !semDados);
+  mostrar(document.getElementById("pfSecElogios"), !semElogios || ehAmigo);
+  const tudoVazio = semBio && semPers && semConq && semDados && semElogios && !(d.procurandoMesa && d.procurandoMesa.ativo);
+  const extras = document.getElementById("perfilExtras");
+  document.getElementById("pfPerfilVazio")?.remove();
+  if (tudoVazio && extras) {
+    extras.insertAdjacentHTML(
+      "afterbegin",
+      `<div id="pfPerfilVazio" class="pf-perfil-vazio"><span>📜</span><p>${esc(d.nickname || "Essa pessoa")} ainda não preencheu o perfil.</p>${ehAmigo ? `<small>Que tal deixar o primeiro recado?</small>` : ""}</div>`,
+    );
+  }
+}
+
+function pfAplicarVisual(d) {
+  const wrap = document.getElementById("perfilAvatarWrap");
+  const fundo = document.getElementById("perfilFundo");
+  if (wrap) wrap.dataset.moldura = d.moldura || "";
+  if (fundo) fundo.dataset.efeito = d.efeitoFundo || "";
+}
+
+function pfRenderCabecalho() {
+  const { d, ehMeu } = window._pf;
+  const tEl = document.getElementById("perfilTitulo");
+  const sEl = document.getElementById("perfilStatus");
+  const titulo = pfTituloTexto(d);
+  if (tEl) {
+    tEl.innerHTML = titulo
+      ? `<span>${esc(titulo)}</span>${ehMeu ? ` <button type="button" class="pf-mini-btn" onclick="abrirEscolherTitulo()" title="Trocar título"><i class="ti ti-pencil"></i></button>` : ""}`
+      : ehMeu && (d.conquistas || []).length
+        ? `<button type="button" class="pf-link" onclick="abrirEscolherTitulo()">Escolher um título</button>`
+        : "";
+  }
+  if (sEl) sEl.innerHTML = pfStatusTexto(d);
+}
+
+function pfRenderAcoes() {
+  const { uid, ehMeu, d, ehAmigo } = window._pf;
+  const box = document.getElementById("perfilAcoes");
+  if (!box) return;
+  if (ehMeu) {
+    box.innerHTML = `
+      <button type="button" class="pf-acao" onclick="abrirVisualPerfil()"><i class="ti ti-sparkles"></i><span>Moldura e fundo</span></button>
+      <button type="button" class="pf-acao" onclick="abrirProcurandoMesa()"><i class="ti ti-calendar"></i><span>Disponível pra jogar</span></button>`;
+    return;
+  }
+  const nick = esc(d.nickname || "");
+  const tag = esc(d.tag || "");
+  box.innerHTML = `
+    ${ehAmigo
+      ? `<button type="button" class="pf-acao" onclick="abrirConvidarParaGrupo()"><i class="ti ti-users-plus"></i><span>Convidar pro grupo</span></button>`
+      : `<button type="button" class="pf-acao destaque" onclick="window.enviarSolicitacaoAmizadePorUid('${esc(uid)}', '${nick}', '${tag}')"><i class="ti ti-user-plus"></i><span>Adicionar amigo</span></button>`}
+    <button type="button" class="pf-acao" id="pfBtnMesas" onclick="abrirMesasEmComum()"><i class="ti ti-swords"></i><span>Mesas em comum</span></button>`;
+  pfContarMesasEmComum().then((lista) => {
+    const b = document.getElementById("pfBtnMesas");
+    if (b && window._pf.uid === uid) b.querySelector("span").textContent = lista.length ? `${lista.length} ${lista.length === 1 ? "mesa" : "mesas"} em comum` : "Nenhuma mesa em comum";
+  });
+}
+
+function pfRenderProcurando() {
+  const box = document.getElementById("perfilProcurando");
+  const pm = window._pf.d.procurandoMesa;
+  if (!box) return;
+  if (!pm || !pm.ativo) {
+    box.innerHTML = "";
+    return;
+  }
+  const modo = { jogador: "Disponível pra jogar", mestre: "Disponível pra mestrar", ambos: "Disponível pra jogar ou mestrar" }[pm.modo] || "Disponível pra jogar";
+  box.innerHTML = `
+    <div class="pf-procurando">
+      <div class="pf-procurando-topo"><i class="ti ti-calendar"></i><strong>${modo}</strong></div>
+      ${pm.sistemas ? `<div class="pf-procurando-linha"><span>Sistemas</span>${esc(pm.sistemas)}</div>` : ""}
+      ${(pm.dias || []).length ? `<div class="pf-dias">${DIAS_SEMANA.map((dd) => `<span class="${pm.dias.includes(dd) ? "on" : ""}">${dd}</span>`).join("")}</div>` : ""}
+      ${pm.periodo ? `<div class="pf-procurando-linha"><span>Horário</span>${esc(pm.periodo)}</div>` : ""}
+      ${pm.obs ? `<p class="pf-procurando-obs">${esc(pm.obs)}</p>` : ""}
+    </div>`;
+}
+
+function pfRenderExtras() {
+  const box = document.getElementById("perfilExtras");
+  if (!box) return;
+  box.innerHTML = `
+    <div class="pf-secao" id="pfSecConquistas"></div>
+    <div class="pf-secao" id="pfSecDados"></div>
+    <div class="pf-secao" id="pfSecElogios"></div>
+    <div class="pf-secao" id="pfSecMural"></div>`;
+  pfRenderConquistas();
+  pfRenderDados();
+  pfRenderElogios();
+  pfRenderMural();
+}
+
+function pfTituloSecao(ic, txt, extra) {
+  return `<div class="pf-secao-titulo"><span>${ic} ${txt}</span>${extra || ""}</div>`;
+}
+
+function pfRenderConquistas() {
+  const box = document.getElementById("pfSecConquistas");
+  if (!box) return;
+  const ganhas = window._pf.d.conquistas || [];
+  const lista = window._pf.ehMeu ? CONQUISTAS : CONQUISTAS.filter((c) => ganhas.includes(c.id));
+  box.innerHTML =
+    pfTituloSecao("🏆", "Conquistas", `<small>${ganhas.length}/${CONQUISTAS.length}</small>`) +
+    (lista.length
+      ? `<div class="pf-medalhas">${lista
+          .map((c) => {
+            const tem = ganhas.includes(c.id);
+            return `<button type="button" class="pf-medalha ${tem ? "" : "bloqueada"}" onclick="verConquista('${c.id}')" title="${esc(c.nome)}"><span>${tem ? c.ic : "🔒"}</span></button>`;
+          })
+          .join("")}</div>`
+      : `<p class="pf-vazio">Nenhuma conquista ainda.</p>`);
+}
+
+function verConquista(id) {
+  const c = CONQUISTAS.find((x) => x.id === id);
+  if (!c) return;
+  const tem = pfTemConquista(id);
+  const html = `
+    <div class="pf-conq-ver">
+      <div class="pf-conq-ic ${tem ? "" : "bloqueada"}">${tem ? c.ic : "🔒"}</div>
+      <p>${esc(c.desc)}</p>
+      <div class="pf-conq-titulo">Título: <b>${esc(c.titulo)}</b></div>
+      ${tem && window._pf.ehMeu ? `<button type="button" class="inv-add-btn btn-adicionar" onclick="definirTitulo('${c.id}')"><span>Usar esse título</span></button>` : ""}
+      ${!tem ? `<p class="pf-vazio">Ainda não conquistada.</p>` : ""}
+    </div>`;
+  abrirPopup(c.nome, html, true, null);
+}
+
+function abrirEscolherTitulo() {
+  const ganhas = window._pf.d.conquistas || [];
+  const atual = window._pf.d.titulo || "";
+  const ops = [`<button type="button" class="pf-op ${!atual ? "ativo" : ""}" onclick="definirTitulo('')"><span>Sem título</span></button>`]
+    .concat(
+      CONQUISTAS.filter((c) => ganhas.includes(c.id)).map(
+        (c) => `<button type="button" class="pf-op ${atual === c.id ? "ativo" : ""}" onclick="definirTitulo('${c.id}')"><span>${c.ic} ${esc(c.titulo)}</span><small>${esc(c.nome)}</small></button>`,
+      ),
+    )
+    .join("");
+  abrirPopup("Escolher título", `<div class="pf-ops">${ops}</div>`, true, null);
+}
+
+async function definirTitulo(id) {
+  window._pf.d.titulo = id;
+  try {
+    await setDoc(doc(db, "usuarios", window.usuarioAtual.uid), { titulo: id }, { merge: true });
+  } catch (e) {
+    return alertBonito("Não consegui salvar o título agora.");
+  }
+  fecharPopup();
+  pfRenderCabecalho();
+}
+
+function pfRenderDados() {
+  const box = document.getElementById("pfSecDados");
+  if (!box) return;
+  const st = { ...pfStatsVazias(), ...(window._pf.ehMeu ? window._pf.ctx?.stats || window._pfStats || {} : window._pf.d.stats || {}) };
+  if (!st.rolagens) {
+    box.innerHTML = pfTituloSecao("🎲", "Dados") + `<p class="pf-vazio">${window._pf.ehMeu ? "Role uns dados na ficha pra começar a contar." : "Ainda não rolou nenhum dado."}</p>`;
+    return;
+  }
+  const taxa20 = st.d20 ? st.nat20 / st.d20 : 0;
+  const taxa1 = st.d20 ? st.nat1 / st.d20 : 0;
+  let humor = "";
+  if (st.d20 >= 20) {
+    if (taxa20 - taxa1 >= 0.03) humor = `<div class="pf-humor quente">🔥 Dado quente</div>`;
+    else if (taxa1 - taxa20 >= 0.03) humor = `<div class="pf-humor frio">🧊 Dado frio</div>`;
+    else humor = `<div class="pf-humor">⚖️ Dado honesto</div>`;
+  }
+  box.innerHTML =
+    pfTituloSecao("🎲", "Dados", humor) +
+    `<div class="pf-numeros">
+      <div><b>${st.rolagens}</b><span>rolagens</span></div>
+      <div class="bom"><b>${st.nat20}</b><span>20 natural</span></div>
+      <div class="ruim"><b>${st.nat1}</b><span>1 natural</span></div>
+      <div><b>${st.maiorDano || 0}</b><span>maior dano</span></div>
+    </div>`;
+}
+
+function pfRenderElogios() {
+  const box = document.getElementById("pfSecElogios");
+  if (!box) return;
+  const { ehMeu, ehAmigo, elogios } = window._pf;
+  const cont = {};
+  elogios.forEach((e) => (e.selos || []).forEach((s) => (cont[s] = (cont[s] || 0) + 1)));
+  const recebidos = SELOS_ELOGIO.filter((s) => cont[s.id]).sort((a, b) => cont[b.id] - cont[a.id]);
+  box.innerHTML =
+    pfTituloSecao("🏅", "Elogios de mesa", !ehMeu && ehAmigo ? `<button type="button" class="pf-link" onclick="abrirDarElogio()">Elogiar</button>` : "") +
+    (recebidos.length
+      ? `<div class="pf-selos">${recebidos.map((s) => `<span class="pf-selo"><i>${s.ic}</i>${esc(s.nome)}<b>${cont[s.id]}</b></span>`).join("")}</div>`
+      : `<p class="pf-vazio">${ehMeu ? "Seus amigos podem te dar elogios depois de jogar junto." : "Seja o primeiro a elogiar."}</p>`);
+}
+
+function abrirDarElogio() {
+  const meu = window._pf.elogios.find((e) => e.id === window.usuarioAtual.uid);
+  window._pfSelosTemp = new Set(meu?.selos || []);
+  const html = `
+    <div class="pf-dar-elogio">
+      <p class="pf-vazio" style="text-align:left">Escolha o que combina com ${esc(window._pf.d.nickname || "essa pessoa")} na mesa. Dá pra mudar depois.</p>
+      <div class="pf-selos-escolha">
+        ${SELOS_ELOGIO.map((s) => `<button type="button" class="pf-selo-op ${window._pfSelosTemp.has(s.id) ? "ativo" : ""}" onclick="alternarSeloTemp(this, '${s.id}')"><i>${s.ic}</i><span>${esc(s.nome)}</span></button>`).join("")}
+      </div>
+      <button type="button" class="inv-add-btn btn-adicionar" onclick="salvarElogio()"><span>Salvar elogios</span></button>
+    </div>`;
+  abrirPopup("Elogiar", html, true, null);
+}
+
+function alternarSeloTemp(btn, id) {
+  const s = window._pfSelosTemp;
+  if (s.has(id)) s.delete(id);
+  else s.add(id);
+  btn.classList.toggle("ativo", s.has(id));
+}
+
+async function salvarElogio() {
+  const uid = window._pf.uid;
+  const meuUid = window.usuarioAtual.uid;
+  const selos = [...window._pfSelosTemp].filter((id) => SELOS_ELOGIO.some((s) => s.id === id));
+  try {
+    const ref = doc(db, "usuarios", uid, "elogios", meuUid);
+    if (selos.length) await setDoc(ref, { selos, deUid: meuUid, em: Date.now() });
+    else await deleteDoc(ref);
+    window._pf.elogios = window._pf.elogios.filter((e) => e.id !== meuUid);
+    if (selos.length) window._pf.elogios.push({ id: meuUid, selos, deUid: meuUid });
+    fecharPopup();
+    pfRenderElogios();
+    if (typeof mostrarToastMundo === "function") mostrarToastMundo("Elogios salvos");
+  } catch (e) {
+    console.error(e);
+    alertBonito("Não consegui salvar. " + (e.code === "permission-denied" ? "Confira se as regras novas do Firebase foram publicadas." : ""));
+  }
+}
+
+/* ---------- mural de recados ---------- */
+function pfRenderMural() {
+  const box = document.getElementById("pfSecMural");
+  if (!box) return;
+  const { ehMeu, ehAmigo, recados } = window._pf;
+  const meuUid = window.usuarioAtual?.uid;
+  const podeEscrever = !ehMeu && ehAmigo;
+  box.style.display = !ehMeu && !ehAmigo && !recados.length ? "none" : "";
+  box.innerHTML =
+    pfTituloSecao("📜", "Mural", recados.length ? `<small>${recados.length}</small>` : "") +
+    (podeEscrever
+      ? `<div class="pf-recado-novo">
+          <textarea id="pfRecadoTexto" maxlength="280" placeholder="Deixe um recado..." oninput="document.getElementById('pfRecadoCont').textContent = this.value.length + '/280'"></textarea>
+          <div class="pf-recado-novo-rodape"><small id="pfRecadoCont">0/280</small><button type="button" class="pf-enviar" onclick="enviarRecado()"><i class="ti ti-send"></i> Enviar</button></div>
+        </div>`
+      : "") +
+    (recados.length
+      ? `<div class="pf-recados">${recados
+          .map(
+            (r) => `
+        <div class="pf-recado">
+          <button type="button" class="pf-recado-av" style="${r.deFoto ? `background-image:url('${esc(r.deFoto)}')` : ""}" onclick="abrirPerfil('${esc(r.deUid)}')"></button>
+          <div class="pf-recado-corpo">
+            <div class="pf-recado-topo"><button type="button" class="pf-recado-nome" onclick="abrirPerfil('${esc(r.deUid)}')">${esc(r.deNickname || "Alguém")}<span>#${esc(r.deTag || "")}</span></button><small>${tempoRelativo(r.em)}</small></div>
+            <p>${esc(r.texto || "")}</p>
+          </div>
+          ${ehMeu || r.deUid === meuUid ? `<button type="button" class="pf-recado-x" title="Apagar" onclick="apagarRecado('${esc(r.id)}')"><i class="ti ti-x"></i></button>` : ""}
+        </div>`,
+          )
+          .join("")}</div>`
+      : ehMeu ? `<p class="pf-vazio">Quando seus amigos deixarem recados, eles aparecem aqui.</p>` : "");
+}
+
+async function enviarRecado() {
+  const el = document.getElementById("pfRecadoTexto");
+  const texto = (el?.value || "").trim().slice(0, 280);
+  if (!texto) return el?.focus();
+  const meuUid = window.usuarioAtual.uid;
+  try {
+    const eu = (await getDoc(doc(db, "usuarios", meuUid))).data() || {};
+    await addDoc(collection(db, "usuarios", window._pf.uid, "recados"), {
+      deUid: meuUid,
+      deNickname: eu.nickname || "",
+      deTag: eu.tag || "",
+      deFoto: eu.fotoPerfil || "",
+      texto,
+      em: Date.now(),
+    });
+    if (el) el.value = "";
+  } catch (e) {
+    console.error(e);
+    alertBonito("Não consegui enviar o recado. " + (e.code === "permission-denied" ? "Confira se as regras novas do Firebase foram publicadas." : ""));
+  }
+}
+
+async function apagarRecado(id) {
+  if (!(await confirmBonito("Apagar esse recado?"))) return;
+  try {
+    await deleteDoc(doc(db, "usuarios", window._pf.uid, "recados", id));
+  } catch (e) {
+    alertBonito("Não consegui apagar agora.");
+  }
+}
+
+/* ---------- mesas em comum e convite ---------- */
+async function pfMeusGrupos() {
+  const meuUid = window.usuarioAtual.uid;
+  try {
+    const snap = await getDocs(query(collection(db, "grupos"), where("membrosUids", "array-contains", meuUid)));
+    return snap.docs.map((x) => ({ id: x.id, ...x.data() }));
+  } catch (e) {
+    console.warn("grupos:", e.code || e.message);
+    return [];
+  }
+}
+
+async function pfContarMesasEmComum() {
+  const uid = window._pf.uid;
+  const grupos = await pfMeusGrupos();
+  return grupos.filter((g) => (g.membrosUids || []).includes(uid));
+}
+
+async function abrirMesasEmComum() {
+  const lista = await pfContarMesasEmComum();
+  const html = lista.length
+    ? `<div class="pf-ops">${lista.map((g) => `<div class="pf-op parado"><span>🏕️ ${esc(g.nome || "Grupo")}</span><small>${(g.membrosUids || []).length} membros</small></div>`).join("")}</div>`
+    : `<p class="pf-vazio">Vocês ainda não estão em nenhum grupo juntos.</p>`;
+  abrirPopup("Mesas em comum", html, true, null);
+}
+
+async function abrirConvidarParaGrupo() {
+  const uid = window._pf.uid;
+  const grupos = (await pfMeusGrupos()).filter((g) => !(g.membrosUids || []).includes(uid));
+  const html = grupos.length
+    ? `<div class="pf-ops">${grupos.map((g) => `<button type="button" class="pf-op" onclick="convidarParaGrupoPerfil('${esc(g.id)}')"><span>🏕️ ${esc(g.nome || "Grupo")}</span><small>${(g.membrosUids || []).length} membros</small></button>`).join("")}</div>`
+    : `<p class="pf-vazio">Você não tem nenhum grupo em que ${esc(window._pf.d.nickname || "essa pessoa")} ainda não esteja.</p>`;
+  abrirPopup("Convidar pro grupo", html, true, null);
+}
+
+async function convidarParaGrupoPerfil(grupoId) {
+  const meuUid = window.usuarioAtual.uid;
+  try {
+    const g = (await getDoc(doc(db, "grupos", grupoId))).data() || {};
+    const eu = (await getDoc(doc(db, "usuarios", meuUid))).data() || {};
+    await setDoc(doc(db, "usuarios", window._pf.uid, "convitesGrupo", grupoId), {
+      grupoId,
+      nomeGrupo: g.nome || "",
+      deUid: meuUid,
+      deNickname: eu.nickname || "",
+      deTag: eu.tag || "",
+      criadoEm: new Date().toISOString(),
+    });
+    fecharPopup();
+    if (typeof mostrarToastMundo === "function") mostrarToastMundo("Convite enviado");
+  } catch (e) {
+    console.error(e);
+    alertBonito("Não consegui enviar o convite agora.");
+  }
+}
+
+/* ---------- procurando mesa ---------- */
+function abrirProcurandoMesa() {
+  const pm = window._pf.d.procurandoMesa || {};
+  const dias = new Set(pm.dias || []);
+  const html = `
+    <div class="popup-form">
+      <div class="toggle-cargas">
+        <span class="toggle-cargas-texto">Mostrar no meu perfil</span>
+        <label class="switch-cargas"><input type="checkbox" id="pmAtivo" ${pm.ativo ? "checked" : ""}><span class="slider-cargas"></span></label>
+      </div>
+      <label class="popup-label">Disponível pra</label>
+      <select id="pmModo">
+        <option value="jogador" ${pm.modo === "jogador" || !pm.modo ? "selected" : ""}>Jogar</option>
+        <option value="mestre" ${pm.modo === "mestre" ? "selected" : ""}>Mestrar</option>
+        <option value="ambos" ${pm.modo === "ambos" ? "selected" : ""}>Jogar ou mestrar</option>
+      </select>
+      <label class="popup-label">Sistemas</label>
+      <input id="pmSistemas" maxlength="80" value="${esc(pm.sistemas || "")}" placeholder="Ex: D&D 5e, Ordem Paranormal">
+      <label class="popup-label">Dias livres</label>
+      <div class="pf-dias escolher" id="pmDias">${DIAS_SEMANA.map((dd) => `<button type="button" class="${dias.has(dd) ? "on" : ""}" onclick="this.classList.toggle('on')">${dd}</button>`).join("")}</div>
+      <label class="popup-label">Horário</label>
+      <input id="pmPeriodo" maxlength="40" value="${esc(pm.periodo || "")}" placeholder="Ex: à noite, depois das 20h">
+      <label class="popup-label">Recado (opcional)</label>
+      <textarea id="pmObs" maxlength="140" placeholder="Ex: sexta só depois das 21h">${esc(pm.obs || "")}</textarea>
+
+      <div class="toggle-cargas" style="margin-top:10px">
+        <span class="toggle-cargas-texto">Mostrar quando estou online</span>
+        <label class="switch-cargas"><input type="checkbox" id="pmStatus" ${window._pf.d.mostrarStatus === false ? "" : "checked"}><span class="slider-cargas"></span></label>
+      </div>
+      <button type="button" class="inv-add-btn btn-adicionar" style="width:100%;margin-top:12px" onclick="salvarProcurandoMesa()"><span>Salvar</span></button>
+    </div>`;
+  abrirPopup("Disponível pra jogar", html, true, null);
+}
+
+async function salvarProcurandoMesa() {
+  const procurandoMesa = {
+    ativo: !!document.getElementById("pmAtivo")?.checked,
+    modo: document.getElementById("pmModo")?.value || "jogador",
+    sistemas: (document.getElementById("pmSistemas")?.value || "").trim(),
+    dias: [...document.querySelectorAll("#pmDias button.on")].map((b) => b.textContent),
+    periodo: (document.getElementById("pmPeriodo")?.value || "").trim(),
+    obs: (document.getElementById("pmObs")?.value || "").trim(),
+  };
+  const mostrarStatus = !!document.getElementById("pmStatus")?.checked;
+  try {
+    await setDoc(doc(db, "usuarios", window.usuarioAtual.uid), { procurandoMesa, mostrarStatus }, { merge: true });
+  } catch (e) {
+    return alertBonito("Não consegui salvar agora.");
+  }
+  window._pf.d.procurandoMesa = procurandoMesa;
+  window._pf.d.mostrarStatus = mostrarStatus;
+  fecharPopup();
+  pfRenderProcurando();
+  pfRenderCabecalho();
+}
+
+/* ---------- moldura e fundo ---------- */
+function pfLiberado(item) {
+  if (item.plano) return getPlanoUsuario() !== "free";
+  if (item.conquista) return pfTemConquista(item.conquista);
+  return true;
+}
+function pfMotivoBloqueio(item) {
+  if (item.plano) return "Plano pago";
+  const c = CONQUISTAS.find((x) => x.id === item.conquista);
+  return c ? `Conquista: ${c.nome}` : "";
+}
+
+function abrirVisualPerfil() {
+  const d = window._pf.d;
+  window._pfVisualTemp = { moldura: d.moldura || "", efeitoFundo: d.efeitoFundo || "" };
+  const opMoldura = (m) => {
+    const ok = pfLiberado(m);
+    return `<button type="button" class="pf-vis-op ${window._pfVisualTemp.moldura === m.id ? "ativo" : ""} ${ok ? "" : "bloqueada"}" ${ok ? `onclick="escolherVisualTemp('moldura','${m.id}', this)"` : ""}>
+      <span class="pf-vis-av" data-moldura="${m.id}"><span></span></span>
+      <small>${esc(m.nome)}</small>${ok ? "" : `<em>🔒 ${esc(pfMotivoBloqueio(m))}</em>`}
+    </button>`;
+  };
+  const opFundo = (f) => {
+    const ok = pfLiberado(f);
+    return `<button type="button" class="pf-vis-op largo ${window._pfVisualTemp.efeitoFundo === f.id ? "ativo" : ""} ${ok ? "" : "bloqueada"}" ${ok ? `onclick="escolherVisualTemp('efeitoFundo','${f.id}', this)"` : ""}>
+      <span class="pf-vis-fundo" data-efeito="${f.id}"></span>
+      <small>${esc(f.nome)}</small>${ok ? "" : `<em>🔒 ${esc(pfMotivoBloqueio(f))}</em>`}
+    </button>`;
+  };
+  const html = `
+    <div class="pf-visual">
+      <label class="popup-label">Moldura da foto</label>
+      <div class="pf-vis-grade" data-grupo="moldura">${MOLDURAS.map(opMoldura).join("")}</div>
+      <label class="popup-label">Efeito no fundo</label>
+      <div class="pf-vis-grade fundos" data-grupo="efeitoFundo">${EFEITOS_FUNDO.map(opFundo).join("")}</div>
+      <button type="button" class="inv-add-btn btn-adicionar" style="width:100%;margin-top:14px" onclick="salvarVisualPerfil()"><span>Salvar</span></button>
+    </div>`;
+  abrirPopup("Moldura e fundo", html, true, null);
+}
+
+function escolherVisualTemp(campo, id, btn) {
+  window._pfVisualTemp[campo] = id;
+  btn.parentElement.querySelectorAll(".pf-vis-op").forEach((b) => b.classList.toggle("ativo", b === btn));
+}
+
+async function salvarVisualPerfil() {
+  const v = window._pfVisualTemp;
+  try {
+    await setDoc(doc(db, "usuarios", window.usuarioAtual.uid), { moldura: v.moldura, efeitoFundo: v.efeitoFundo }, { merge: true });
+  } catch (e) {
+    return alertBonito("Não consegui salvar agora.");
+  }
+  window._pf.d.moldura = v.moldura;
+  window._pf.d.efeitoFundo = v.efeitoFundo;
+  fecharPopup();
+  pfAplicarVisual(window._pf.d);
+}
+
+/* =====================================================================
+   GRUPOS v2: capa, foto, descrição, criar e convidar com fotos dos amigos
+   ===================================================================== */
+window._amCache = window._amCache || {};
+async function gpResumo(uid) {
+  const c = window._amCache[uid];
+  if (c && Date.now() - (c._em || 0) < 60000) return c;
+  try {
+    const s = await getDoc(doc(db, "usuarios", uid));
+    const d = s.exists() ? s.data() : {};
+    d._em = Date.now();
+    window._amCache[uid] = d;
+    return d;
+  } catch (e) {
+    return c || {};
+  }
+}
+function gpOnline(d) {
+  return d && d.mostrarStatus !== false && d.vistoEm && Date.now() - d.vistoEm < 4 * 60 * 1000;
+}
+function gpAvatar(d, cls) {
+  const foto = d && d.fotoPerfil ? `background-image:url('${String(d.fotoPerfil).replace(/'/g, "%27")}')` : "";
+  return `<span class="am-av ${cls || ""}" data-moldura="${esc((d && d.moldura) || "")}"><span class="am-av-img" style="${foto}"></span>${gpOnline(d) ? `<span class="am-dot"></span>` : ""}</span>`;
+}
+function gpFotoGrupo(g, cls) {
+  return `<span class="gp-foto ${cls || ""}" style="${g.fotoUrl ? `background-image:url('${esc(g.fotoUrl)}')` : ""}">${g.fotoUrl ? "" : "🏕️"}</span>`;
+}
+
+/* ---------- detalhe do grupo ---------- */
+window.abrirDetalheGrupo = async function (grupoId) {
+  window._grupoAtualId = grupoId;
+  const meuUid = window.usuarioAtual.uid;
+  const ov = document.getElementById("modalGrupoDetalheOverlay");
+  const box = document.getElementById("modalGrupoDetalhe");
+  ov.style.display = "block";
+  box.style.display = "block";
+  box.classList.add("gp-modal");
+  if (!box.innerHTML.includes("gp-capa")) box.innerHTML = `<p class="am-vazio">Carregando...</p>`;
+
+  const snap = await getDoc(doc(db, "grupos", grupoId));
+  if (!snap.exists()) return fecharDetalheGrupo();
+  const g = snap.data();
+  window._grupoAtual = { id: grupoId, ...g };
+  const souMestre = g.criadoPor === meuUid;
+  const membros = g.membros || [];
+  const perfis = {};
+  (await Promise.all(membros.map((m) => gpResumo(m.uid)))).forEach((p, i) => (perfis[membros[i].uid] = p));
+  const onlineN = membros.filter((m) => gpOnline(perfis[m.uid])).length;
+  const eu = membros.find((m) => m.uid === meuUid) || {};
+  const minhasFichas = personagens || window.personagens || [];
+
+  const ordenados = [...membros].sort((a, b) => (b.papel === "mestre") - (a.papel === "mestre") || (a.nickname || "").localeCompare(b.nickname || "", "pt-BR"));
+  const membrosHTML = ordenados
+    .map((m) => {
+      const p = perfis[m.uid] || {};
+      const ehEu = m.uid === meuUid;
+      const status = gpOnline(p)
+        ? `<span class="am-on">${esc(p.atividade?.texto && Date.now() - (p.atividade.em || 0) < 4 * 60 * 1000 ? p.atividade.texto : "Online")}</span>`
+        : p.vistoEm && p.mostrarStatus !== false ? `Visto ${tempoRelativo(p.vistoEm)}` : "";
+      return `
+      <div class="am-item gp-membro" ${ehEu ? "" : `onclick="abrirPerfil('${esc(m.uid)}')"`}>
+        ${gpAvatar(p)}
+        <div class="am-info">
+          <div class="am-nome">${esc(m.nickname || "Sem nome")}<span>#${esc(m.tag || "")}</span>${ehEu ? ` <small class="gp-voce">você</small>` : ""}</div>
+          <div class="am-sub">${status}</div>
+        </div>
+        ${souMestre && !ehEu
+          ? `<button type="button" class="gp-papel ${m.papel === "mestre" ? "mestre" : ""}" onclick="event.stopPropagation(); alternarPapelMembro('${esc(m.uid)}')" title="Trocar papel">${m.papel === "mestre" ? "Mestre" : "Jogador"}</button>
+             <button type="button" class="am-resp nao" title="Remover do grupo" onclick="event.stopPropagation(); removerMembroGrupo('${esc(m.uid)}')"><i class="ti ti-x"></i></button>`
+          : `<span class="gp-papel parado ${m.papel === "mestre" ? "mestre" : ""}">${m.papel === "mestre" ? "Mestre" : "Jogador"}</span>`}
+      </div>`;
+    })
+    .join("");
+
+  box.innerHTML = `
+    <div class="gp-capa" style="${g.capaUrl ? `background-image:url('${esc(g.capaUrl)}')` : ""}">
+      <button type="button" class="gp-fechar" onclick="fecharDetalheGrupo()" aria-label="Fechar">✕</button>
+    </div>
+    <div class="gp-cabeca">
+      ${gpFotoGrupo(g, "grande")}
+      <h3 class="gp-nome">${esc(g.nome || "Grupo")}</h3>
+      ${g.descricao ? `<p class="gp-desc">${esc(g.descricao)}</p>` : ""}
+      <div class="gp-info">${membros.length} membro${membros.length === 1 ? "" : "s"}${onlineN ? ` · <span class="am-on">${onlineN} online</span>` : ""}</div>
+      <div class="gp-botoes">
+        <button type="button" class="gp-btn" onclick="abrirConvidarGrupo()"><i class="ti ti-user-plus"></i><span>Convidar</span></button>
+        ${souMestre ? `<button type="button" class="gp-btn" onclick="abrirEditarGrupo()"><i class="ti ti-pencil"></i><span>Editar grupo</span></button>` : ""}
+      </div>
+    </div>
+
+    <div class="gp-corpo">
+      <div class="am-sep">Minha ficha nesse grupo</div>
+      <select id="selectFichaGrupo" style="display:none">
+        <option value="">Nenhuma ficha</option>
+        ${minhasFichas.map((f) => `<option value="${esc(String(f.id))}" ${String(f.id) === String(eu.fichaId) ? "selected" : ""}>${esc(f.nome || "Sem nome")}</option>`).join("")}
+      </select>
+      ${gpBotaoFichaHTML(minhasFichas.find((f) => String(f.id) === String(eu.fichaId)))}
+      <div id="statusFichaGrupo" class="gp-status"></div>
+
+      <div class="am-sep">Membros · ${membros.length}</div>
+      <div class="am-lista">${membrosHTML}</div>
+
+      <div class="gp-rodape">
+        ${souMestre
+          ? `<button type="button" class="gp-perigo" onclick="excluirGrupo()"><i class="ti ti-trash"></i> Excluir grupo</button>`
+          : `<button type="button" class="gp-perigo" onclick="sairDoGrupo()"><i class="ti ti-door-exit"></i> Sair do grupo</button>`}
+      </div>
+    </div>`;
+};
+
+/* ---------- editar grupo (mestre) ---------- */
+window._gpImg = { foto: "", capa: "" };
+
+function gpPreviewImagem(input, tipo) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    window._gpImg[tipo] = r.result;
+    const alvo = document.getElementById(tipo === "capa" ? "gpCapaPrev" : "gpFotoPrev");
+    if (alvo) {
+      alvo.style.backgroundImage = `url('${r.result}')`;
+      alvo.classList.add("tem");
+    }
+  };
+  r.readAsDataURL(f);
+}
+
+function gpFormHTML(g, criando) {
+  return `
+    <div class="popup-form gp-form">
+      <div class="gp-form-capa ${g.capaUrl ? "tem" : ""}" id="gpCapaPrev" style="${g.capaUrl ? `background-image:url('${esc(g.capaUrl)}')` : ""}" onclick="document.getElementById('gpCapaInput').click()">
+        <span><i class="ti ti-photo"></i> ${g.capaUrl ? "Trocar capa" : "Adicionar capa"}</span>
+      </div>
+      <input type="file" id="gpCapaInput" accept="image/*" style="display:none" onchange="gpPreviewImagem(this,'capa')">
+      <div class="gp-form-foto ${g.fotoUrl ? "tem" : ""}" id="gpFotoPrev" style="${g.fotoUrl ? `background-image:url('${esc(g.fotoUrl)}')` : ""}" onclick="document.getElementById('gpFotoInput').click()">
+        <span>🏕️</span><i class="ti ti-camera"></i>
+      </div>
+      <input type="file" id="gpFotoInput" accept="image/*" style="display:none" onchange="gpPreviewImagem(this,'foto')">
+
+      <label class="popup-label">Nome do grupo</label>
+      <input id="gpNome" maxlength="40" value="${esc(g.nome || "")}" placeholder="Ex: Os Errantes">
+      <label class="popup-label">Descrição (opcional)</label>
+      <textarea id="gpDesc" maxlength="160" placeholder="Ex: Campanha de sexta à noite, mundo de Tormenta">${esc(g.descricao || "")}</textarea>
+      ${criando ? `<label class="popup-label">Convidar amigos</label><div id="gpConvidarLista" class="gp-amigos"><p class="am-vazio">Carregando amigos...</p></div>` : ""}
+      <button type="button" class="inv-add-btn btn-adicionar" id="gpSalvarBtn" style="width:100%;margin-top:12px" onclick="${criando ? "salvarNovoGrupo()" : "salvarEditarGrupo()"}"><span>${criando ? "Criar grupo" : "Salvar"}</span></button>
+    </div>`;
+}
+
+window.abrirEditarGrupo = function () {
+  const g = window._grupoAtual;
+  if (!g) return;
+  window._gpImg = { foto: "", capa: "" };
+  abrirPopup("Editar grupo", gpFormHTML(g, false), true, null);
+};
+
+async function gpSubirImagens() {
+  const out = {};
+  for (const tipo of ["foto", "capa"]) {
+    if (!window._gpImg[tipo]) continue;
+    let base64 = window._gpImg[tipo];
+    try { if (typeof comprimirImagemBase64 === "function") base64 = await comprimirImagemBase64(base64); } catch (e) {}
+    const up = await uploadImagemFirebase(base64, "grupo");
+    if (up.url) out[tipo === "foto" ? "fotoUrl" : "capaUrl"] = up.url;
+    else alertBonito(_mensagemErroUpload(`A ${tipo === "foto" ? "foto" : "capa"} não foi salva.`));
+  }
+  return out;
+}
+
+window.salvarEditarGrupo = async function () {
+  const g = window._grupoAtual;
+  const nome = document.getElementById("gpNome")?.value.trim();
+  if (!g || !nome) return document.getElementById("gpNome")?.focus();
+  const btn = document.getElementById("gpSalvarBtn");
+  if (btn) { btn.disabled = true; btn.querySelector("span").textContent = "Salvando..."; }
+  try {
+    const imgs = await gpSubirImagens();
+    await updateDoc(doc(db, "grupos", g.id), { nome, descricao: document.getElementById("gpDesc")?.value.trim() || "", ...imgs });
+    fecharPopup();
+    await window.abrirDetalheGrupo(g.id);
+    if (typeof carregarGrupos === "function") carregarGrupos();
+  } catch (e) {
+    console.error(e);
+    alertBonito("Não consegui salvar o grupo. " + (e.code || e.message));
+    if (btn) { btn.disabled = false; btn.querySelector("span").textContent = "Salvar"; }
+  }
+};
+
+/* ---------- escolher amigos (criar e convidar) ---------- */
+async function gpRenderEscolhaAmigos(alvoId, excluirUids) {
+  const alvo = document.getElementById(alvoId);
+  if (!alvo) return;
+  window._gpSelecionados = new Set();
+  try {
+    const snap = await getDocs(collection(db, "usuarios", window.usuarioAtual.uid, "amigos"));
+    const amigos = snap.docs.map((x) => ({ uid: x.id, ...x.data() })).filter((a) => !(excluirUids || []).includes(a.uid));
+    if (!amigos.length) {
+      alvo.innerHTML = `<p class="am-vazio">${excluirUids && excluirUids.length ? "Todos os seus amigos já estão nesse grupo." : "Você ainda não tem amigos pra convidar."}</p>`;
+      return;
+    }
+    const perfis = await Promise.all(amigos.map((a) => gpResumo(a.uid)));
+    amigos.sort((a, b) => (a.nickname || "").localeCompare(b.nickname || "", "pt-BR"));
+    alvo.innerHTML = amigos
+      .map((a) => {
+        const p = window._amCache[a.uid] || perfis[0] || {};
+        return `<button type="button" class="gp-amigo" data-uid="${esc(a.uid)}" data-nick="${esc(a.nickname || "")}" data-tag="${esc(a.tag || "")}" onclick="gpAlternarAmigo(this)">
+          ${gpAvatar(p)}<span class="gp-amigo-nome">${esc(a.nickname || "")}</span><i class="gp-check ti ti-check"></i>
+        </button>`;
+      })
+      .join("");
+  } catch (e) {
+    alvo.innerHTML = `<p class="am-vazio erro">Não consegui carregar seus amigos.</p>`;
+  }
+}
+
+function gpAlternarAmigo(btn) {
+  const s = window._gpSelecionados;
+  const uid = btn.dataset.uid;
+  if (s.has(uid)) s.delete(uid);
+  else s.add(uid);
+  btn.classList.toggle("ativo", s.has(uid));
+  const b = document.getElementById("gpConvidarBtn");
+  if (b) b.querySelector("span").textContent = s.size ? `Convidar ${s.size}` : "Escolha quem convidar";
+}
+
+async function gpEnviarConvites(grupoId, nomeGrupo) {
+  const meuUid = window.usuarioAtual.uid;
+  const eu = (await getDoc(doc(db, "usuarios", meuUid))).data() || {};
+  const btns = [...document.querySelectorAll(".gp-amigo.ativo")];
+  for (const b of btns) {
+    await setDoc(doc(db, "usuarios", b.dataset.uid, "convitesGrupo", grupoId), {
+      grupoId,
+      nomeGrupo: nomeGrupo || "",
+      deUid: meuUid,
+      deNickname: eu.nickname || "",
+      deTag: eu.tag || "",
+      criadoEm: new Date().toISOString(),
+    });
+  }
+  return btns.length;
+}
+
+window.abrirConvidarGrupo = function () {
+  const g = window._grupoAtual;
+  if (!g) return;
+  const html = `
+    <div class="popup-form">
+      <p class="pm-dica">Toque nos amigos que você quer chamar pro <b>${esc(g.nome || "grupo")}</b>.</p>
+      <div id="gpConvidarLista" class="gp-amigos"><p class="am-vazio">Carregando amigos...</p></div>
+      <button type="button" class="inv-add-btn btn-adicionar" id="gpConvidarBtn" style="width:100%;margin-top:12px" onclick="confirmarConvitesGrupo()"><span>Escolha quem convidar</span></button>
+    </div>`;
+  abrirPopup("Convidar pro grupo", html, true, null);
+  gpRenderEscolhaAmigos("gpConvidarLista", g.membrosUids || []);
+};
+
+window.confirmarConvitesGrupo = async function () {
+  const g = window._grupoAtual;
+  if (!g || !window._gpSelecionados?.size) return;
+  try {
+    const n = await gpEnviarConvites(g.id, g.nome);
+    fecharPopup();
+    if (typeof mostrarToastMundo === "function") mostrarToastMundo(n === 1 ? "Convite enviado" : `${n} convites enviados`);
+  } catch (e) {
+    console.error(e);
+    alertBonito("Não consegui enviar os convites agora.");
+  }
+};
+
+/* ---------- criar grupo ---------- */
+window.abrirCriarGrupo = function () {
+  window._gpImg = { foto: "", capa: "" };
+  abrirPopup("Novo grupo", gpFormHTML({}, true), true, null);
+  gpRenderEscolhaAmigos("gpConvidarLista", []);
+  setTimeout(() => document.getElementById("gpNome")?.focus(), 60);
+};
+window.mostrarFormCriarGrupo = window.abrirCriarGrupo;
+
+window.salvarNovoGrupo = async function () {
+  const nome = document.getElementById("gpNome")?.value.trim();
+  if (!nome) return document.getElementById("gpNome")?.focus();
+  const btn = document.getElementById("gpSalvarBtn");
+  if (btn) { btn.disabled = true; btn.querySelector("span").textContent = "Criando..."; }
+  const meuUid = window.usuarioAtual.uid;
+  try {
+    const eu = (await getDoc(doc(db, "usuarios", meuUid))).data() || {};
+    const imgs = await gpSubirImagens();
+    const ref = doc(collection(db, "grupos"));
+    await setDoc(ref, {
+      nome,
+      descricao: document.getElementById("gpDesc")?.value.trim() || "",
+      ...imgs,
+      criadoPor: meuUid,
+      criadoEm: new Date().toISOString(),
+      membros: [{ uid: meuUid, nickname: eu.nickname || "", tag: eu.tag || "", papel: "mestre" }],
+      membrosUids: [meuUid],
+      mestresUids: [meuUid],
+    });
+    const n = await gpEnviarConvites(ref.id, nome);
+    fecharPopup();
+    if (typeof carregarGrupos === "function") carregarGrupos();
+    if (typeof mostrarToastMundo === "function") mostrarToastMundo(n ? `Grupo criado · ${n} convite${n > 1 ? "s" : ""}` : "Grupo criado");
+  } catch (e) {
+    console.error(e);
+    alertBonito("Erro ao criar grupo: " + (e.code || e.message));
+    if (btn) { btn.disabled = false; btn.querySelector("span").textContent = "Criar grupo"; }
+  }
+};
+
+/* ---------- escolher a ficha do grupo (no lugar da caixinha de seleção) ---------- */
+function gpRetratoFicha(f) {
+  const img = f && (f.imagem || (f.imagens && f.imagens[0] && f.imagens[0].url));
+  return `<span class="gp-ficha-img" style="${img ? `background-image:url('${esc(img)}')` : ""}">${img ? "" : f ? "🛡️" : "—"}</span>`;
+}
+function gpBotaoFichaHTML(f) {
+  return `
+    <button type="button" class="gp-ficha-btn" id="gpFichaBtn" onclick="abrirEscolherFichaGrupo()">
+      ${gpRetratoFicha(f)}
+      <span class="gp-ficha-txt"><strong>${f ? esc(f.nome || "Sem nome") : "Nenhuma ficha"}</strong><small>${f ? [f.classe, f.nivel ? "Nv " + f.nivel : ""].filter(Boolean).map(esc).join(" · ") || "Toque pra trocar" : "Toque pra escolher qual ficha você usa aqui"}</small></span>
+      <i class="ti ti-chevron-down"></i>
+    </button>`;
+}
+function abrirEscolherFichaGrupo() {
+  const sel = document.getElementById("selectFichaGrupo");
+  const atual = sel ? sel.value : "";
+  const fichas = personagens || window.personagens || [];
+  const op = (f) => {
+    const v = f ? String(f.id) : "";
+    return `<button type="button" class="gp-ficha-op ${v === atual ? "ativo" : ""}" onclick="escolherFichaGrupoOp('${esc(v)}')">
+      ${gpRetratoFicha(f)}
+      <span class="gp-ficha-txt"><strong>${f ? esc(f.nome || "Sem nome") : "Nenhuma ficha"}</strong><small>${f ? [f.classe, f.nivel ? "Nv " + f.nivel : ""].filter(Boolean).map(esc).join(" · ") : "Não usar ficha nesse grupo"}</small></span>
+      ${v === atual ? `<i class="ti ti-check"></i>` : ""}
+    </button>`;
+  };
+  abrirPopup("Minha ficha no grupo", `<div class="gp-ficha-lista">${fichas.map(op).join("")}${op(null)}</div>`, true, null);
+}
+async function escolherFichaGrupoOp(valor) {
+  const sel = document.getElementById("selectFichaGrupo");
+  if (!sel) return;
+  sel.value = valor;
+  fecharPopup();
+  const fichas = personagens || window.personagens || [];
+  const btn = document.getElementById("gpFichaBtn");
+  if (btn) btn.outerHTML = gpBotaoFichaHTML(fichas.find((f) => String(f.id) === valor));
+  // salva na hora, sem precisar de outro botão
+  const fake = document.createElement("button");
+  await window.salvarFichaGrupoBotao(fake);
+}
+
+/* =====================================================================
+   CRIATURAS v2 (Grimório): blocos dinâmicos, editor em popup e fases
+   Campos novos na criatura (os antigos em texto continuam sendo gerados):
+     blocos: { ataques:[{nome,acerto,dano,desc}], habilidades:[{nome,desc,uso,usosMax,recarga}],
+               reacoes:[{nome,desc}], lendarias:{max, acoes:[{nome,custo,desc}]} }
+     resistTags, imunTags, vulnTags: [texto]
+     fases: [{id,nome,gatilho,ca,velocidade,imagem,ganha:[nome],perde:[nome],fala}]
+     textoAntigo: { ... }   (o que estava escrito antes da conversão)
+   No combate cada cópia guarda: faseAtual, usosGastos{}, recargaGasta{}, lendGastas, fasesOferecidas[]
+   ===================================================================== */
+
+var CR_ATR = ["for", "des", "con", "int", "sab", "car"];
+
+function crMod(v) {
+  return Math.floor(((parseInt(v) || 10) - 10) / 2);
+}
+function crFmt(n) {
+  return n >= 0 ? `+${n}` : `${n}`;
+}
+
+// "Nome: texto | Nome 2: texto" (ou frases "Nome: ... . Nome2: ...") → [{nome, desc}]
+function crDividirLista(txt) {
+  const s = String(txt || "").trim();
+  if (!s) return [];
+  let partes = s.includes("|") ? s.split("|") : s.split(/\n+/);
+  if (partes.length === 1) partes = s.split(/(?<=[.!?])\s+(?=[A-ZÀ-Ú][^:.]{1,40}:)/);
+  return partes
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => {
+      const m = p.match(/^([^:—–-]{1,60}?)\s*(?::|—|–| - )\s*(.+)$/s);
+      return m ? { nome: m[1].trim(), desc: m[2].trim() } : { nome: p.length <= 40 ? p : "", desc: p.length <= 40 ? "" : p };
+    });
+}
+
+function crParseAtaque(a) {
+  const desc = a.desc || "";
+  const mA = desc.match(/([+-]\s*\d+)\s*(?:para acertar|pra acertar|de acerto|acerto)?/i);
+  const acerto = mA && /acertar|acerto|^\s*[+-]\d+\s*,/i.test(desc) ? parseInt(mA[1].replace(/\s+/g, "")) : null;
+  const dano = typeof extrairDados === "function" ? extrairDados(desc) : "";
+  let resto = desc;
+  if (acerto !== null) resto = resto.replace(mA[0], "");
+  const reTipo = /(?<![a-zà-ú])\d*\s*d\s*\d+(?:\s*[+-]\s*\d+(?!\s*d\s*\d))*(?:\s+de)?(?:\s+dano)?(?:\s+de)?(?:\s+([a-zà-ú]+))?/i;
+  const mT = desc.match(reTipo);
+  let tipoDano = mT && mT[1] ? mT[1] : "";
+  if (/^(de|dano|e|ao|no|na|para|por|se|que)$/i.test(tipoDano)) tipoDano = "";
+  if (dano && mT) resto = resto.replace(tipoDano ? mT[0] : mT[0].replace(/\s+[a-zà-ú]+$/i, (w) => (/^\s+(de|dano)$/i.test(w) ? w : "")), "");
+  resto = resto.replace(/^[\s,.;—–-]+|[\s,.;—–-]+$/g, "").replace(/\s{2,}/g, " ").replace(/,\s*,/g, ",");
+  return { nome: a.nome || "Ataque", acerto, dano: dano ? (tipoDano ? `${dano} ${tipoDano}` : dano) : "", desc: resto };
+}
+
+function crTags(txt) {
+  return String(txt || "")
+    .split(/[,;\n]+/)
+    .map((t) => t.replace(/^(resistente a|imune a|vulnerável a)\s*/i, "").trim().replace(/\.$/, ""))
+    .filter(Boolean);
+}
+
+// lê frases tipo "Resistente a necrótico e veneno. Imune a medo e charme." e separa em 3 listas
+function crDefesas(c) {
+  const out = { res: [], imu: [], vul: [] };
+  const fontes = [[c.resistencias, "res"], [c.imunidades, "imu"], [c.vulnerabilidades, "vul"]];
+  fontes.forEach(([txt, padrao]) => {
+    String(txt || "")
+      .split(/[.;\n]+/)
+      .map((f) => f.trim())
+      .filter(Boolean)
+      .forEach((frase) => {
+        let cat = padrao;
+        let corpo = frase;
+        const m = frase.match(/^(resistente|resistência|resistencia|resiste|imune|imunidade|vulnerável|vulneravel|vulnerabilidade)s?\s*(a|à|ao|aos|às|contra)?\s*/i);
+        if (m) {
+          const w = m[1].toLowerCase();
+          cat = w.startsWith("imun") ? "imu" : w.startsWith("vuln") ? "vul" : "res";
+          corpo = frase.slice(m[0].length);
+        }
+        corpo
+          .split(/,|\s+e\s+/)
+          .map((t) => t.replace(/^(dano|danos)\s+(de\s+)?/i, "").trim())
+          .filter(Boolean)
+          .forEach((t) => { if (!out[cat].includes(t)) out[cat].push(t); });
+      });
+  });
+  return out;
+}
+
+// devolve a criatura com os blocos novos (sem perder nada do que já existia)
+function crNormalizar(m) {
+  const c = JSON.parse(JSON.stringify(m || {}));
+  c.status = { for: 10, des: 10, con: 10, int: 10, sab: 10, car: 10, ...(c.status || {}) };
+  if (!c.blocos) {
+    const antigo = {};
+    ["ataques", "habilidades", "reacoes", "fases", "mecanicas", "resistencias", "imunidades", "vulnerabilidades"].forEach((k) => {
+      if (typeof c[k] === "string" && c[k].trim()) antigo[k] = c[k];
+    });
+    c.textoAntigo = { ...(c.textoAntigo || {}), ...antigo };
+    c.blocos = {
+      ataques: crDividirLista(c.ataques).map(crParseAtaque),
+      habilidades: crDividirLista(c.habilidades).map((h) => ({ nome: h.nome || "Habilidade", desc: h.desc, uso: "", usosMax: 0, recarga: 0 })),
+      reacoes: crDividirLista(c.reacoes).map((r) => ({ nome: r.nome || "Reação", desc: r.desc })),
+      lendarias: { max: 3, acoes: [] },
+    };
+  }
+  c.blocos.ataques = c.blocos.ataques || [];
+  c.blocos.habilidades = c.blocos.habilidades || [];
+  c.blocos.reacoes = c.blocos.reacoes || [];
+  c.blocos.lendarias = c.blocos.lendarias || { max: 3, acoes: [] };
+  if (!Array.isArray(c.resistTags) || !Array.isArray(c.imunTags) || !Array.isArray(c.vulnTags)) {
+    const d = crDefesas(c);
+    if (!Array.isArray(c.resistTags)) c.resistTags = d.res;
+    if (!Array.isArray(c.imunTags)) c.imunTags = d.imu;
+    if (!Array.isArray(c.vulnTags)) c.vulnTags = d.vul;
+  }
+  if (!Array.isArray(c.fases)) c.fases = [];
+  return c;
+}
+
+// gera de volta os campos de texto antigos (outras partes do app ainda usam)
+function crGerarTextos(c) {
+  c.ataques = c.blocos.ataques
+    .map((a) => `${a.nome}: ${[a.acerto !== null && a.acerto !== "" && !isNaN(a.acerto) ? `${crFmt(parseInt(a.acerto))} para acertar` : "", a.dano, a.desc].filter(Boolean).join(", ")}`)
+    .join(" | ");
+  c.habilidades = c.blocos.habilidades.map((h) => (h.desc ? `${h.nome}: ${h.desc}` : h.nome)).join(" | ");
+  c.reacoes = c.blocos.reacoes.map((r) => (r.desc ? `${r.nome}: ${r.desc}` : r.nome)).join(" | ");
+  c.resistencias = c.resistTags.join(", ");
+  c.imunidades = c.imunTags.join(", ");
+  c.vulnerabilidades = c.vulnTags.join(", ");
+  c.fases = c.fases || [];
+  return c;
+}
+
+function crEhMinha(entry) {
+  return (monstrosMestre || []).some((m) => String(m.id) === String(entry.id));
+}
+function crEhChefe(c) {
+  return c._tipo === "boss";
+}
+
+/* ---------- estado efetivo (com a fase aplicada) ---------- */
+function crEfetivo(c, faseIdx) {
+  const n = crNormalizar(c);
+  const ef = { ...n, status: { ...n.status } };
+  let ataques = [...n.blocos.ataques];
+  let habilidades = [...n.blocos.habilidades];
+  const fases = n.fases || [];
+  for (let i = 0; i < Math.min(faseIdx || 0, fases.length); i++) {
+    const f = fases[i];
+    if (f.ca !== "" && f.ca != null && !isNaN(parseInt(f.ca))) ef.ca = parseInt(f.ca);
+    if (f.velocidade) ef.velocidade = f.velocidade;
+    if (f.imagem) ef.imagem = f.imagem;
+    CR_ATR.forEach((a) => {
+      if (f.status && f.status[a] !== "" && f.status[a] != null && !isNaN(parseInt(f.status[a]))) ef.status[a] = parseInt(f.status[a]);
+    });
+    const perde = new Set(f.perde || []);
+    ataques = ataques.filter((x) => !perde.has(x.nome));
+    habilidades = habilidades.filter((x) => !perde.has(x.nome));
+    (f.ganhaAtaques || []).forEach((a) => ataques.push({ ...a, _daFase: f.nome }));
+    (f.ganhaHabilidades || []).forEach((h) => habilidades.push({ ...h, _daFase: f.nome }));
+  }
+  ef._ataques = ataques;
+  ef._habilidades = habilidades;
+  ef._faseNome = faseIdx ? fases[faseIdx - 1]?.nome : "";
+  return ef;
+}
+
+/* =====================================================================
+   FICHA DA CRIATURA (substitui a antiga, para monstros e chefes)
+   ===================================================================== */
+var CR_ICONES = { Ataques: "⚔️", Habilidades: "✨", "Reações": "🛡️", "Ações lendárias": "👑", Defesas: "🧱", Fraquezas: "💔", "Mecânicas": "⚙️", Lore: "📜", "Diálogos": "💬", "Pontos de encontro": "📍", Fases: "🔥" };
+function crBloco(titulo, corpo, extra) {
+  const ic = CR_ICONES[titulo] || (titulo.startsWith("Fases") ? "🔥" : "");
+  return `<section class="cr-bloco"><header class="cr-bloco-tit"><span class="cr-bloco-nome">${ic ? `<i>${ic}</i>` : ""}${titulo}</span>${extra ? `<span class="cr-bloco-extra">${extra}</span>` : ""}</header><div class="cr-bloco-corpo">${corpo}</div></section>`;
+}
+
+function crListaAtaquesHTML(ataques, ctx) {
+  if (!ataques.length) return "";
+  return crBloco(
+    "Ataques",
+    ataques
+      .map((a, i) => {
+        const temAc = a.acerto !== null && a.acerto !== "" && !isNaN(parseInt(a.acerto));
+        const rolavel = typeof extrairDados === "function" && extrairDados(a.dano);
+        return `
+        <div class="cr-linha cr-atk">
+          <div class="cr-linha-txt">
+            <strong>${escapeHtml(a.nome)}${a._daFase ? ` <em class="cr-tag-fase">${escapeHtml(a._daFase)}</em>` : ""}</strong>
+            ${a.desc ? `<span>${escapeHtml(a.desc)}</span>` : ""}
+          </div>
+          ${temAc || a.dano ? `<div class="cr-pills">
+            ${temAc ? `<button type="button" class="cr-pill atk" title="Rolar acerto" onclick="event.stopPropagation(); crRolarAtaque(${ctx}, ${i})"><i>🎯</i>${crFmt(parseInt(a.acerto))}</button>` : ""}
+            ${a.dano ? `<button type="button" class="cr-pill dano" title="Rolar dano" ${rolavel ? `onclick="event.stopPropagation(); crRolarDano(${ctx}, ${i})"` : "disabled"}><i>🩸</i>${escapeHtml(a.dano)}</button>` : ""}
+          </div>` : ""}
+        </div>`;
+      })
+      .join(""),
+  );
+}
+
+function crUsoTexto(h) {
+  if (h.uso === "usos" && h.usosMax > 0) return `${h.usosMax}x`;
+  if (h.uso === "recarga" && h.recarga) return `Recarga ${h.recarga}${h.recarga < 6 ? "–6" : ""}`;
+  return "";
+}
+
+function crListaHabilidadesHTML(habs, combateIdx) {
+  if (!habs.length) return "";
+  const inst = combateIdx != null ? combatesMestre[combateIdx] : null;
+  return crBloco(
+    "Habilidades",
+    habs
+      .map((h, i) => {
+        let controle = "";
+        if (inst && h.uso === "usos" && h.usosMax > 0) {
+          const gastos = (inst.usosGastos || {})[h.nome] || 0;
+          controle = `<div class="cr-pips">${Array.from({ length: h.usosMax }, (_, k) => `<button type="button" class="cr-pip ${k < h.usosMax - gastos ? "on" : ""}" onclick="crUsarHabilidade(${combateIdx}, '${escapeHtml(h.nome).replace(/'/g, "\\'")}', ${k < h.usosMax - gastos ? 1 : -1})"></button>`).join("")}</div>`;
+        } else if (inst && h.uso === "recarga" && h.recarga) {
+          const gasta = !!(inst.recargaGasta || {})[h.nome];
+          controle = gasta
+            ? `<button type="button" class="cr-mini-btn" onclick="crRolarRecarga(${combateIdx}, '${escapeHtml(h.nome).replace(/'/g, "\\'")}', ${h.recarga})">🎲 Recarga ${h.recarga}–6</button>`
+            : `<button type="button" class="cr-mini-btn on" onclick="crUsarRecarga(${combateIdx}, '${escapeHtml(h.nome).replace(/'/g, "\\'")}')">Usar</button>`;
+        } else if (crUsoTexto(h)) {
+          controle = `<span class="cr-uso">${crUsoTexto(h)}</span>`;
+        }
+        return `
+        <div class="cr-linha">
+          <div class="cr-linha-txt"><strong>${escapeHtml(h.nome)}</strong>${h._daFase ? `<em class="cr-tag-fase">${escapeHtml(h._daFase)}</em>` : ""}${h.desc ? `<span>${escapeHtml(h.desc)}</span>` : ""}</div>
+          ${controle}
+        </div>`;
+      })
+      .join(""),
+  );
+}
+
+function crListaSimplesHTML(titulo, itens) {
+  if (!itens.length) return "";
+  return crBloco(titulo, itens.map((r) => `<div class="cr-linha"><div class="cr-linha-txt"><strong>${escapeHtml(r.nome)}</strong>${r.desc ? `<span>${escapeHtml(r.desc)}</span>` : ""}</div></div>`).join(""));
+}
+
+function crLendariasHTML(c, combateIdx) {
+  const L = c.blocos.lendarias;
+  if (!L || !L.acoes.length) return "";
+  const inst = combateIdx != null ? combatesMestre[combateIdx] : null;
+  const max = parseInt(L.max) || 3;
+  const gastas = inst ? inst.lendGastas || 0 : 0;
+  const extra = inst
+    ? `<span class="cr-lend-ctrl"><span class="cr-pips">${Array.from({ length: max }, (_, k) => `<i class="cr-pip ${k < max - gastas ? "on" : ""}"></i>`).join("")}</span><button type="button" class="cr-mini-btn" onclick="crNovoTurnoLend(${combateIdx})" title="Começo do turno: volta tudo">↺</button></span>`
+    : `<small>${max} por rodada</small>`;
+  return crBloco(
+    "Ações lendárias",
+    L.acoes
+      .map(
+        (a, i) => `
+      <div class="cr-linha">
+        <div class="cr-linha-txt"><strong>${escapeHtml(a.nome)}</strong>${a.desc ? `<span>${escapeHtml(a.desc)}</span>` : ""}</div>
+        ${inst ? `<button type="button" class="cr-mini-btn ${max - gastas >= (parseInt(a.custo) || 1) ? "on" : ""}" onclick="crGastarLend(${combateIdx}, ${parseInt(a.custo) || 1})">Usar · ${parseInt(a.custo) || 1}</button>` : `<span class="cr-uso">custa ${parseInt(a.custo) || 1}</span>`}
+      </div>`,
+      )
+      .join(""),
+    extra,
+  );
+}
+
+function crTagsHTML(c) {
+  const g = (rot, arr, cls) => (arr && arr.length ? `<div class="cr-tags-linha"><span>${rot}</span>${arr.map((t) => `<em class="cr-chip ${cls}">${escapeHtml(t)}</em>`).join("")}</div>` : "");
+  const html = g("Resiste", c.resistTags, "res") + g("Imune", c.imunTags, "imu") + g("Vulnerável", c.vulnTags, "vul");
+  return html ? crBloco("Defesas", html) : "";
+}
+
+function crFasesFichaHTML(c) {
+  if (!crEhChefe(c)) return "";
+  const minha = crEhMinha(c);
+  const botao = `<button type="button" class="cr-link" onclick="crAbrirEditor('${minha ? "editar" : "copia"}', 'fases')">${c.fases.length ? "Editar fases" : "+ Criar fases"}</button>`;
+  if (!c.fases.length) {
+    return crBloco(
+      "Fases",
+      `<div class="cr-fases-vazio">
+        <p>Esse chefe ainda não tem fases. Monte a <b>Fase 2</b> (ex: abaixo de 50% de vida ele fica mais forte, ganha ataques novos e você lê uma fala).</p>
+        ${c.textoAntigo?.fases ? `<div class="cr-antigo"><small>O que estava escrito antes:</small><p>${escapeHtml(c.textoAntigo.fases)}</p></div>` : ""}
+        <button type="button" class="cr-btn-fase" onclick="crAbrirEditor('${minha ? "editar" : "copia"}', 'fases')">🔥 ${minha ? "Montar fases" : "Montar fases numa cópia"}</button>
+      </div>`,
+      botao,
+    );
+  }
+  return crBloco(
+    "Fases",
+    `<div class="cr-linha"><div class="cr-linha-txt"><strong>Base</strong><span>Começa o combate assim.</span></div></div>` +
+      c.fases
+        .map(
+          (f) => `
+      <div class="cr-linha cr-fase-item">
+        <div class="cr-linha-txt"><strong>${escapeHtml(f.nome || "Fase")}</strong>
+          <span>${f.gatilho ? `Quando a vida chega a ${parseInt(f.gatilho)}%` : "Troca manual"}${f.ca ? ` · CA ${escapeHtml(String(f.ca))}` : ""}${(f.ganhaAtaques || []).length + (f.ganhaHabilidades || []).length ? ` · ganha ${[...(f.ganhaAtaques || []), ...(f.ganhaHabilidades || [])].map((x) => escapeHtml(x.nome)).join(", ")}` : ""}${(f.perde || []).length ? ` · perde ${f.perde.map(escapeHtml).join(", ")}` : ""}</span>
+          ${f.fala ? `<span class="cr-fala">“${escapeHtml(f.fala)}”</span>` : ""}
+        </div>
+      </div>`,
+        )
+        .join(""),
+    botao,
+  );
+}
+
+window._crFichaAtual = null;
+
+function crAbrirFicha(entry) {
+  const c = crNormalizar(entry);
+  window._crFichaAtual = c;
+  window._entradaSessaoAtual = entry;
+  const minha = crEhMinha(entry);
+  const chefe = crEhChefe(c);
+  const st = c.status;
+  const texto = (v) => (typeof formatarTexto === "function" ? formatarTexto(v) : escapeHtml(v));
+  const antigo = Object.entries(c.textoAntigo || {}).filter(([k, v]) => v && ["fases", "mecanicas"].includes(k) && !c[k + "Mostrado"]);
+
+  const conteudo = `
+    ${c.imagem ? `<img class="sheet-img" src="${escapeHtml(c.imagem)}" alt="" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;margin-bottom:12px;">` : ""}
+    <h2 class="sheet-titulo" style="text-align:center;margin-bottom:4px;">${escapeHtml(c.nome || "Sem nome")}</h2>
+    <div class="sheet-meta" style="text-align:center;margin-bottom:8px;">${[chefe ? "💀 Chefe" : "", c.titulo, c.tipo, c.regiao].filter(Boolean).map(escapeHtml).join(" · ")}</div>
+    <div class="cr-selos">
+      <span><i>❤️</i><b>${c.hpMax || 0}</b><small>HP</small></span>
+      <span><i>🛡️</i><b>${c.ca || 0}</b><small>CA</small></span>
+      ${c.velocidade ? `<span><i>👣</i><b>${escapeHtml(c.velocidade)}</b><small>Desloc.</small></span>` : ""}
+    </div>
+    <div class="cr-cc-atrs cr-ficha-atrs">
+      ${CR_ATR.map((a) => `<button type="button" class="cr-cc-atr" onclick="crRolarAtributo('ficha','${a}')"><small>${a.toUpperCase()}</small><b>${crFmt(crMod(st[a]))}</b><em>${st[a]}</em></button>`).join("")}
+    </div>
+    ${c.saves || c.sentidos || c.idiomas ? `<div class="cr-ficha-extra">${[c.saves ? "Testes: " + escapeHtml(c.saves) : "", c.sentidos ? escapeHtml(c.sentidos) : "", c.idiomas ? "Idiomas: " + escapeHtml(c.idiomas) : ""].filter(Boolean).join(" · ")}</div>` : ""}
+
+    <div class="cr-acoes-ficha">
+      <button type="button" class="cr-btn-combate" onclick="crEnviarCombate()">⚔️ Enviar para combate</button>
+      <div class="cr-acoes-linha">
+        <button type="button" class="cr-btn-sec" onclick="crAbrirEditor('${minha ? "editar" : "copia"}')">✏️ ${minha ? "Editar" : "Editar uma cópia"}</button>
+        ${minha ? `<button type="button" class="cr-btn-sec" onclick="crAbrirEditor('copia')">📄 Duplicar</button>` : ""}
+      </div>
+    </div>
+
+    ${crFasesFichaHTML(c)}
+    ${crListaAtaquesHTML(c.blocos.ataques, "'ficha'")}
+    ${crListaHabilidadesHTML(c.blocos.habilidades, null)}
+    ${crListaSimplesHTML("Reações", c.blocos.reacoes)}
+    ${crLendariasHTML(c, null)}
+    ${crTagsHTML(c)}
+    ${c.fraquezas ? crBloco("Fraquezas", texto(c.fraquezas)) : ""}
+    ${c.mecanicas ? crBloco("Mecânicas", texto(c.mecanicas)) : ""}
+    ${c.lore ? crBloco("Lore", texto(c.lore)) : ""}
+    ${c.dialogos?.length ? crBloco("Diálogos", c.dialogos.map((f) => `“${escapeHtml(f)}”`).join("<br>")) : ""}
+    ${c.encontros ? crBloco("Pontos de encontro", texto(c.encontros)) : ""}
+    ${minha ? `<button type="button" class="cr-btn-excluir" onclick="crExcluir()">🗑️ Excluir ${chefe ? "chefe" : "criatura"}</button>` : ""}
+  `;
+  _abrirSheetCustom(conteudo);
+}
+
+// as fichas antigas passam a abrir a nova
+function abrirSheetMonstroPadrao(monstro) {
+  crAbrirFicha(monstro);
+}
+function _abrirPopupBossCompendio(boss) {
+  crAbrirFicha(boss);
+}
+function abrirSheetMonstro(index) {
+  if (monstrosMestre[index]) {
+    sheetMonstroIndexAtual = index;
+    crAbrirFicha(monstrosMestre[index]);
+  }
+}
+
+function crEnviarCombate() {
+  const c = window._crFichaAtual;
+  if (!c) return;
+  const copia = JSON.parse(JSON.stringify(c));
+  copia.instanciaId = Date.now() + Math.floor(Math.random() * 9999);
+  copia.monstroBaseId = c.id;
+  copia.origem = "combate";
+  copia.nome = gerarNomeInstanciaCombate(c.nome);
+  copia.hpAtual = c.hpMax || c.hpAtual || 0;
+  copia.faseAtual = 0;
+  copia.usosGastos = {};
+  copia.recargaGasta = {};
+  copia.lendGastas = 0;
+  copia.fasesOferecidas = [];
+  combatesMestre.push(copia);
+  salvarCombatesMestreStorage();
+  renderCombatesMestre();
+  if (typeof mostrarToastMundo === "function") mostrarToastMundo(`${c.nome} entrou no combate`);
+  else alertBonito(`${c.nome} foi enviado para o combate.`);
+}
+function enviarMonstroPadraoParaCombate(monstro) {
+  window._crFichaAtual = crNormalizar(monstro);
+  crEnviarCombate();
+}
+function enviarMonstroParaCombate(index) {
+  if (!monstrosMestre[index]) return;
+  window._crFichaAtual = crNormalizar(monstrosMestre[index]);
+  crEnviarCombate();
+}
+function criarCopiaEditavelMonstroPadrao(monstro) {
+  window._crFichaAtual = crNormalizar(monstro);
+  window._entradaSessaoAtual = monstro;
+  crAbrirEditor("copia");
+}
+
+async function crExcluir() {
+  const c = window._crFichaAtual;
+  if (!c) return;
+  const idx = monstrosMestre.findIndex((m) => String(m.id) === String(c.id));
+  if (idx === -1) return;
+  if (!(await confirmBonito(`Excluir "${c.nome}"? Não dá pra desfazer.`))) return;
+  try {
+    if (window.usuarioAtual && window.deleteDoc) await window.deleteDoc(window.doc(window.db, "usuarios", window.usuarioAtual.uid, "monstros", String(c.id)));
+  } catch (e) {}
+  monstrosMestre.splice(idx, 1);
+  salvarMonstrosMestreStorage();
+  renderMonstrosMestre();
+  fecharSheetMonstro();
+}
+
+/* ---------- rolagens do mestre (não vão pro grupo dos jogadores) ---------- */
+(function () {
+  if (typeof compartilharRolagem !== "function" || compartilharRolagem._cr) return;
+  const orig = compartilharRolagem;
+  compartilharRolagem = function (r) {
+    const m = document.getElementById("masterIgnea");
+    if (m && m.style.display && m.style.display !== "none") return;
+    return orig.apply(this, arguments);
+  };
+  compartilharRolagem._cr = true;
+})();
+
+function crFonte(ctx) {
+  if (ctx === "ficha") return crEfetivo(window._crFichaAtual, 0);
+  const inst = combatesMestre[ctx];
+  return inst ? crEfetivo(inst, inst.faseAtual || 0) : null;
+}
+function crRolarAtaque(ctx, i) {
+  const c = crFonte(ctx);
+  const a = c?._ataques?.[i];
+  if (!a) return;
+  rolarD20(`${a.nome} · ${c.nome}`, parseInt(a.acerto) || 0, "normal", extrairDados(a.dano) ? [{ rotulo: "Dano", acao: () => crRolarDano(ctx, i) }] : []);
+}
+function crRolarDano(ctx, i) {
+  const c = crFonte(ctx);
+  const a = c?._ataques?.[i];
+  const expr = a && extrairDados(a.dano);
+  if (!expr) return;
+  rolarDano(`Dano · ${a.nome} (${c.nome})`, expr, false, [{ rotulo: "Acerto", acao: () => crRolarAtaque(ctx, i) }]);
+}
+function crRolarAtributo(ctx, atr) {
+  const c = crFonte(ctx);
+  if (!c) return;
+  const m = crMod(c.status[atr]);
+  rolarD20(`${atr.toUpperCase()} · ${c.nome}`, m);
+}
+
+/* =====================================================================
+   EDITOR EM POPUP
+   ===================================================================== */
+window._crEd = null;
+
+function crAbrirEditor(modo, irPara) {
+  const base = modo === "novo"
+    ? crNormalizar({ nome: "", _tipo: "boss", hpMax: 100, ca: 15 })
+    : window._crFichaAtual ? JSON.parse(JSON.stringify(window._crFichaAtual)) : crNormalizar({ nome: "", hpMax: 10, ca: 10 });
+  const ed = crNormalizar(base);
+  ed.fases = (ed.fases || []).map((f) => ({ ganhaAtaques: [], ganhaHabilidades: [], perde: [], status: {}, ...f }));
+  window._crEd = { modo, c: ed, imgNova: "", origId: base.id };
+  if (modo === "copia") ed.nome = crEhMinha(base) ? `${base.nome} (cópia)` : base.nome;
+  if (irPara === "fases" && crEhChefe(ed) && !ed.fases.length) {
+    ed.fases.push({ id: Date.now(), nome: "Fase 2", gatilho: 50, ca: "", velocidade: "", status: {}, perde: [], ganhaAtaques: [], ganhaHabilidades: [], fala: "" });
+  }
+  crRenderEditor();
+  if (irPara === "fases") setTimeout(() => (crEdHost() || document).querySelector("#crEdFases")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+}
+function crNovoChefe() {
+  window._crFichaAtual = null;
+  crAbrirEditor("novo");
+}
+
+function crCampo(rot, campo, val, extra) {
+  return `<label class="cr-ed-campo"><span>${rot}</span><input value="${escapeHtml(val == null ? "" : String(val))}" oninput="crEdSet('${campo}', this.value)" ${extra || ""}></label>`;
+}
+
+// campo de etiquetas: digita e aperta Enter (ou vírgula) pra virar etiqueta
+function crTagsCampo(rot, chave, ph) {
+  const arr = window._crEd.c[chave] || [];
+  return `
+    <div class="cr-ed-campo">
+      <span>${rot}</span>
+      <div class="cr-tags-input" onclick="this.querySelector('input').focus()">
+        ${arr.map((t, i) => `<em class="cr-tag-ed">${escapeHtml(t)}<button type="button" onclick="event.stopPropagation(); crTagRem('${chave}', ${i})" aria-label="Tirar">×</button></em>`).join("")}
+        <input placeholder="${arr.length ? "" : ph}" onkeydown="crTagTecla(event, '${chave}', this)" onblur="crTagAdd('${chave}', this)">
+      </div>
+    </div>`;
+}
+function crTagTecla(ev, chave, el) {
+  if (ev.key === "Enter" || ev.key === ",") {
+    ev.preventDefault();
+    crTagAdd(chave, el, true);
+  } else if (ev.key === "Backspace" && !el.value) {
+    const arr = window._crEd.c[chave] || [];
+    if (arr.length) { arr.pop(); crRenderEditor(true); crFocarTag(chave); }
+  }
+}
+function crTagAdd(chave, el, focar) {
+  const v = (el.value || "").replace(/,/g, " ").trim();
+  if (!v) return;
+  const arr = (window._crEd.c[chave] = window._crEd.c[chave] || []);
+  if (!arr.includes(v)) arr.push(v);
+  el.value = "";
+  crRenderEditor(true);
+  if (focar) crFocarTag(chave);
+}
+function crTagRem(chave, i) {
+  window._crEd.c[chave].splice(i, 1);
+  crRenderEditor(true);
+}
+function crFocarTag(chave) {
+  setTimeout(() => {
+    const host = crEdHost();
+    const el = host && [...host.querySelectorAll(".cr-tags-input input")].find((x) => (x.getAttribute("onkeydown") || "").includes(`'${chave}'`));
+    if (el) el.focus();
+  }, 0);
+}
+
+function crEdHost() {
+  const ed = window._crEd;
+  if (ed && ed.alvo) return document.getElementById(ed.alvo);
+  return document.getElementById("popup-texto");
+}
+
+function crSecao(id, titulo, corpo, abertoPadrao) {
+  const ed = window._crEd;
+  ed.abertos = ed.abertos || {};
+  const aberto = ed.abertos[id] ?? abertoPadrao;
+  return `
+    <details class="cr-sec" id="crSec-${id}" ${aberto ? "open" : ""} ontoggle="if (window._crEd) (window._crEd.abertos = window._crEd.abertos || {})['${id}'] = this.open">
+      <summary><span>${titulo}</span><i class="cr-sec-seta">▾</i></summary>
+      <div class="cr-sec-corpo">${corpo}</div>
+    </details>`;
+}
+
+function crIrSecao(id, btn) {
+  // procura dentro do editor do botão (há vários editores na aba Criar ao mesmo tempo)
+  const caixa = (btn && btn.closest(".cr-editor")) || crEdHost() || document;
+  const el = caixa.querySelector("#crSec-" + id);
+  if (!el) return;
+  el.open = true;
+  if (window._crEd) (window._crEd.abertos = window._crEd.abertos || {})[id] = true;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function crRenderEditor(manterFoco) {
+  const ed = window._crEd;
+  const { c, modo } = ed;
+  const chefe = crEhChefe(c);
+  const linhaAtk = (a, i) => `
+    <div class="cr-ed-item">
+      <div class="cr-ed-item-topo">
+        <input class="cr-ed-nome" value="${escapeHtml(a.nome || "")}" placeholder="Nome (ex: Garra)" oninput="crEdLista('ataques', ${i}, 'nome', this.value)">
+        <button type="button" class="cr-ed-x" onclick="crEdRemover('ataques', ${i})" title="Remover">✕</button>
+      </div>
+      <div class="cr-ed-duplo">
+        <label class="cr-ed-campo"><span>🎯 Acerto</span><input type="number" value="${a.acerto == null ? "" : escapeHtml(String(a.acerto))}" placeholder="ex: 5" oninput="crEdLista('ataques', ${i}, 'acerto', this.value === '' ? null : parseInt(this.value))"></label>
+        <label class="cr-ed-campo"><span>🩸 Dano</span><input value="${escapeHtml(a.dano || "")}" placeholder="ex: 2d6+4 cortante" oninput="crEdLista('ataques', ${i}, 'dano', this.value)"></label>
+      </div>
+      <input value="${escapeHtml(a.desc || "")}" placeholder="Detalhes (alcance, efeito...)" oninput="crEdLista('ataques', ${i}, 'desc', this.value)">
+    </div>`;
+  const linhaHab = (h, i) => `
+    <div class="cr-ed-item">
+      <div class="cr-ed-item-topo">
+        <input class="cr-ed-nome" value="${escapeHtml(h.nome || "")}" placeholder="Nome (ex: Regeneração)" oninput="crEdLista('habilidades', ${i}, 'nome', this.value)">
+        <button type="button" class="cr-ed-x" onclick="crEdRemover('habilidades', ${i})" title="Remover">✕</button>
+      </div>
+      <textarea placeholder="O que faz" oninput="crEdLista('habilidades', ${i}, 'desc', this.value)">${escapeHtml(h.desc || "")}</textarea>
+      <div class="cr-ed-duplo">
+        <select onchange="crEdLista('habilidades', ${i}, 'uso', this.value); crRenderEditor()">
+          <option value="" ${!h.uso ? "selected" : ""}>Sem limite</option>
+          <option value="usos" ${h.uso === "usos" ? "selected" : ""}>Usos por combate</option>
+          <option value="recarga" ${h.uso === "recarga" ? "selected" : ""}>Recarga no d6</option>
+        </select>
+        ${h.uso === "usos" ? `<input type="number" min="1" max="10" value="${h.usosMax || 1}" placeholder="Quantos" oninput="crEdLista('habilidades', ${i}, 'usosMax', parseInt(this.value) || 1)">` : ""}
+        ${h.uso === "recarga" ? `<select onchange="crEdLista('habilidades', ${i}, 'recarga', parseInt(this.value))">${[6, 5, 4].map((n) => `<option value="${n}" ${parseInt(h.recarga || 5) === n ? "selected" : ""}>Recarga ${n}${n < 6 ? "–6" : ""}</option>`).join("")}</select>` : ""}
+      </div>
+    </div>`;
+  const linhaSimples = (lista, ph) => (r, i) => `
+    <div class="cr-ed-item">
+      <div class="cr-ed-item-topo">
+        <input class="cr-ed-nome" value="${escapeHtml(r.nome || "")}" placeholder="${ph}" oninput="crEdLista('${lista}', ${i}, 'nome', this.value)">
+        ${lista === "lendarias" ? `<input type="number" min="1" max="3" class="cr-ed-custo" value="${r.custo || 1}" title="Custo" oninput="crEdLista('lendarias', ${i}, 'custo', parseInt(this.value) || 1)">` : ""}
+        <button type="button" class="cr-ed-x" onclick="crEdRemover('${lista}', ${i})" title="Remover">✕</button>
+      </div>
+      <textarea placeholder="O que faz" oninput="crEdLista('${lista}', ${i}, 'desc', this.value)">${escapeHtml(r.desc || "")}</textarea>
+    </div>`;
+  const nomesBase = [...c.blocos.ataques.map((a) => a.nome), ...c.blocos.habilidades.map((h) => h.nome)].filter(Boolean);
+  const linhaFase = (f, i) => `
+    <div class="cr-ed-item cr-ed-fase">
+      <div class="cr-ed-item-topo">
+        <span class="cr-ed-fase-num">${i + 2}</span>
+        <input class="cr-ed-nome" value="${escapeHtml(f.nome || "")}" placeholder="Nome da fase (ex: Fúria)" oninput="crEdFase(${i}, 'nome', this.value)">
+        <button type="button" class="cr-ed-x" onclick="crEdRemoverFase(${i})" title="Remover fase">✕</button>
+      </div>
+      <div class="cr-ed-duplo">
+        <label class="cr-ed-campo"><span>Gatilho (% de vida)</span><input type="number" min="1" max="99" value="${f.gatilho || ""}" placeholder="Vazio = manual" oninput="crEdFase(${i}, 'gatilho', this.value === '' ? '' : parseInt(this.value))"></label>
+        <label class="cr-ed-campo"><span>Nova CA</span><input type="number" value="${f.ca || ""}" placeholder="igual" oninput="crEdFase(${i}, 'ca', this.value)"></label>
+      </div>
+      <label class="cr-ed-campo"><span>Novo deslocamento</span><input value="${escapeHtml(f.velocidade || "")}" placeholder="igual" oninput="crEdFase(${i}, 'velocidade', this.value)"></label>
+      <div class="cr-ed-sub">Atributos que mudam <small>(vazio = igual)</small></div>
+      <div class="cr-ed-atrs">${CR_ATR.map((a) => `<label><span>${a.toUpperCase()}</span><input type="number" value="${f.status?.[a] ?? ""}" placeholder="—" oninput="crEdFaseAtr(${i}, '${a}', this.value)"></label>`).join("")}</div>
+      ${nomesBase.length ? `<div class="cr-ed-sub">Perde nessa fase <small>(toque pra riscar)</small></div><div class="cr-ed-chips">${nomesBase.map((n) => `<button type="button" class="cr-ed-chip ${(f.perde || []).includes(n) ? "on" : ""}" onclick="crEdFasePerde(${i}, '${escapeHtml(n).replace(/'/g, "\\'")}')">${escapeHtml(n)}</button>`).join("")}</div>` : ""}
+      <div class="cr-ed-sub">Ganha nessa fase</div>
+      ${(f.ganhaAtaques || []).map((a, k) => `<div class="cr-ed-ganho"><span>⚔️ ${escapeHtml(a.nome)}${a.acerto != null ? ` · ${crFmt(parseInt(a.acerto))}` : ""}${a.dano ? ` · ${escapeHtml(a.dano)}` : ""}</span><button type="button" class="cr-ed-x" onclick="crEdFaseRemGanho(${i}, 'ganhaAtaques', ${k})">✕</button></div>`).join("")}
+      ${(f.ganhaHabilidades || []).map((h, k) => `<div class="cr-ed-ganho"><span>✨ ${escapeHtml(h.nome)}</span><button type="button" class="cr-ed-x" onclick="crEdFaseRemGanho(${i}, 'ganhaHabilidades', ${k})">✕</button></div>`).join("")}
+      <div class="cr-ed-acoes-mini">
+        <button type="button" class="cr-ed-add mini" onclick="crEdFaseGanho(${i}, 'ataque')">+ Ataque</button>
+        <button type="button" class="cr-ed-add mini" onclick="crEdFaseGanho(${i}, 'habilidade')">+ Habilidade</button>
+      </div>
+      <label class="cr-ed-campo"><span>Fala de transição</span><textarea placeholder="O que você lê em voz alta quando a fase começa" oninput="crEdFase(${i}, 'fala', this.value)">${escapeHtml(f.fala || "")}</textarea></label>
+    </div>`;
+
+  const temDetalhes = c.saves || c.sentidos || c.idiomas;
+  const nAcoes = c.blocos.ataques.length + c.blocos.habilidades.length + c.blocos.reacoes.length;
+  const nDef = c.resistTags.length + c.imunTags.length + c.vulnTags.length;
+
+  const secIdent = `
+    <div class="cr-ed-ident">
+      <label class="cr-ed-img-prev" id="crImgPrev" style="${c.imagem ? `background-image:url('${escapeHtml(c.imagem)}')` : ""}" title="Trocar imagem">
+        ${c.imagem ? "" : `<span>📷<small>Imagem</small></span>`}
+        <input type="file" accept="image/*" style="display:none" onchange="crEdImagem(this)">
+      </label>
+      <div class="cr-ed-ident-campos">
+        ${crCampo("Nome", "nome", c.nome, 'placeholder="Ex: Lobo das Cinzas"')}
+        ${crCampo("Tipo", "tipo", c.tipo, 'placeholder="Ex: Fera, Morto-vivo"')}
+      </div>
+    </div>
+    ${chefe ? crCampo("Título / epíteto", "titulo", c.titulo, 'placeholder="Ex: A Tecelã do Destino"') : ""}
+`;
+
+  const secCombate = `
+    <div class="cr-ed-triplo">
+      ${crCampo("❤️ HP", "hpMax", c.hpMax, 'type="number" min="0"')}
+      ${crCampo("🛡️ CA", "ca", c.ca, 'type="number" min="0"')}
+      ${crCampo("👣 Deslocamento", "velocidade", c.velocidade, 'placeholder="9 m"')}
+    </div>
+    <div class="cr-ed-sub">Atributos</div>
+    <div class="cr-ed-atrs">${CR_ATR.map((a) => `<label><span>${a.toUpperCase()}</span><input type="number" value="${c.status[a]}" oninput="crEdAtr('${a}', this.value); this.nextElementSibling.textContent = crFmt(crMod(this.value))"><small>${crFmt(crMod(c.status[a]))}</small></label>`).join("")}</div>
+    <details class="cr-ed-mais" ${temDetalhes ? "open" : ""}>
+      <summary>+ Mais detalhes <small>(testes, sentidos, idiomas)</small></summary>
+      ${crCampo("Testes de resistência", "saves", c.saves, 'placeholder="Ex: DES +5, CON +7"')}
+      ${crCampo("Sentidos", "sentidos", c.sentidos, 'placeholder="Ex: Visão no escuro 18 m"')}
+      ${crCampo("Idiomas", "idiomas", c.idiomas, 'placeholder="Ex: Comum, Abissal"')}
+    </details>`;
+
+  const secAcoes = `
+    <div class="cr-ed-sub grande">⚔️ Ataques</div>
+    ${c.blocos.ataques.map(linhaAtk).join("")}
+    <button type="button" class="cr-ed-add" onclick="crEdAdicionar('ataques')">+ Adicionar ataque</button>
+    <div class="cr-ed-sub grande">✨ Habilidades</div>
+    ${c.blocos.habilidades.map(linhaHab).join("")}
+    <button type="button" class="cr-ed-add" onclick="crEdAdicionar('habilidades')">+ Adicionar habilidade</button>
+    <div class="cr-ed-sub grande">🛡️ Reações</div>
+    ${c.blocos.reacoes.map(linhaSimples("reacoes", "Nome (ex: Aparar)")).join("")}
+    <button type="button" class="cr-ed-add" onclick="crEdAdicionar('reacoes')">+ Adicionar reação</button>`;
+
+  const secChefe = `
+    <div class="cr-ed-sub grande">🔥 Fases</div>
+    <p class="cr-dica">A <b>Base</b> é como ele começa. Cada fase nova só muda o que você preencher; o resto continua igual.</p>
+    ${c.textoAntigo?.fases ? `<div class="cr-ed-antigo"><small>Texto antigo das fases:</small><p>${escapeHtml(c.textoAntigo.fases)}</p></div>` : ""}
+    ${c.fases.map(linhaFase).join("")}
+    <button type="button" class="cr-ed-add" onclick="crEdAdicionarFase()">+ Adicionar fase</button>
+    <div class="cr-ed-sub grande">👑 Ações lendárias ${c.blocos.lendarias.acoes.length ? `<label class="cr-ed-max">por rodada <input type="number" min="1" max="5" value="${c.blocos.lendarias.max || 3}" oninput="window._crEd.c.blocos.lendarias.max = parseInt(this.value) || 3"></label>` : ""}</div>
+    ${c.blocos.lendarias.acoes.map(linhaSimples("lendarias", "Nome (ex: Golpe de cauda)")).join("")}
+    <button type="button" class="cr-ed-add" onclick="crEdAdicionar('lendarias')">+ Adicionar ação lendária</button>
+    <label class="cr-ed-campo" style="margin-top:12px"><span>⚙️ Mecânicas especiais</span><textarea oninput="crEdSet('mecanicas', this.value)">${escapeHtml(c.mecanicas || "")}</textarea></label>`;
+
+  const secDefesas = `
+    ${crTagsCampo("Resiste", "resistTags", "Ex: fogo (Enter pra adicionar)")}
+    ${crTagsCampo("Imune", "imunTags", "Ex: veneno, amedrontado")}
+    ${crTagsCampo("Vulnerável", "vulnTags", "Ex: radiante")}
+    <label class="cr-ed-campo"><span>Fraquezas</span><textarea placeholder="Ex: luz do sol o enfraquece" oninput="crEdSet('fraquezas', this.value)">${escapeHtml(c.fraquezas || "")}</textarea></label>`;
+
+  const secHistoria = `
+    <label class="cr-ed-campo"><span>Lore</span><textarea placeholder="De onde vem, o que quer, por que é perigoso" oninput="crEdSet('lore', this.value)">${escapeHtml(c.lore || "")}</textarea></label>
+    <label class="cr-ed-campo"><span>Diálogos <small>(um por linha)</small></span><textarea oninput="crEdSet('dialogos', this.value.split('\\n').map(s=>s.trim()).filter(Boolean))">${escapeHtml((c.dialogos || []).join("\n"))}</textarea></label>
+    <div class="cr-ed-sub">Onde encontrar</div>
+    <div class="cr-ed-duplo">${crCampo("Região", "regiao", c.regiao)}${crCampo("Localização", "localizacao", c.localizacao)}</div>
+    <div class="cr-ed-duplo">${crCampo("Idade", "idade", c.idade)}${crCampo("Ponto de encontro", "pontoEncontro", c.pontoEncontro)}</div>
+    <label class="cr-ed-campo"><span>Notas de encontros</span><textarea oninput="crEdSet('encontros', this.value)">${escapeHtml(c.encontros || "")}</textarea></label>`;
+
+  const atalhos = [
+    ["ident", "Identidade"],
+    ["combate", "Combate"],
+    ["acoes", `Ações${nAcoes ? ` ${nAcoes}` : ""}`],
+    ...(chefe ? [["chefe", `Fases${c.fases.length ? ` ${c.fases.length}` : ""}`]] : []),
+    ["defesas", `Defesas${nDef ? ` ${nDef}` : ""}`],
+    ["historia", "História"],
+  ];
+
+  const html = `
+    <div class="cr-editor ${ed.alvo ? "cr-inline" : ""}">
+      ${modo === "copia" ? `<p class="cr-dica">Você está editando uma <b>cópia</b>. O original fica do jeito que está.</p>` : ""}
+      <div class="cr-ed-atalhos">${atalhos.map(([id, rot]) => `<button type="button" onclick="crIrSecao('${id}', this)">${rot}</button>`).join("")}</div>
+      ${crSecao("ident", "🖼️ Identidade", secIdent, true)}
+      ${crSecao("combate", "⚔️ Combate", secCombate, true)}
+      ${crSecao("acoes", `🎯 O que ele faz${nAcoes ? ` <small>${nAcoes}</small>` : ""}`, secAcoes, modo !== "novo" || nAcoes > 0)}
+      ${chefe ? crSecao("chefe", `🔥 Chefe: fases e lendárias${c.fases.length ? ` <small>${c.fases.length} fase${c.fases.length > 1 ? "s" : ""}</small>` : ""}`, secChefe, false) : ""}
+      ${crSecao("defesas", `🛡️ Defesas${nDef ? ` <small>${nDef}</small>` : ""}`, secDefesas, false)}
+      ${crSecao("historia", "📜 História e mesa", secHistoria, false)}
+      <div class="cr-ed-rodape">
+        ${modo === "editar"
+          ? `<button type="button" class="cr-ed-salvar" id="crSalvar" onclick="crSalvarEditor(false)"><span>Salvar</span></button>
+             <button type="button" class="cr-ed-salvar-outro" onclick="crSalvarEditor(true)">Salvar como outro</button>`
+          : `<button type="button" class="cr-ed-salvar" id="crSalvar" onclick="crSalvarEditor(true)"><span>${modo === "novo" ? (chefe ? "⚡ Criar chefe" : "⚡ Criar criatura") : "Salvar cópia"}</span></button>`}
+      </div>
+    </div>`;
+
+  if (ed.alvo) {
+    const host = document.getElementById(ed.alvo);
+    if (host) host.innerHTML = html;
+    return;
+  }
+  const popupTexto = document.getElementById("popup-texto");
+  const box = popupTexto && popupTexto.closest(".popup-content, .popup-box");
+  const sc1 = popupTexto ? popupTexto.scrollTop : 0;
+  const sc2 = box ? box.scrollTop : 0;
+  const aberto = document.getElementById("popup")?.style.display === "flex";
+  if (aberto && popupTexto && popupTexto.querySelector(".cr-editor")) {
+    popupTexto.innerHTML = html;
+    popupTexto.scrollTop = sc1;
+    if (box) box.scrollTop = sc2;
+  } else {
+    abrirPopup(modo === "editar" ? `Editar ${c.nome || ""}` : modo === "novo" ? "Novo" : "Editar cópia", html, true, null);
+  }
+}
+
+/* ---------- formulário da aba Criar (Monstro e Boss) usa o mesmo editor ---------- */
+window._crRascunhos = window._crRascunhos || {};
+
+function crIniciarCriar(tipo) {
+  const hostId = tipo === "boss" ? "crCriarHost-boss" : "crCriarHost-monstro";
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  let ed = window._crRascunhos[tipo];
+  if (!ed) {
+    const c = crNormalizar({ nome: "", hpMax: tipo === "boss" ? 100 : 10, ca: tipo === "boss" ? 15 : 10, ...(tipo === "boss" ? { _tipo: "boss" } : {}) });
+    c.fases = [];
+    ed = { modo: "novo", c, imgNova: "", origId: null, alvo: hostId, tipoCriar: tipo, abertos: {} };
+    window._crRascunhos[tipo] = ed;
+  }
+  window._crEd = ed;
+  crRenderEditor();
+  host.onfocusin = host.onpointerdown = () => { window._crEd = window._crRascunhos[tipo]; };
+}
+
+(function () {
+  if (typeof trocarTipoCriar !== "function" || trocarTipoCriar._cr) return;
+  const orig = trocarTipoCriar;
+  trocarTipoCriar = function (tipo, btn) {
+    const r = orig.apply(this, arguments);
+    if (tipo === "monstro" || tipo === "boss") crIniciarCriar(tipo);
+    return r;
+  };
+  trocarTipoCriar._cr = true;
+  window.trocarTipoCriar = trocarTipoCriar;
+})();
+setTimeout(() => { try { crIniciarCriar("boss"); crIniciarCriar("monstro"); } catch (e) {} }, 0);
+
+function crNovoChefe() {
+  const btn = document.querySelectorAll(".criar-tipo-btn")[1];
+  trocarTipoCriar("boss", btn);
+}
+
+function crEdSet(campo, valor) {
+  const c = window._crEd.c;
+  if (campo === "hpMax" || campo === "ca") valor = parseInt(valor) || 0;
+  if (campo === "_tipo") {
+    if (valor) c._tipo = "boss";
+    else delete c._tipo;
+    return;
+  }
+  c[campo] = valor;
+}
+function crEdAtr(a, v) {
+  window._crEd.c.status[a] = parseInt(v) || 10;
+}
+function crEdLista(lista, i, campo, v) {
+  const L = lista === "lendarias" ? window._crEd.c.blocos.lendarias.acoes : window._crEd.c.blocos[lista];
+  if (L[i]) L[i][campo] = v;
+}
+function crEdAdicionar(lista) {
+  const b = window._crEd.c.blocos;
+  if (lista === "ataques") b.ataques.push({ nome: "", acerto: null, dano: "", desc: "" });
+  if (lista === "habilidades") b.habilidades.push({ nome: "", desc: "", uso: "", usosMax: 1, recarga: 5 });
+  if (lista === "reacoes") b.reacoes.push({ nome: "", desc: "" });
+  if (lista === "lendarias") b.lendarias.acoes.push({ nome: "", custo: 1, desc: "" });
+  crRenderEditor();
+}
+function crEdRemover(lista, i) {
+  const L = lista === "lendarias" ? window._crEd.c.blocos.lendarias.acoes : window._crEd.c.blocos[lista];
+  L.splice(i, 1);
+  crRenderEditor();
+}
+function crEdAdicionarFase() {
+  const c = window._crEd.c;
+  c.fases.push({ id: Date.now(), nome: `Fase ${c.fases.length + 2}`, gatilho: c.fases.length ? "" : 50, ca: "", velocidade: "", status: {}, perde: [], ganhaAtaques: [], ganhaHabilidades: [], fala: "" });
+  crRenderEditor();
+}
+function crEdRemoverFase(i) {
+  window._crEd.c.fases.splice(i, 1);
+  crRenderEditor();
+}
+function crEdFase(i, campo, v) {
+  const f = window._crEd.c.fases[i];
+  if (f) f[campo] = v;
+}
+function crEdFaseAtr(i, a, v) {
+  const f = window._crEd.c.fases[i];
+  if (!f) return;
+  f.status = f.status || {};
+  if (v === "") delete f.status[a];
+  else f.status[a] = parseInt(v);
+}
+function crEdFasePerde(i, nome) {
+  const f = window._crEd.c.fases[i];
+  const s = new Set(f.perde || []);
+  if (s.has(nome)) s.delete(nome);
+  else s.add(nome);
+  f.perde = [...s];
+  crRenderEditor();
+}
+async function crEdFaseGanho(i, tipo) {
+  const nome = await promptBonito(tipo === "ataque" ? "Nome do ataque novo:" : "Nome da habilidade nova:", "");
+  if (!nome || !nome.trim()) return;
+  const f = window._crEd.c.fases[i];
+  if (tipo === "ataque") {
+    const ac = await promptBonito("Bônus de acerto (ex: 7). Deixe vazio se não rola acerto:", "");
+    const dano = await promptBonito("Dano (ex: 3d8 fogo). Pode deixar vazio:", "");
+    f.ganhaAtaques = f.ganhaAtaques || [];
+    f.ganhaAtaques.push({ nome: nome.trim(), acerto: ac === "" || ac == null || isNaN(parseInt(ac)) ? null : parseInt(ac), dano: (dano || "").trim(), desc: "" });
+  } else {
+    const desc = await promptBonito("O que ela faz:", "");
+    f.ganhaHabilidades = f.ganhaHabilidades || [];
+    f.ganhaHabilidades.push({ nome: nome.trim(), desc: (desc || "").trim(), uso: "", usosMax: 0, recarga: 0 });
+  }
+  crRenderEditor();
+}
+function crEdFaseRemGanho(i, campo, k) {
+  window._crEd.c.fases[i][campo].splice(k, 1);
+  crRenderEditor();
+}
+function crEdImagem(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    window._crEd.imgNova = r.result;
+    const p = input.closest(".cr-ed-img-prev") || (crEdHost() || document).querySelector("#crImgPrev");
+    if (p) { p.style.backgroundImage = `url('${r.result}')`; const sp = p.querySelector("span"); if (sp) sp.remove(); }
+  };
+  r.readAsDataURL(f);
+}
+
+async function crSalvarEditor(comoNovo) {
+  const ed = window._crEd;
+  if (!ed) return;
+  const c = JSON.parse(JSON.stringify(ed.c));
+  if (!(c.nome || "").trim()) return alertBonito("Coloque um nome.");
+  c.nome = c.nome.trim();
+  c.blocos.ataques = c.blocos.ataques.filter((a) => (a.nome || "").trim());
+  c.blocos.habilidades = c.blocos.habilidades.filter((h) => (h.nome || "").trim());
+  c.blocos.reacoes = c.blocos.reacoes.filter((r) => (r.nome || "").trim());
+  c.blocos.lendarias.acoes = c.blocos.lendarias.acoes.filter((r) => (r.nome || "").trim());
+  c.fases = (c.fases || []).filter((f) => (f.nome || "").trim());
+  const btn = (crEdHost() || document).querySelector("#crSalvar");
+  if (btn) { btn.disabled = true; const sp = btn.querySelector("span"); if (sp) sp.textContent = "Salvando..."; }
+
+  if (ed.imgNova) {
+    const up = await uploadImagemFirebase(ed.imgNova, "monstro");
+    if (up.url) {
+      c.imagem = up.url;
+      c.imagemDeleteUrl = up.deleteUrl || "";
+    } else alertBonito(_mensagemErroUpload("A criatura foi salva sem a imagem nova."));
+  }
+  crGerarTextos(c);
+  c.hpAtual = c.hpMax;
+  delete c._ataques; delete c._habilidades; delete c._faseNome;
+
+  if (comoNovo) {
+    c.id = Date.now();
+    c.origem = "usuario";
+    monstrosMestre.push(c);
+  } else {
+    const idx = monstrosMestre.findIndex((m) => String(m.id) === String(ed.origId));
+    if (idx === -1) monstrosMestre.push(c);
+    else monstrosMestre[idx] = c;
+  }
+  salvarMonstrosMestreStorage();
+  renderMonstrosMestre();
+  if (ed.alvo) {
+    delete window._crRascunhos[ed.tipoCriar];
+    crIniciarCriar(ed.tipoCriar);
+  } else {
+    window._crEd = null;
+    fecharPopup();
+  }
+  crAbrirFicha(c);
+  if (typeof mostrarToastMundo === "function") mostrarToastMundo(comoNovo ? "Cópia salva no compêndio" : "Criatura salva");
+}
+
+/* =====================================================================
+   COMBATE: fases, ataques que rolam, usos, recarga e lendárias
+   ===================================================================== */
+function crHpCor(p) {
+  return p > 0.5 ? "linear-gradient(90deg,#8e2a33,#b8434b)" : p > 0.25 ? "linear-gradient(90deg,#9a6a22,#c99a3e)" : "linear-gradient(90deg,#5e1219,#8f2222)";
+}
+function crHpEstado(p) {
+  return p > 0.5 ? "bem" : p > 0.25 ? "ferido" : "critico";
+}
+
+/* topo dos cards de combate e dos NPCs do mundo */
+function crTopoCardHTML(o) {
+  const pct = Math.max(0, Math.min(1, o.pct || 0));
+  const estado = o.morto ? "morto" : crHpEstado(pct);
+  const img = o.img
+    ? `style="background-image:url('${escapeHtml(o.img)}')"`
+    : `style="background:${o.corFundo || "var(--gi-ivory-3)"}"`;
+  return `
+    <div class="cr-cc-topo" onclick="${o.toggle}">
+      <div class="cr-cc-retrato">
+        <div class="cr-cc-img ${o.redonda ? "redonda" : ""}" ${img}>${o.morto ? `<span class="cr-cc-caveira">💀</span>` : o.img ? "" : `<span class="cr-iniciais">${escapeHtml(o.iniciais || "?")}</span>`}</div>
+        <em class="cr-cc-escudo" title="Classe de armadura"><b>${o.ca || 0}</b></em>
+      </div>
+      <div class="cr-cc-info">
+        <div class="cr-cc-linha">
+          <strong>${escapeHtml(o.nome || "")}</strong>
+          <span class="cr-cc-hpnum est-${estado}">${o.morto ? "Caiu" : `${o.atual}<small>/${o.max}</small>`}</span>
+        </div>
+        <small class="cr-cc-sub">${o.sub || ""}</small>
+        <button type="button" class="cr-cc-vida est-${estado}" onclick="event.stopPropagation(); ${o.vida}" title="Toque pra atalhos de dano e cura" aria-label="Vida ${o.atual} de ${o.max}">
+          <i style="width:${Math.round(pct * 100)}%;background:${crHpCor(pct)}"></i>
+        </button>
+        ${o.extra || ""}
+      </div>
+      <span class="cr-cc-seta ${o.aberto ? "aberto" : ""}" aria-hidden="true"></span>
+    </div>`;
+}
+
+window._crAba = window._crAba || {};
+window._crRapido = window._crRapido || {};
+
+var CR_CONDICOES = ["Caído", "Atordoado", "Envenenado", "Amedrontado", "Agarrado", "Cego", "Paralisado", "Invisível", "Enfeitiçado", "Concentrando"];
+
+function crChaveInst(inst, i) {
+  return String(inst.instanciaId || i);
+}
+
+function renderCombatesMestre() {
+  const lista = document.getElementById("listaCombateMestre");
+  if (!lista) return;
+  lista.innerHTML = "";
+  if (!combatesMestre.length) {
+    lista.innerHTML = `<div class="cr-cc-vazio"><span>⚔️</span><p>Nenhum inimigo no combate.</p><small>Abra uma criatura no compêndio e toque em <b>Enviar para combate</b>.</small></div>`;
+    return;
+  }
+
+  // grupos de inimigos iguais (ex: Lobo ×3)
+  const porBase = {};
+  combatesMestre.forEach((m, i) => {
+    const k = String(m.monstroBaseId || m.id || m.nome);
+    (porBase[k] = porBase[k] || []).push(i);
+  });
+  const jaMostrouGrupo = new Set();
+
+  combatesMestre.forEach((inst, index) => {
+    const baseK = String(inst.monstroBaseId || inst.id || inst.nome);
+    const grupo = porBase[baseK];
+    if (grupo.length > 1 && !jaMostrouGrupo.has(baseK)) {
+      jaMostrouGrupo.add(baseK);
+      const nomeBase = (inst.nome || "").replace(/\s+\d+$/, "");
+      const cab = document.createElement("div");
+      cab.className = "cr-grupo";
+      cab.innerHTML = `<div class="cr-grupo-topo"><strong>${escapeHtml(nomeBase)}</strong><span>×${grupo.length}</span></div>
+        <div class="cr-grupo-barras">${grupo
+          .map((gi) => {
+            const g = combatesMestre[gi];
+            const p = g.hpMax ? Math.max(0, Math.min(1, g.hpAtual / g.hpMax)) : 0;
+            return `<button type="button" class="cr-grupo-barra ${p <= 0 ? "morto" : ""}" onclick="document.getElementById('crCard${gi}')?.scrollIntoView({behavior:'smooth',block:'center'})" title="${escapeHtml(g.nome)}"><i style="width:${Math.round(p * 100)}%;background:${crHpCor(p)}"></i></button>`;
+          })
+          .join("")}</div>`;
+      lista.appendChild(cab);
+    }
+
+    const fase = inst.faseAtual || 0;
+    const c = crEfetivo(inst, fase);
+    const max = inst.hpMax || 0;
+    const pct = max ? Math.max(0, Math.min(1, inst.hpAtual / max)) : 0;
+    const morto = max > 0 && inst.hpAtual <= 0;
+    const chave = crChaveInst(inst, index);
+    const aba = window._crAba[chave] || "acoes";
+    const rapido = !!window._crRapido[chave];
+    const fases = c.fases || [];
+    const conds = inst.condicoes || [];
+
+    const card = document.createElement("div");
+    card.id = `crCard${index}`;
+    card.className = `combate-card cr-cc ${inst.minimizado ? "minimizado" : ""} ${crEhChefe(c) ? "cr-chefe" : ""} ${morto ? "cr-morto" : ""}`;
+
+    const atrs = CR_ATR.map((a) => `<button type="button" class="cr-cc-atr" onclick="crRolarAtributo(${index},'${a}')"><small>${a.toUpperCase()}</small><b>${crFmt(crMod(c.status[a]))}</b></button>`).join("");
+
+    const nAcoes = c._ataques.length + c.blocos.reacoes.length + (c.blocos.lendarias.acoes.length ? 1 : 0);
+    const nHabs = c._habilidades.length;
+    const nDef = c.resistTags.length + c.imunTags.length + c.vulnTags.length + (c.fraquezas ? 1 : 0);
+    const nLog = (inst.log || []).length;
+    const abas = [
+      ["acoes", "Ações", nAcoes],
+      ["habs", "Habilidades", nHabs],
+      ["def", "Defesas", nDef],
+      ["log", "Log", nLog],
+    ];
+    let conteudoAba = "";
+    if (aba === "acoes") {
+      conteudoAba = crListaAtaquesHTML(c._ataques, index) + crListaSimplesHTML("Reações", c.blocos.reacoes) + crLendariasHTML(c, index);
+      if (!conteudoAba) conteudoAba = `<p class="cr-cc-nada">Sem ataques cadastrados.</p>`;
+    } else if (aba === "habs") {
+      conteudoAba = crListaHabilidadesHTML(c._habilidades, index) + (c.mecanicas ? crBloco("Mecânicas", formatarTexto(c.mecanicas)) : "") || `<p class="cr-cc-nada">Sem habilidades.</p>`;
+    } else if (aba === "def") {
+      conteudoAba = crTagsHTML(c) + (c.fraquezas ? crBloco("Fraquezas", formatarTexto(c.fraquezas)) : "") || `<p class="cr-cc-nada">Sem defesas cadastradas.</p>`;
+    } else {
+      conteudoAba = nLog
+        ? `<div class="combate-log">${inst.log.map((e) => `<div class="combate-log-item combate-log-${e.tipo}"><span class="combate-log-hora">${e.hora}</span><span>${e.texto}</span></div>`).join("")}</div>`
+        : `<p class="cr-cc-nada">Nada aconteceu ainda.</p>`;
+    }
+
+    card.innerHTML = `
+      ${crTopoCardHTML({
+        img: c.imagem || "icon-192.png", nome: inst.nome, ca: c.ca, atual: inst.hpAtual, max, pct, morto, aberto: !inst.minimizado,
+        sub: `${escapeHtml(c.tipo || "Criatura")}${c._faseNome ? ` · <b class="cr-cc-fase">🔥 ${escapeHtml(c._faseNome)}</b>` : ""}`,
+        toggle: `toggleMinimizarCombate(${index})`, vida: `crAlternarRapido(${index})`,
+      })}
+
+      ${conds.length ? `<div class="cr-cc-conds">${conds.map((cd, k) => `<button type="button" class="cr-cond" onclick="crRemoverCondicao(${index}, ${k})" title="Tirar">${escapeHtml(cd.nome)}${cd.rodadas ? ` <small>${cd.rodadas}r</small>` : ""} ×</button>`).join("")}</div>` : ""}
+
+      <div class="cr-cc-detalhes">
+        ${rapido ? `<div class="cr-cc-rapido">${[-10, -5, -1].map((v) => `<button type="button" class="dano" onclick="alterarHpCombate(${index}, ${v})">${v}</button>`).join("")}${[1, 5, 10].map((v) => `<button type="button" class="cura" onclick="alterarHpCombate(${index}, ${v})">+${v}</button>`).join("")}</div>` : ""}
+        <div class="cr-cc-hp">
+          <input id="crHp${index}" type="number" min="0" inputmode="numeric" placeholder="Valor" onkeydown="if(event.key==='Enter') crAplicarHp(${index}, -1)">
+          <button type="button" class="dano" onclick="crAplicarHp(${index}, -1)">🩸 Dano</button>
+          <button type="button" class="cura" onclick="crAplicarHp(${index}, 1)">💚 Cura</button>
+        </div>
+
+        ${crEhChefe(c) && fases.length ? `<div class="cr-fases-bar">${["Base", ...fases.map((f) => f.nome || "Fase")].map((n, i) => `<button type="button" class="cr-fase-chip ${i === fase ? "on" : ""}" onclick="crMudarFase(${index}, ${i})">${escapeHtml(n)}${i && fases[i - 1].gatilho ? `<small>${parseInt(fases[i - 1].gatilho)}%</small>` : ""}</button>`).join("")}</div>` : ""}
+
+        <div class="cr-cc-atrs">${atrs}</div>
+
+        <div class="cr-cc-abas">${abas.map(([id, rot, n]) => `<button type="button" class="${aba === id ? "on" : ""}" onclick="crTrocarAba(${index}, '${id}')">${rot}${n ? `<small>${n}</small>` : ""}</button>`).join("")}</div>
+        <div class="cr-cc-aba">${conteudoAba}</div>
+
+        <div class="cr-cc-rodape">
+          ${morto ? "" : `<button type="button" onclick="crFimTurno(${index})">⏭ Fim do turno</button>
+          <button type="button" onclick="crAbrirCondicao(${index})">+ Condição</button>`}
+          <button type="button" class="perigo" onclick="removerDoCombate(${index})">${morto ? "🗑 Remover" : "Remover"}</button>
+        </div>
+      </div>`;
+    lista.appendChild(card);
+  });
+}
+
+function toggleMinimizarCombate(index) {
+  const inst = combatesMestre[index];
+  if (!inst) return;
+  inst.minimizado = !inst.minimizado;
+  salvarCombatesMestreStorage();
+  renderCombatesMestre();
+}
+
+function crTrocarAba(index, aba) {
+  const inst = combatesMestre[index];
+  if (!inst) return;
+  window._crAba[crChaveInst(inst, index)] = aba;
+  renderCombatesMestre();
+}
+
+function crAlternarRapido(index) {
+  const inst = combatesMestre[index];
+  if (!inst) return;
+  const k = crChaveInst(inst, index);
+  window._crRapido[k] = !window._crRapido[k];
+  if (inst.minimizado) inst.minimizado = false;
+  renderCombatesMestre();
+}
+
+function crAplicarHp(index, sinal) {
+  const el = document.getElementById(`crHp${index}`);
+  const v = parseInt(el?.value) || 0;
+  if (v <= 0) return el?.focus();
+  alterarHpCombate(index, sinal * v);
+}
+
+function crAbrirCondicao(index) {
+  const html = `
+    <div class="popup-form">
+      <div class="cr-cond-opcoes">${CR_CONDICOES.map((n) => `<button type="button" class="cr-cond-op" onclick="document.getElementById('crCondNome').value='${n}'; this.parentElement.querySelectorAll('.cr-cond-op').forEach(b=>b.classList.toggle('on', b===this))">${n}</button>`).join("")}</div>
+      <label class="popup-label">Ou escreva</label>
+      <input id="crCondNome" placeholder="Ex: Em chamas">
+      <label class="popup-label">Dura quantas rodadas? <small>(vazio = até tirar)</small></label>
+      <input id="crCondRodadas" type="number" min="1" placeholder="—">
+      <button type="button" class="inv-add-btn btn-adicionar" style="width:100%;margin-top:12px" onclick="crSalvarCondicao(${index})"><span>Adicionar</span></button>
+    </div>`;
+  abrirPopup("Condição", html, true, null);
+}
+function crSalvarCondicao(index) {
+  const inst = combatesMestre[index];
+  const nome = (document.getElementById("crCondNome")?.value || "").trim();
+  if (!inst || !nome) return;
+  const rodadas = parseInt(document.getElementById("crCondRodadas")?.value) || 0;
+  inst.condicoes = inst.condicoes || [];
+  inst.condicoes.push({ nome, rodadas });
+  crLog(inst, "acao", `${inst.nome} ficou ${nome}${rodadas ? ` (${rodadas} rodada${rodadas > 1 ? "s" : ""})` : ""}`);
+  fecharPopup();
+  salvarCombatesMestreStorage();
+  renderCombatesMestre();
+}
+function crRemoverCondicao(index, k) {
+  const inst = combatesMestre[index];
+  if (!inst || !inst.condicoes) return;
+  const [cd] = inst.condicoes.splice(k, 1);
+  if (cd) crLog(inst, "acao", `${inst.nome} não está mais ${cd.nome}`);
+  salvarCombatesMestreStorage();
+  renderCombatesMestre();
+}
+function crFimTurno(index) {
+  const inst = combatesMestre[index];
+  if (!inst) return;
+  inst.lendGastas = 0;
+  const acabaram = [];
+  inst.condicoes = (inst.condicoes || []).filter((cd) => {
+    if (!cd.rodadas) return true;
+    cd.rodadas -= 1;
+    if (cd.rodadas <= 0) { acabaram.push(cd.nome); return false; }
+    return true;
+  });
+  crLog(inst, "acao", `Fim do turno de ${inst.nome}${acabaram.length ? ` · acabou: ${acabaram.join(", ")}` : ""}`);
+  salvarCombatesMestreStorage();
+  renderCombatesMestre();
+  if (typeof mostrarToastMundo === "function") mostrarToastMundo(`Turno de ${inst.nome} encerrado`);
+}
+
+function crLog(inst, tipo, texto) {
+  inst.log = inst.log || [];
+  inst.log.unshift({ tipo, texto: escapeHtml(texto), hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) });
+  if (inst.log.length > 20) inst.log.pop();
+}
+
+function crMudarFase(index, novaFase, semFala) {
+  const inst = combatesMestre[index];
+  if (!inst) return;
+  const fases = crNormalizar(inst).fases || [];
+  novaFase = Math.max(0, Math.min(fases.length, novaFase));
+  if ((inst.faseAtual || 0) === novaFase) return;
+  inst.faseAtual = novaFase;
+  inst.fasesOferecidas = inst.fasesOferecidas || [];
+  if (!inst.fasesOferecidas.includes(novaFase)) inst.fasesOferecidas.push(novaFase);
+  const nome = novaFase ? fases[novaFase - 1].nome : "Base";
+  crLog(inst, "fase", `${inst.nome} entrou na fase: ${nome}`);
+  salvarCombatesMestreStorage();
+  renderCombatesMestre();
+  const f = novaFase ? fases[novaFase - 1] : null;
+  if (f && f.fala && !semFala) {
+    abrirPopup(
+      `${inst.nome} · ${f.nome}`,
+      `<div class="cr-fala-popup">${f.imagem ? `<img src="${escapeHtml(f.imagem)}" alt="">` : ""}<p>“${escapeHtml(f.fala)}”</p><small>Leia em voz alta pros jogadores.</small></div>`,
+      true,
+      null,
+    );
+  }
+}
+
+// quando a vida cruza o gatilho de uma fase, pergunta se quer ativar
+(function () {
+  if (typeof alterarHpCombate !== "function" || alterarHpCombate._cr) return;
+  const orig = alterarHpCombate;
+  alterarHpCombate = async function (index, valor) {
+    const out = orig.apply(this, arguments);
+    const inst = combatesMestre[index];
+    if (!inst || !crEhChefe(inst) || !(valor < 0)) return out;
+    const fases = crNormalizar(inst).fases || [];
+    const pct = inst.hpMax ? (inst.hpAtual / inst.hpMax) * 100 : 100;
+    inst.fasesOferecidas = inst.fasesOferecidas || [];
+    for (let i = fases.length; i >= 1; i--) {
+      const g = parseInt(fases[i - 1].gatilho);
+      if (!g || pct > g || i <= (inst.faseAtual || 0) || inst.fasesOferecidas.includes(i)) continue;
+      inst.fasesOferecidas.push(i);
+      salvarCombatesMestreStorage();
+      const sim = await confirmBonito(`${inst.nome} chegou a ${Math.round(pct)}% de vida. Ativar a fase "${fases[i - 1].nome}"?`);
+      if (sim) crMudarFase(index, i);
+      break;
+    }
+    return out;
+  };
+  alterarHpCombate._cr = true;
+  window.alterarHpCombate = alterarHpCombate;
+})();
+
+function crUsarHabilidade(index, nome, delta) {
+  const inst = combatesMestre[index];
+  if (!inst) return;
+  const c = crEfetivo(inst, inst.faseAtual || 0);
+  const h = c._habilidades.find((x) => x.nome === nome);
+  if (!h) return;
+  inst.usosGastos = inst.usosGastos || {};
+  const atual = inst.usosGastos[nome] || 0;
+  inst.usosGastos[nome] = Math.max(0, Math.min(h.usosMax, atual + delta));
+  if (delta > 0) crLog(inst, "acao", `${inst.nome} usou ${nome} (${h.usosMax - inst.usosGastos[nome]} restante${h.usosMax - inst.usosGastos[nome] === 1 ? "" : "s"})`);
+  salvarCombatesMestreStorage();
+  renderCombatesMestre();
+}
+function crUsarRecarga(index, nome) {
+  const inst = combatesMestre[index];
+  if (!inst) return;
+  inst.recargaGasta = inst.recargaGasta || {};
+  inst.recargaGasta[nome] = true;
+  crLog(inst, "acao", `${inst.nome} usou ${nome}`);
+  salvarCombatesMestreStorage();
+  renderCombatesMestre();
+}
+function crRolarRecarga(index, nome, alvo) {
+  const inst = combatesMestre[index];
+  if (!inst) return;
+  const r = Math.floor(Math.random() * 6) + 1;
+  const voltou = r >= alvo;
+  if (voltou) inst.recargaGasta[nome] = false;
+  crLog(inst, "acao", `Recarga de ${nome}: ${r} — ${voltou ? "voltou!" : "ainda não"}`);
+  salvarCombatesMestreStorage();
+  renderCombatesMestre();
+  if (typeof mostrarToastMundo === "function") mostrarToastMundo(`🎲 ${r} · ${nome} ${voltou ? "recarregou" : "não recarregou"}`);
+}
+function crGastarLend(index, custo) {
+  const inst = combatesMestre[index];
+  if (!inst) return;
+  const max = parseInt(crNormalizar(inst).blocos.lendarias.max) || 3;
+  if (max - (inst.lendGastas || 0) < custo) return mostrarToastMundo ? mostrarToastMundo("Sem ações lendárias sobrando nessa rodada") : null;
+  inst.lendGastas = (inst.lendGastas || 0) + custo;
+  salvarCombatesMestreStorage();
+  renderCombatesMestre();
+}
+function crNovoTurnoLend(index) {
+  const inst = combatesMestre[index];
+  if (!inst) return;
+  inst.lendGastas = 0;
+  salvarCombatesMestreStorage();
+  renderCombatesMestre();
+}
+
+/* =====================================================================
+   NPC, ITEM e ENCONTRO no mesmo estilo das criaturas
+   (editor em blocos, fichas em pergaminho e lista de NPCs do Mundo)
+   ===================================================================== */
+var CR_RELACOES = { aliado: ["🤝", "Aliado"], neutro: ["⚖️", "Neutro"], inimigo: ["⚔️", "Inimigo"] };
+var CR_RARIDADES = { comum: "Comum", incomum: "Incomum", raro: "Raro", muitoraro: "Muito raro", lendario: "Lendário" };
+var CR_DIFICULDADES = { facil: "Fácil", medio: "Médio", dificil: "Difícil", lendario: "Lendário" };
+var CR_CATEGORIAS = { inventario: ["🎒", "Item diverso"], armas: ["⚔️", "Arma"], armaduras: ["🛡️", "Armadura"] };
+
+function crTodosCompendio() {
+  return [
+    ...(typeof compendioPadrao !== "undefined" ? compendioPadrao : []),
+    ...(typeof bossesPadrao !== "undefined" ? bossesPadrao : []),
+    ...(typeof npcsPadrao !== "undefined" ? npcsPadrao : []),
+    ...(typeof itensPadrao !== "undefined" ? itensPadrao : []),
+    ...(monstrosMestre || []),
+  ];
+}
+function crAcharPorId(id) {
+  return crTodosCompendio().find((x) => String(x.id) === String(id));
+}
+
+/* ---------- normalizar por tipo ---------- */
+function crNormalizarNpc(n) {
+  const base = { ...n };
+  if (!base.ataques && base.acoes) base.ataques = base.acoes;
+  const c = crNormalizar(base);
+  c._tipo = "npc";
+  c.relacao = c.relacao || "neutro";
+  if (c.hpMax == null) c.hpMax = c.hp || 20;
+  return c;
+}
+function crNormalizarItem(i) {
+  const c = JSON.parse(JSON.stringify(i || {}));
+  c._tipo = "item";
+  c.categoria = c.categoria || (/(arma)$/i.test(c.tipo || "") ? "armas" : /armadura/i.test(c.tipo || "") ? "armaduras" : "inventario");
+  c.raridade = CR_RARIDADES[c.raridade] ? c.raridade : String(c.raridade || "").toLowerCase().replace(/\s+/g, "") in CR_RARIDADES ? String(c.raridade).toLowerCase().replace(/\s+/g, "") : "comum";
+  if (c.sintonia !== "sim" && /sim/i.test(c.sintonizacao || "")) c.sintonia = "sim";
+  c.sintonia = c.sintonia === "sim" ? "sim" : "nao";
+  c.classificacao = c.classificacao === "artefato" ? "artefato" : "normal";
+  if (/^(padrao|usuario)$/i.test(c.origem || "")) c.origem = "";
+  return c;
+}
+function crNormalizarEncontro(e) {
+  const c = JSON.parse(JSON.stringify(e || {}));
+  c._tipo = "encontro";
+  const d = String(c.dificuldade || "").toLowerCase().replace("á", "a").replace("é", "e").replace("í", "i");
+  c.dificuldade = CR_DIFICULDADES[d] ? d : d.startsWith("fac") ? "facil" : d.startsWith("med") ? "medio" : d.startsWith("dif") ? "dificil" : d.startsWith("len") ? "lendario" : "";
+  c.criaturas = Array.isArray(c.criaturas) ? c.criaturas : [];
+  return c;
+}
+
+/* ---------- abrir o editor certo ---------- */
+function crAbrirEditorTipo(tipoEd, modo, entrada, alvo) {
+  const norm = tipoEd === "npc" ? crNormalizarNpc : tipoEd === "item" ? crNormalizarItem : crNormalizarEncontro;
+  const c = norm(entrada || {});
+  if (modo === "copia") {
+    const minha = crEhMinha(entrada || {});
+    if (minha) c.nome = `${c.nome} (cópia)`;
+  }
+  window._crEd = { tipoEd, modo, c, imgNova: "", origId: entrada?.id ?? null, alvo: alvo || null, abertos: {} };
+  crRenderEditor();
+}
+
+// o crRenderEditor das criaturas passa a perguntar o tipo
+(function () {
+  const orig = crRenderEditor;
+  crRenderEditor = function () {
+    const ed = window._crEd;
+    if (ed && ed.tipoEd === "npc") return crRenderEditorNpc();
+    if (ed && ed.tipoEd === "item") return crRenderEditorItem();
+    if (ed && ed.tipoEd === "encontro") return crRenderEditorEncontro();
+    return orig.apply(this, arguments);
+  };
+  window.crRenderEditor = crRenderEditor;
+  const origSalvar = crSalvarEditor;
+  crSalvarEditor = function (comoNovo) {
+    const ed = window._crEd;
+    if (ed && ed.tipoEd === "npc") return crSalvarNpc(comoNovo);
+    if (ed && ed.tipoEd === "item") return crSalvarItem(comoNovo);
+    if (ed && ed.tipoEd === "encontro") return crSalvarEncontro(comoNovo);
+    return origSalvar.apply(this, arguments);
+  };
+  window.crSalvarEditor = crSalvarEditor;
+})();
+
+function crMontarEditor(atalhos, secoes, rodapeTexto, titulo) {
+  const ed = window._crEd;
+  const html = `
+    <div class="cr-editor ${ed.alvo ? "cr-inline" : ""}">
+      ${ed.modo === "copia" ? `<p class="cr-dica">Você está editando uma <b>cópia</b>. O original fica do jeito que está.</p>` : ""}
+      <div class="cr-ed-atalhos">${atalhos.map(([id, rot]) => `<button type="button" onclick="crIrSecao('${id}', this)">${rot}</button>`).join("")}</div>
+      ${secoes.join("")}
+      <div class="cr-ed-rodape">
+        ${ed.modo === "editar"
+          ? `<button type="button" class="cr-ed-salvar" id="crSalvar" onclick="crSalvarEditor(false)"><span>Salvar</span></button>
+             <button type="button" class="cr-ed-salvar-outro" onclick="crSalvarEditor(true)">Salvar como outro</button>`
+          : `<button type="button" class="cr-ed-salvar" id="crSalvar" onclick="crSalvarEditor(true)"><span>${rodapeTexto}</span></button>`}
+      </div>
+    </div>`;
+  if (ed.alvo) {
+    const host = document.getElementById(ed.alvo);
+    if (host) host.innerHTML = html;
+    return;
+  }
+  const popupTexto = document.getElementById("popup-texto");
+  const aberto = document.getElementById("popup")?.style.display === "flex";
+  if (aberto && popupTexto && popupTexto.querySelector(".cr-editor")) {
+    const box = popupTexto.closest(".popup-content, .popup-box");
+    const s1 = popupTexto.scrollTop, s2 = box ? box.scrollTop : 0;
+    popupTexto.innerHTML = html;
+    popupTexto.scrollTop = s1;
+    if (box) box.scrollTop = s2;
+  } else {
+    abrirPopup(titulo, html, true, null);
+  }
+}
+
+function crImgCampo(c, rotulo) {
+  return `
+    <label class="cr-ed-img-prev" id="crImgPrev" style="${c.imagem ? `background-image:url('${escapeHtml(c.imagem)}')` : ""}" title="Trocar imagem">
+      ${c.imagem ? "" : `<span>📷<small>${rotulo || "Imagem"}</small></span>`}
+      <input type="file" accept="image/*" style="display:none" onchange="crEdImagem(this)">
+    </label>`;
+}
+function crTexto(rot, campo, val, ph) {
+  return `<label class="cr-ed-campo"><span>${rot}</span><textarea placeholder="${ph || ""}" oninput="crEdSet('${campo}', this.value)">${escapeHtml(val || "")}</textarea></label>`;
+}
+function crEscolhas(campo, opcoes, atual, extraClasse) {
+  return `<div class="cr-escolhas ${extraClasse || ""}">${Object.entries(opcoes)
+    .map(([k, v]) => {
+      const [ic, rot] = Array.isArray(v) ? v : ["", v];
+      return `<button type="button" class="cr-escolha ${k === atual ? "on" : ""} op-${k}" onclick="crEdSet('${campo}', '${k}'); crRenderEditor()">${ic ? `<i>${ic}</i>` : ""}${rot}</button>`;
+    })
+    .join("")}</div>`;
+}
+
+/* ---------- NPC ---------- */
+function crRenderEditorNpc() {
+  const ed = window._crEd;
+  const c = ed.c;
+  const nAcoes = c.blocos.ataques.length + c.blocos.habilidades.length + c.blocos.reacoes.length;
+  const nDef = c.resistTags.length + c.imunTags.length + c.vulnTags.length;
+  // reaproveita os pedaços do editor das criaturas
+  const linhaAtk = (a, i) => `
+    <div class="cr-ed-item">
+      <div class="cr-ed-item-topo">
+        <input class="cr-ed-nome" value="${escapeHtml(a.nome || "")}" placeholder="Nome (ex: Adaga)" oninput="crEdLista('ataques', ${i}, 'nome', this.value)">
+        <button type="button" class="cr-ed-x" onclick="crEdRemover('ataques', ${i})">✕</button>
+      </div>
+      <div class="cr-ed-duplo">
+        <label class="cr-ed-campo"><span>🎯 Acerto</span><input type="number" value="${a.acerto == null ? "" : escapeHtml(String(a.acerto))}" placeholder="ex: 4" oninput="crEdLista('ataques', ${i}, 'acerto', this.value === '' ? null : parseInt(this.value))"></label>
+        <label class="cr-ed-campo"><span>🩸 Dano</span><input value="${escapeHtml(a.dano || "")}" placeholder="ex: 1d4+2 perfurante" oninput="crEdLista('ataques', ${i}, 'dano', this.value)"></label>
+      </div>
+      <input value="${escapeHtml(a.desc || "")}" placeholder="Detalhes" oninput="crEdLista('ataques', ${i}, 'desc', this.value)">
+    </div>`;
+  const linhaTxt = (lista, ph) => (r, i) => `
+    <div class="cr-ed-item">
+      <div class="cr-ed-item-topo">
+        <input class="cr-ed-nome" value="${escapeHtml(r.nome || "")}" placeholder="${ph}" oninput="crEdLista('${lista}', ${i}, 'nome', this.value)">
+        <button type="button" class="cr-ed-x" onclick="crEdRemover('${lista}', ${i})">✕</button>
+      </div>
+      <textarea placeholder="O que faz" oninput="crEdLista('${lista}', ${i}, 'desc', this.value)">${escapeHtml(r.desc || "")}</textarea>
+    </div>`;
+
+  const secoes = [
+    crSecao("ident", "🧙 Identidade", `
+      <div class="cr-ed-ident">
+        ${crImgCampo(c, "Retrato")}
+        <div class="cr-ed-ident-campos">
+          ${crCampo("Nome", "nome", c.nome, 'placeholder="Ex: Mirela, a ferreira"')}
+          <div class="cr-ed-duplo">${crCampo("Raça", "raca", c.raca)}${crCampo("Classe / profissão", "classe", c.classe)}</div>
+        </div>
+      </div>
+      <div class="cr-ed-sub">Relação com o grupo</div>
+      ${crEscolhas("relacao", CR_RELACOES, c.relacao, "rel")}`, true),
+    crSecao("persona", "🎭 Personalidade", `
+      ${crTexto("Personalidade", "personalidade", c.personalidade, "Bordão, trejeitos, voz, jeito de falar")}
+      ${crTexto("Relações", "relacoes", c.relacoes, "Com quem se dá bem, quem odeia")}
+      ${crTexto("🔒 Segredo (só o mestre vê)", "segredo", c.segredo, "O que esconde dos jogadores")}
+      ${crTexto("Observações do mestre", "observacoes", c.observacoes)}`, true),
+    crSecao("combate", "⚔️ Combate", `
+      <div class="cr-ed-triplo">
+        ${crCampo("❤️ HP", "hpMax", c.hpMax, 'type="number" min="0"')}
+        ${crCampo("🛡️ CA", "ca", c.ca, 'type="number" min="0"')}
+        ${crCampo("👣 Deslocamento", "velocidade", c.velocidade, 'placeholder="9 m"')}
+      </div>
+      ${crCampo("Nível de desafio", "desafio", c.desafio, 'placeholder="Ex: 2"')}
+      <div class="cr-ed-sub">Atributos</div>
+      <div class="cr-ed-atrs">${CR_ATR.map((a) => `<label><span>${a.toUpperCase()}</span><input type="number" value="${c.status[a]}" oninput="crEdAtr('${a}', this.value); this.nextElementSibling.textContent = crFmt(crMod(this.value))"><small>${crFmt(crMod(c.status[a]))}</small></label>`).join("")}</div>
+      ${crTexto("Perícias", "pericias", c.pericias, "Ex: Persuasão +5, Enganação +3")}`, false),
+    crSecao("acoes", `🎯 O que ele faz${nAcoes ? ` <small>${nAcoes}</small>` : ""}`, `
+      <div class="cr-ed-sub grande">⚔️ Ataques</div>
+      ${c.blocos.ataques.map(linhaAtk).join("")}
+      <button type="button" class="cr-ed-add" onclick="crEdAdicionar('ataques')">+ Adicionar ataque</button>
+      <div class="cr-ed-sub grande">✨ Habilidades</div>
+      ${c.blocos.habilidades.map(linhaTxt("habilidades", "Nome (ex: Lábia)")).join("")}
+      <button type="button" class="cr-ed-add" onclick="crEdAdicionar('habilidades')">+ Adicionar habilidade</button>
+      <div class="cr-ed-sub grande">🛡️ Reações</div>
+      ${c.blocos.reacoes.map(linhaTxt("reacoes", "Nome (ex: Aparar)")).join("")}
+      <button type="button" class="cr-ed-add" onclick="crEdAdicionar('reacoes')">+ Adicionar reação</button>`, false),
+    crSecao("defesas", `🛡️ Defesas${nDef ? ` <small>${nDef}</small>` : ""}`, `
+      ${crTagsCampo("Resiste", "resistTags", "Ex: fogo (Enter pra adicionar)")}
+      ${crTagsCampo("Imune", "imunTags", "Ex: veneno")}
+      ${crTagsCampo("Vulnerável", "vulnTags", "Ex: radiante")}
+      ${crTexto("Fraquezas", "fraquezas", c.fraquezas)}`, false),
+    crSecao("onde", "📍 Onde encontrar", `
+      <div class="cr-ed-duplo">${crCampo("Região", "regiao", c.regiao)}${crCampo("Localização", "localizacao", c.localizacao)}</div>
+      <div class="cr-ed-duplo">${crCampo("Idade", "idade", c.idade)}${crCampo("Religião", "religiao", c.religiao)}</div>`, false),
+  ];
+  crMontarEditor(
+    [["ident", "Identidade"], ["persona", "Personalidade"], ["combate", "Combate"], ["acoes", `Ações${nAcoes ? ` ${nAcoes}` : ""}`], ["defesas", "Defesas"], ["onde", "Onde"]],
+    secoes,
+    "⚡ Criar NPC",
+    ed.modo === "editar" ? `Editar ${c.nome || "NPC"}` : ed.modo === "copia" ? "Editar cópia" : "Novo NPC",
+  );
+}
+
+/* ---------- ITEM ---------- */
+function crRenderEditorItem() {
+  const ed = window._crEd;
+  const c = ed.c;
+  const secoes = [
+    crSecao("ident", "🗡️ Identidade", `
+      <div class="cr-ed-ident">
+        ${crImgCampo(c, "Imagem")}
+        <div class="cr-ed-ident-campos">
+          ${crCampo("Nome", "nome", c.nome, 'placeholder="Ex: Lâmina do Crepúsculo"')}
+          ${crCampo("Tipo", "tipo", c.tipo, 'placeholder="Ex: espada longa, anel, poção"')}
+        </div>
+      </div>
+      <div class="cr-ed-sub">Vai pra qual parte da ficha do jogador</div>
+      ${crEscolhas("categoria", CR_CATEGORIAS, c.categoria)}
+      ${c.categoria === "armas" ? crCampo("🩸 Dano", "dano", c.dano, 'placeholder="Ex: 1d8+2 cortante"') : ""}
+      ${c.categoria === "armaduras" ? crCampo("🛡️ CA", "ca", c.ca, 'placeholder="Ex: 16"') : ""}`, true),
+    crSecao("raridade", "✨ Raridade e poder", `
+      ${crEscolhas("raridade", CR_RARIDADES, c.raridade, "rar")}
+      <div class="toggle-cargas cr-ed-chefe">
+        <span class="toggle-cargas-texto">🔱 Artefato <small>(único, lendário de verdade)</small></span>
+        <label class="switch-cargas"><input type="checkbox" ${c.classificacao === "artefato" ? "checked" : ""} onchange="crEdSet('classificacao', this.checked ? 'artefato' : 'normal')"><span class="slider-cargas"></span></label>
+      </div>
+      <div class="toggle-cargas cr-ed-chefe">
+        <span class="toggle-cargas-texto">🔗 Requer sintonização</span>
+        <label class="switch-cargas"><input type="checkbox" ${c.sintonia === "sim" ? "checked" : ""} onchange="crEdSet('sintonia', this.checked ? 'sim' : 'nao')"><span class="slider-cargas"></span></label>
+      </div>
+      ${crTexto("Efeito / habilidade", "efeito", c.efeito, "O que ele faz quando usado ou equipado")}`, true),
+    crSecao("historia", "📜 Descrição e história", `
+      ${crTexto("Aparência", "descricao", c.descricao, "Como ele é, cheiro, peso, brilho")}
+      ${crTexto("História", "historia", c.historia, "Quem fez, por quê, quem já carregou")}
+      ${crTexto("Onde encontrar", "origem", c.origem, "Ex: no cofre do Barão")}`, false),
+  ];
+  crMontarEditor(
+    [["ident", "Identidade"], ["raridade", "Raridade"], ["historia", "História"]],
+    secoes,
+    "⚡ Criar item",
+    ed.modo === "editar" ? `Editar ${c.nome || "item"}` : ed.modo === "copia" ? "Editar cópia" : "Novo item",
+  );
+}
+
+/* ---------- ENCONTRO ---------- */
+function crRenderEditorEncontro() {
+  const ed = window._crEd;
+  const c = ed.c;
+  const criaturas = c.criaturas || [];
+  const secoes = [
+    crSecao("ident", "🗺️ Identidade", `
+      <div class="cr-ed-ident">
+        ${crImgCampo(c, "Cena")}
+        <div class="cr-ed-ident-campos">
+          ${crCampo("Nome", "nome", c.nome, 'placeholder="Ex: Emboscada na estrada"')}
+          <div class="cr-ed-duplo">${crCampo("Região", "regiao", c.regiao)}${crCampo("Localização", "localizacao", c.localizacao)}</div>
+        </div>
+      </div>
+      <div class="cr-ed-sub">Dificuldade</div>
+      ${crEscolhas("dificuldade", CR_DIFICULDADES, c.dificuldade, "dif")}`, true),
+    crSecao("quem", `👥 Quem está lá${criaturas.length ? ` <small>${criaturas.reduce((s, x) => s + (x.qtd || 1), 0)}</small>` : ""}`, `
+      <div class="cr-ed-sub">Criaturas do compêndio <small>(vão pro combate com um toque)</small></div>
+      ${criaturas.length ? criaturas.map((x, i) => `
+        <div class="cr-ed-criatura">
+          <span class="cr-ed-criatura-nome">${escapeHtml(x.nome)}</span>
+          <div class="cr-ed-qtd">
+            <button type="button" onclick="crEncQtd(${i}, -1)">−</button><b>${x.qtd || 1}</b><button type="button" onclick="crEncQtd(${i}, 1)">+</button>
+          </div>
+          <button type="button" class="cr-ed-x" onclick="crEncQtd(${i}, -999)">✕</button>
+        </div>`).join("") : ""}
+      <button type="button" class="cr-ed-add" onclick="crEncEscolherCriatura()">+ Adicionar criatura do compêndio</button>
+      ${crTexto("Outros envolvidos", "envolvidos", c.envolvidos, "NPCs, facções, quem mais aparece")}`, true),
+    crSecao("cena", "🎬 A cena", `
+      ${crTexto("Objetivo", "objetivo", c.objetivo, "O que os jogadores precisam fazer")}
+      ${crTexto("Gatilho", "gatilho", c.gatilho, "O que faz o encontro começar")}
+      ${crTexto("Clima / ambiente", "ambiente", c.ambiente, "Luz, terreno, sons, cheiros")}`, false),
+    crSecao("fim", "🏁 Desfecho", `
+      ${crTexto("Consequências", "consequencias", c.consequencias, "O que muda se ganharem, perderem ou fugirem")}
+      ${crTexto("Loot / recompensa", "loot", c.loot)}
+      ${crTexto("Anotações do mestre", "notas", c.notas)}`, false),
+  ];
+  crMontarEditor(
+    [["ident", "Identidade"], ["quem", "Quem"], ["cena", "Cena"], ["fim", "Desfecho"]],
+    secoes,
+    "⚡ Criar encontro",
+    ed.modo === "editar" ? `Editar ${c.nome || "encontro"}` : "Novo encontro",
+  );
+}
+
+function crEncQtd(i, d) {
+  const L = window._crEd.c.criaturas;
+  if (!L[i]) return;
+  L[i].qtd = (L[i].qtd || 1) + d;
+  if (L[i].qtd <= 0) L.splice(i, 1);
+  crRenderEditor();
+}
+
+function crEncEscolherCriatura() {
+  const ed = window._crEd;
+  const lista = crTodosCompendio().filter((x) => !x._tipo || x._tipo === "boss" || x._tipo === "npc");
+  window._crEncPicker = { ed };
+  const html = `
+    <div class="popup-form">
+      <input id="crEncBusca" placeholder="🔍 Buscar criatura" oninput="crEncFiltrar(this.value)">
+      <div class="cr-enc-lista" id="crEncLista">
+        ${lista
+          .map((x) => `<button type="button" class="cr-enc-op" data-nome="${escapeHtml((x.nome || "").toLowerCase())}" onclick="crEncAdicionar('${escapeHtml(String(x.id))}')">
+            <span class="cr-enc-img" style="${x.imagem ? `background-image:url('${escapeHtml(x.imagem)}')` : ""}"></span>
+            <span class="cr-enc-txt"><strong>${escapeHtml(x.nome || "")}</strong><small>${x._tipo === "boss" ? "💀 Chefe" : x._tipo === "npc" ? "🧙 NPC" : "👹 Criatura"} · HP ${x.hpMax || "?"} · CA ${x.ca || "?"}</small></span>
+          </button>`)
+          .join("")}
+      </div>
+    </div>`;
+  // guarda o editor (o popup vai ser trocado pela lista)
+  window._crEncVoltar = JSON.parse(JSON.stringify({ ...ed, c: ed.c }));
+  abrirPopup("Escolher criatura", html, true, null);
+}
+function crEncFiltrar(t) {
+  t = (t || "").toLowerCase();
+  document.querySelectorAll("#crEncLista .cr-enc-op").forEach((b) => (b.style.display = b.dataset.nome.includes(t) ? "" : "none"));
+}
+function crEncAdicionar(id) {
+  const x = crAcharPorId(id);
+  const voltar = window._crEncPicker?.ed || window._crEd;
+  if (!x || !voltar) return;
+  const L = (voltar.c.criaturas = voltar.c.criaturas || []);
+  const j = L.find((y) => String(y.id) === String(id));
+  if (j) j.qtd = (j.qtd || 1) + 1;
+  else L.push({ id: x.id, nome: x.nome, qtd: 1 });
+  window._crEd = voltar;
+  fecharPopup();
+  setTimeout(() => crRenderEditor(), 30);
+}
+
+/* ---------- salvar ---------- */
+async function crSubirImagemEd(c) {
+  const ed = window._crEd;
+  if (!ed.imgNova) return;
+  const up = await uploadImagemFirebase(ed.imgNova, "compendio");
+  if (up.url) {
+    c.imagem = up.url;
+    c.imagemDeleteUrl = up.deleteUrl || "";
+  } else alertBonito(_mensagemErroUpload("Foi salvo sem a imagem nova."));
+}
+function crTravarSalvar() {
+  const btn = (crEdHost() || document).querySelector("#crSalvar");
+  if (btn) { btn.disabled = true; const sp = btn.querySelector("span"); if (sp) sp.textContent = "Salvando..."; }
+}
+function crDepoisDeSalvar(c, abrirFicha) {
+  const ed = window._crEd;
+  if (ed.alvo) {
+    delete window._crRascunhos[ed.tipoCriar];
+    crIniciarCriar(ed.tipoCriar);
+  } else {
+    window._crEd = null;
+    fecharPopup();
+  }
+  if (abrirFicha) abrirFicha(c);
+}
+function crGuardarNoCompendio(c, comoNovo, origId) {
+  if (comoNovo) {
+    c.id = Date.now();
+    c._origem = "usuario";
+    if (c._tipo !== "item") c.origem = "usuario";
+    monstrosMestre.push(c);
+  } else {
+    const idx = monstrosMestre.findIndex((m) => String(m.id) === String(origId));
+    if (idx === -1) monstrosMestre.push(c);
+    else monstrosMestre[idx] = c;
+  }
+  salvarMonstrosMestreStorage();
+  renderMonstrosMestre();
+}
+
+async function crSalvarNpc(comoNovo) {
+  const ed = window._crEd;
+  const c = JSON.parse(JSON.stringify(ed.c));
+  if (!(c.nome || "").trim()) return alertBonito("Coloque um nome.");
+  c.nome = c.nome.trim();
+  ["ataques", "habilidades", "reacoes"].forEach((k) => (c.blocos[k] = c.blocos[k].filter((x) => (x.nome || "").trim())));
+  crTravarSalvar();
+  await crSubirImagemEd(c);
+  crGerarTextos(c);
+  c.acoes = c.ataques;
+  c._tipo = "npc";
+  c.hpAtual = c.hpMax;
+  crGuardarNoCompendio(c, comoNovo, ed.origId);
+  crDepoisDeSalvar(c, crAbrirFichaNpc);
+  if (typeof mostrarToastMundo === "function") mostrarToastMundo(comoNovo ? "NPC salvo no compêndio" : "NPC atualizado");
+}
+
+async function crSalvarItem(comoNovo) {
+  const ed = window._crEd;
+  const c = JSON.parse(JSON.stringify(ed.c));
+  if (!(c.nome || "").trim()) return alertBonito("Coloque um nome.");
+  c.nome = c.nome.trim();
+  crTravarSalvar();
+  await crSubirImagemEd(c);
+  c._tipo = "item";
+  crGuardarNoCompendio(c, comoNovo, ed.origId);
+  crDepoisDeSalvar(c, crAbrirFichaItem);
+  if (typeof mostrarToastMundo === "function") mostrarToastMundo(comoNovo ? "Item salvo no compêndio" : "Item atualizado");
+}
+
+async function crSalvarEncontro(comoNovo) {
+  const ed = window._crEd;
+  const c = JSON.parse(JSON.stringify(ed.c));
+  if (!(c.nome || "").trim()) return alertBonito("Coloque um nome.");
+  const campanha = campanhasMaster[campanhaAtualMaster];
+  if (!campanha) return alertBonito("Abra uma campanha primeiro.");
+  c.nome = c.nome.trim();
+  crTravarSalvar();
+  await crSubirImagemEd(c);
+  delete c._tipo;
+  campanha.encontrosPlanejados ||= [];
+  if (comoNovo || ed.origId == null) {
+    c.id = Date.now();
+    campanha.encontrosPlanejados.push(c);
+  } else {
+    const idx = campanha.encontrosPlanejados.findIndex((x) => String(x.id) === String(ed.origId));
+    if (idx === -1) campanha.encontrosPlanejados.push(c);
+    else campanha.encontrosPlanejados[idx] = c;
+  }
+  salvarCampanhasMaster();
+  if (typeof renderEncontrosMundo === "function") renderEncontrosMundo();
+  crDepoisDeSalvar(c, crAbrirFichaEncontro);
+  if (typeof mostrarToastMundo === "function") mostrarToastMundo(comoNovo ? "Encontro criado" : "Encontro atualizado");
+}
+
+/* ---------- aba Criar: NPC, Item e Encontro também usam o editor ---------- */
+(function () {
+  const origIni = crIniciarCriar;
+  crIniciarCriar = function (tipo) {
+    if (tipo !== "npc" && tipo !== "item" && tipo !== "encontro") return origIni.apply(this, arguments);
+    const hostId = "crCriarHost-" + tipo;
+    const host = document.getElementById(hostId);
+    if (!host) return;
+    let ed = window._crRascunhos[tipo];
+    if (!ed) {
+      const norm = tipo === "npc" ? crNormalizarNpc : tipo === "item" ? crNormalizarItem : crNormalizarEncontro;
+      ed = { tipoEd: tipo, modo: "novo", c: norm(tipo === "npc" ? { hpMax: 20, ca: 10 } : {}), imgNova: "", origId: null, alvo: hostId, tipoCriar: tipo, abertos: {} };
+      window._crRascunhos[tipo] = ed;
+    }
+    window._crEd = ed;
+    crRenderEditor();
+    host.onfocusin = host.onpointerdown = () => { window._crEd = window._crRascunhos[tipo]; };
+  };
+  window.crIniciarCriar = crIniciarCriar;
+  const origTroca = trocarTipoCriar;
+  trocarTipoCriar = function (tipo, btn) {
+    const r = origTroca.apply(this, arguments);
+    if (tipo === "npc" || tipo === "item" || tipo === "encontro") crIniciarCriar(tipo);
+    return r;
+  };
+  window.trocarTipoCriar = trocarTipoCriar;
+})();
+setTimeout(() => { try { ["encontro", "item", "npc"].forEach((t) => crIniciarCriar(t)); crIniciarCriar("monstro"); } catch (e) { console.warn(e); } }, 0);
+
+/* =====================================================================
+   FICHAS
+   ===================================================================== */
+function crRelTag(rel) {
+  const r = CR_RELACOES[rel] || CR_RELACOES.neutro;
+  return `<span class="cr-rel cr-rel-${rel || "neutro"}">${r[0]} ${r[1]}</span>`;
+}
+
+function crAbrirFichaNpc(entry) {
+  const c = crNormalizarNpc(entry);
+  window._crFichaAtual = c;
+  window._entradaSessaoAtual = entry;
+  const minha = crEhMinha(entry);
+  const st = c.status;
+  const txt = (v) => formatarTexto(v);
+  const conteudo = `
+    ${c.imagem ? `<img class="sheet-img" src="${escapeHtml(c.imagem)}" alt="" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;margin-bottom:12px;">` : ""}
+    <h2 class="sheet-titulo" style="text-align:center;margin-bottom:4px;">${escapeHtml(c.nome || "Sem nome")}</h2>
+    <div class="sheet-meta" style="text-align:center;margin-bottom:8px;">${[c.raca, c.classe].filter(Boolean).map(escapeHtml).join(" · ") || "NPC"}</div>
+    <div style="text-align:center;margin-bottom:10px;">${crRelTag(c.relacao)}</div>
+    <div class="cr-selos">
+      <span><i>❤️</i><b>${c.hpMax || 0}</b><small>HP</small></span>
+      <span><i>🛡️</i><b>${c.ca || 0}</b><small>CA</small></span>
+      ${c.velocidade ? `<span><i>👣</i><b>${escapeHtml(c.velocidade)}</b><small>Desloc.</small></span>` : ""}
+      ${c.desafio ? `<span><i>⭐</i><b>${escapeHtml(String(c.desafio))}</b><small>ND</small></span>` : ""}
+    </div>
+    <div class="cr-cc-atrs cr-ficha-atrs">${CR_ATR.map((a) => `<button type="button" class="cr-cc-atr" onclick="crRolarAtributo('ficha','${a}')"><small>${a.toUpperCase()}</small><b>${crFmt(crMod(st[a]))}</b><em>${st[a]}</em></button>`).join("")}</div>
+    <div class="cr-acoes-ficha">
+      <div class="cr-acoes-linha">
+        <button type="button" class="cr-btn-combate" onclick="adicionarNPCAoMundo()">🌍 Adicionar ao Mundo</button>
+        <button type="button" class="cr-btn-combate escuro" onclick="crEnviarCombate()">⚔️ Combate</button>
+      </div>
+      <div class="cr-acoes-linha">
+        <button type="button" class="cr-btn-sec" onclick="crAbrirEditorTipo('npc', '${minha ? "editar" : "copia"}', window._entradaSessaoAtual)">✏️ ${minha ? "Editar" : "Editar uma cópia"}</button>
+        ${minha ? `<button type="button" class="cr-btn-sec" onclick="crAbrirEditorTipo('npc', 'copia', window._entradaSessaoAtual)">📄 Duplicar</button>` : ""}
+      </div>
+    </div>
+    ${c.personalidade ? crBloco("Personalidade", txt(c.personalidade)) : ""}
+    ${c.relacoes ? crBloco("Relações", txt(c.relacoes)) : ""}
+    ${c.segredo ? crBloco("🔒 Segredo", txt(c.segredo)) : ""}
+    ${c.pericias ? crBloco("Perícias", txt(c.pericias)) : ""}
+    ${crListaAtaquesHTML(c.blocos.ataques, "'ficha'")}
+    ${crListaHabilidadesHTML(c.blocos.habilidades, null)}
+    ${crListaSimplesHTML("Reações", c.blocos.reacoes)}
+    ${crTagsHTML(c)}
+    ${c.fraquezas ? crBloco("Fraquezas", txt(c.fraquezas)) : ""}
+    ${c.observacoes ? crBloco("Observações", txt(c.observacoes)) : ""}
+    ${c.regiao || c.localizacao || c.idade || c.religiao ? crBloco("Pontos de encontro", [c.regiao && `<b>Região:</b> ${escapeHtml(c.regiao)}`, c.localizacao && `<b>Local:</b> ${escapeHtml(c.localizacao)}`, c.idade && `<b>Idade:</b> ${escapeHtml(c.idade)}`, c.religiao && `<b>Religião:</b> ${escapeHtml(c.religiao)}`].filter(Boolean).join("<br>")) : ""}
+    ${minha ? `<button type="button" class="cr-btn-excluir" onclick="crExcluir()">🗑️ Excluir NPC</button>` : ""}`;
+  _abrirSheetCustom(conteudo);
+}
+
+function crRaridadeTag(r) {
+  return `<span class="cr-rar cr-rar-${r || "comum"}">${CR_RARIDADES[r] || "Comum"}</span>`;
+}
+
+function crAbrirFichaItem(entry) {
+  const c = crNormalizarItem(entry);
+  window._crFichaAtual = c;
+  window._entradaSessaoAtual = entry;
+  const minha = crEhMinha(entry);
+  const cat = CR_CATEGORIAS[c.categoria] || CR_CATEGORIAS.inventario;
+  const conteudo = `
+    ${c.imagem ? `<img class="sheet-img" src="${escapeHtml(c.imagem)}" alt="" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;margin-bottom:12px;">` : ""}
+    <h2 class="sheet-titulo" style="text-align:center;margin-bottom:4px;">${escapeHtml(c.nome || "Sem nome")}</h2>
+    <div class="sheet-meta" style="text-align:center;margin-bottom:8px;">${[cat[0] + " " + cat[1], c.tipo].filter(Boolean).map(escapeHtml).join(" · ")}</div>
+    <div class="cr-item-tags">
+      ${crRaridadeTag(c.raridade)}
+      ${c.classificacao === "artefato" ? `<span class="cr-rar cr-rar-artefato">🔱 Artefato</span>` : ""}
+      ${c.sintonia === "sim" ? `<span class="cr-rar cr-rar-sint">🔗 Sintonização</span>` : ""}
+    </div>
+    ${c.categoria === "armas" && c.dano ? `<div class="cr-selos"><span><i>🩸</i><b>${escapeHtml(c.dano)}</b><small>Dano</small></span></div>` : ""}
+    ${c.categoria === "armaduras" && c.ca ? `<div class="cr-selos"><span><i>🛡️</i><b>${escapeHtml(String(c.ca))}</b><small>CA</small></span></div>` : ""}
+    <div class="cr-acoes-ficha">
+      <button type="button" class="cr-btn-ouro" onclick="window.abrirDarItemMestre('${escapeHtml(String(c.id))}')">🎁 Dar pra jogador</button>
+      <div class="cr-acoes-linha">
+        <button type="button" class="cr-btn-sec" onclick="crAbrirEditorTipo('item', '${minha ? "editar" : "copia"}', window._entradaSessaoAtual)">✏️ ${minha ? "Editar" : "Editar uma cópia"}</button>
+        ${minha ? `<button type="button" class="cr-btn-sec" onclick="crAbrirEditorTipo('item', 'copia', window._entradaSessaoAtual)">📄 Duplicar</button>` : ""}
+      </div>
+    </div>
+    ${c.efeito ? crBloco("✨ Efeito", formatarTexto(c.efeito)) : ""}
+    ${c.descricao ? crBloco("Aparência", formatarTexto(c.descricao)) : ""}
+    ${c.historia ? crBloco("📜 História", formatarTexto(c.historia)) : ""}
+    ${c.origem && !/^(padrao|usuario)$/i.test(c.origem) ? crBloco("📍 Onde encontrar", formatarTexto(c.origem)) : ""}
+    ${minha ? `<button type="button" class="cr-btn-excluir" onclick="crExcluir()">🗑️ Excluir item</button>` : ""}`;
+  _abrirSheetCustom(conteudo);
+}
+
+function crDifTag(d) {
+  return d ? `<span class="cr-dif cr-dif-${d}">${CR_DIFICULDADES[d]}</span>` : "";
+}
+
+function crAbrirFichaEncontro(entry) {
+  const c = crNormalizarEncontro(entry);
+  window._crEncontroAtual = c;
+  const daCampanha = (campanhasMaster[campanhaAtualMaster]?.encontrosPlanejados || []).some((x) => String(x.id) === String(c.id));
+  const total = c.criaturas.reduce((s, x) => s + (x.qtd || 1), 0);
+  const txt = (v) => formatarTexto(v);
+  const conteudo = `
+    ${c.imagem ? `<img class="sheet-img" src="${escapeHtml(c.imagem)}" alt="" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;margin-bottom:12px;">` : ""}
+    <h2 class="sheet-titulo" style="text-align:center;margin-bottom:4px;">${escapeHtml(c.nome || "Encontro")}</h2>
+    <div class="sheet-meta" style="text-align:center;margin-bottom:8px;">${[c.regiao, c.localizacao].filter(Boolean).map(escapeHtml).join(" · ") || "🗺️ Encontro"}</div>
+    <div class="cr-item-tags">${crDifTag(c.dificuldade)}${total ? `<span class="cr-rar">👥 ${total} criatura${total > 1 ? "s" : ""}</span>` : ""}</div>
+    <div class="cr-acoes-ficha">
+      ${total ? `<button type="button" class="cr-btn-combate" onclick="crEncontroParaCombate()">⚔️ Mandar tudo pro combate</button>` : ""}
+      ${daCampanha ? `<div class="cr-acoes-linha">
+        <button type="button" class="cr-btn-sec" onclick="crAbrirEditorTipo('encontro', 'editar', window._crEncontroAtual)">✏️ Editar</button>
+        <button type="button" class="cr-btn-sec" onclick="crRemoverEncontro()">🗑️ Remover</button>
+      </div>` : ""}
+    </div>
+    ${total ? crBloco("👥 Criaturas", c.criaturas.map((x) => `<div class="cr-linha"><div class="cr-linha-txt"><strong>${escapeHtml(x.nome)}</strong></div><span class="cr-uso">×${x.qtd || 1}</span></div>`).join("")) : ""}
+    ${c.envolvidos ? crBloco("Envolvidos", txt(c.envolvidos)) : ""}
+    ${c.objetivo ? crBloco("🎯 Objetivo", txt(c.objetivo)) : ""}
+    ${c.gatilho ? crBloco("⚡ Gatilho", txt(c.gatilho)) : ""}
+    ${c.ambiente ? crBloco("🌫️ Ambiente", txt(c.ambiente)) : ""}
+    ${c.consequencias ? crBloco("🏁 Consequências", txt(c.consequencias)) : ""}
+    ${c.loot ? crBloco("💰 Loot", txt(c.loot)) : ""}
+    ${c.notas ? crBloco("📝 Notas do mestre", txt(c.notas)) : ""}`;
+  _abrirSheetCustom(conteudo);
+}
+
+function crEncontroParaCombate() {
+  const c = window._crEncontroAtual;
+  if (!c) return;
+  let n = 0;
+  c.criaturas.forEach((x) => {
+    const base = crAcharPorId(x.id);
+    if (!base) return;
+    for (let k = 0; k < (x.qtd || 1); k++) {
+      window._crFichaAtual = base._tipo === "npc" ? crNormalizarNpc(base) : crNormalizar(base);
+      const copia = JSON.parse(JSON.stringify(window._crFichaAtual));
+      copia.instanciaId = Date.now() + Math.floor(Math.random() * 99999) + k;
+      copia.monstroBaseId = base.id;
+      copia.origem = "combate";
+      copia.nome = gerarNomeInstanciaCombate(base.nome);
+      copia.hpAtual = copia.hpMax || 0;
+      copia.faseAtual = 0; copia.usosGastos = {}; copia.recargaGasta = {}; copia.lendGastas = 0; copia.fasesOferecidas = [];
+      combatesMestre.push(copia);
+      n++;
+    }
+  });
+  salvarCombatesMestreStorage();
+  renderCombatesMestre();
+  fecharSheetMonstro();
+  if (typeof mostrarToastMundo === "function") mostrarToastMundo(`${n} no combate · ${c.nome}`);
+}
+
+async function crRemoverEncontro() {
+  const c = window._crEncontroAtual;
+  const campanha = campanhasMaster[campanhaAtualMaster];
+  if (!c || !campanha || !(await confirmBonito(`Remover "${c.nome}"?`))) return;
+  campanha.encontrosPlanejados = (campanha.encontrosPlanejados || []).filter((x) => String(x.id) !== String(c.id));
+  salvarCampanhasMaster();
+  renderEncontrosMundo();
+  fecharSheetMonstro();
+}
+
+// as fichas antigas abrem as novas
+function _abrirPopupNPCCompendio(npc) { crAbrirFichaNpc(npc); }
+function _abrirPopupItemCompendio(item) { crAbrirFichaItem(item); }
+function _abrirPopupEncontroCompendio(e) { crAbrirFichaEncontro(e); }
+function abrirDetalheEncontro(id) {
+  const e = campanhasMaster[campanhaAtualMaster]?.encontrosPlanejados?.find((x) => String(x.id) === String(id));
+  if (e) crAbrirFichaEncontro(e);
+}
+function editarEncontroMundo(id) {
+  const e = campanhasMaster[campanhaAtualMaster]?.encontrosPlanejados?.find((x) => String(x.id) === String(id));
+  if (e) crAbrirEditorTipo("encontro", "editar", e);
+}
+function editarItemMestre(id) {
+  const it = monstrosMestre.find((m) => String(m.id) === String(id) && m._tipo === "item");
+  if (it) { fecharSheetMonstro(); crAbrirEditorTipo("item", "editar", it); }
+}
+
+/* =====================================================================
+   LISTA DE ENCONTROS (aba Mundo)
+   ===================================================================== */
+function renderEncontrosMundo() {
+  const campanha = campanhasMaster[campanhaAtualMaster];
+  const lista = document.getElementById("mundoEncontroLista");
+  if (!lista || !campanha) return;
+  campanha.encontrosPlanejados ||= [];
+  if (!campanha.encontrosPlanejados.length) {
+    lista.innerHTML = `<div class="cr-cc-vazio"><span>🗺️</span><p>Nenhum encontro planejado.</p><small>Crie um em <b>Criar → Encontro</b>.</small></div>`;
+    return;
+  }
+  lista.innerHTML = campanha.encontrosPlanejados
+    .map((e0) => {
+      const e = crNormalizarEncontro(e0);
+      const total = e.criaturas.reduce((s, x) => s + (x.qtd || 1), 0);
+      const resumo = e.objetivo || e.envolvidos || "";
+      return `
+      <div class="cr-enc-card" onclick="abrirDetalheEncontro(${JSON.stringify(e.id)})">
+        <div class="cr-enc-card-img" style="${e.imagem ? `background-image:url('${escapeHtml(e.imagem)}')` : ""}">${e.imagem ? "" : "🗺️"}</div>
+        <div class="cr-enc-card-info">
+          <strong>${escapeHtml(e.nome)}</strong>
+          <div class="cr-enc-card-tags">${crDifTag(e.dificuldade)}${e.regiao ? `<span class="cr-rar">📍 ${escapeHtml(e.regiao)}</span>` : ""}${total ? `<span class="cr-rar">👥 ${total}</span>` : ""}</div>
+          ${resumo ? `<p>${escapeHtml(resumo.slice(0, 90))}${resumo.length > 90 ? "…" : ""}</p>` : ""}
+        </div>
+      </div>`;
+    })
+    .join("");
+}
+
+/* =====================================================================
+   LISTA DE NPCs (aba Mundo) no estilo do combate
+   ===================================================================== */
+window._crNpcAberto = window._crNpcAberto || {};
+window._crNpcAba = window._crNpcAba || {};
+window._crNpcRapido = window._crNpcRapido || {};
+
+function crNpcMundoDados(n) {
+  const d = crNormalizarNpc({ ...(n.dadosCompletos || {}), nome: n.nome, imagem: n.imagem || n.dadosCompletos?.imagem, relacao: n.relacao || n.dadosCompletos?.relacao });
+  d.hpMax = n.hpMax || d.hpMax || 20;
+  return d;
+}
+
+function renderNPCsMundo() {
+  const campanha = campanhasMaster[campanhaAtualMaster];
+  const lista = document.getElementById("mundoNPCLista");
+  if (!lista || !campanha) return;
+  campanha.npcsMundo ||= [];
+  if (!campanha.npcsMundo.length) {
+    lista.innerHTML = `<div class="cr-cc-vazio"><span>🧙</span><p>Nenhum NPC no mundo ainda.</p><small>Abra um NPC no compêndio e toque em <b>Adicionar ao Mundo</b>.</small></div>`;
+    return;
+  }
+  lista.innerHTML = campanha.npcsMundo
+    .map((n) => {
+      const d = crNpcMundoDados(n);
+      const max = d.hpMax;
+      const atual = n.hpAtual !== undefined ? n.hpAtual : max;
+      const pct = max ? Math.max(0, Math.min(1, atual / max)) : 0;
+      const id = JSON.stringify(n.id);
+      const aberto = !!window._crNpcAberto[n.id];
+      const aba = window._crNpcAba[n.id] || "sobre";
+      const rapido = !!window._crNpcRapido[n.id];
+      const iniciais = (n.nome || "?").split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+      const sobre = [
+        d.personalidade || n.desc ? crBloco("Personalidade", formatarTexto(d.personalidade || n.desc)) : "",
+        d.relacoes ? crBloco("Relações", formatarTexto(d.relacoes)) : "",
+        d.segredo ? crBloco("🔒 Segredo", formatarTexto(d.segredo)) : "",
+        d.observacoes ? crBloco("Observações", formatarTexto(d.observacoes)) : "",
+        d.pericias ? crBloco("Perícias", formatarTexto(d.pericias)) : "",
+      ].join("");
+      const combate = crListaAtaquesHTML(d.blocos.ataques, `'npc:${n.id}'`) + crListaHabilidadesHTML(d.blocos.habilidades, null) + crListaSimplesHTML("Reações", d.blocos.reacoes);
+      const defesas = crTagsHTML(d) + (d.fraquezas ? crBloco("Fraquezas", formatarTexto(d.fraquezas)) : "");
+      const conteudo = aba === "sobre" ? sobre || `<p class="cr-cc-nada">Sem anotações.</p>` : aba === "combate" ? combate || `<p class="cr-cc-nada">Sem ataques ou habilidades.</p>` : defesas || `<p class="cr-cc-nada">Sem defesas.</p>`;
+      return `
+      <div class="combate-card cr-cc cr-npc-card cr-rel-borda-${d.relacao} ${aberto ? "" : "minimizado"}" id="npcMundo_${n.id}">
+        ${crTopoCardHTML({
+          img: d.imagem || "", corFundo: _corAvatar(n.nome), iniciais, redonda: true, nome: n.nome, ca: d.ca, atual, max, pct, morto: false, aberto,
+          sub: [d.classe, n.regiao || d.regiao].filter(Boolean).map(escapeHtml).join(" · ") || "NPC",
+          extra: "", toggle: `crNpcAbrir(${id})`, vida: `crNpcRapido(${id})`,
+        }).replace('<small class="cr-cc-sub">', `<small class="cr-cc-sub">${crRelTag(d.relacao)} `)}
+        <div class="cr-cc-detalhes">
+          ${rapido ? `<div class="cr-cc-rapido">${[-10, -5, -1].map((v) => `<button type="button" class="dano" onclick="crNpcHp(${id}, ${v})">${v}</button>`).join("")}${[1, 5, 10].map((v) => `<button type="button" class="cura" onclick="crNpcHp(${id}, ${v})">+${v}</button>`).join("")}</div>` : ""}
+          <div class="cr-cc-hp">
+            <input id="crNpcHp_${n.id}" type="number" min="0" placeholder="Valor" onkeydown="if(event.key==='Enter') crNpcHpCampo(${id}, -1)">
+            <button type="button" class="dano" onclick="crNpcHpCampo(${id}, -1)">🩸 Dano</button>
+            <button type="button" class="cura" onclick="crNpcHpCampo(${id}, 1)">💚 Cura</button>
+          </div>
+          <div class="cr-cc-atrs">${CR_ATR.map((a) => `<button type="button" class="cr-cc-atr" onclick="crNpcRolarAtr(${id}, '${a}')"><small>${a.toUpperCase()}</small><b>${crFmt(crMod(d.status[a]))}</b></button>`).join("")}</div>
+          <div class="cr-cc-abas tres">
+            ${[["sobre", "Sobre"], ["combate", "Combate"], ["def", "Defesas"]].map(([k, r]) => `<button type="button" class="${aba === k ? "on" : ""}" onclick="crNpcAba(${id}, '${k}')">${r}</button>`).join("")}
+          </div>
+          <div class="cr-cc-aba">${conteudo}</div>
+          <div class="cr-cc-rodape">
+            <button type="button" onclick="enviarNPCParaCombate(${id})">⚔️ Combate</button>
+            <button type="button" onclick="crNpcFicha(${id})">📖 Ficha</button>
+            <button type="button" class="perigo" onclick="deletarNPCMundo(${id})">Remover</button>
+          </div>
+        </div>
+      </div>`;
+    })
+    .join("");
+}
+
+function crNpcAchar(id) {
+  return campanhasMaster[campanhaAtualMaster]?.npcsMundo?.find((x) => String(x.id) === String(id));
+}
+function crNpcAbrir(id) {
+  window._crNpcAberto[id] = !window._crNpcAberto[id];
+  renderNPCsMundo();
+}
+function toggleNPCMundo(id) { crNpcAbrir(id); }
+function crNpcAba(id, aba) {
+  window._crNpcAba[id] = aba;
+  renderNPCsMundo();
+}
+function crNpcRapido(id) {
+  window._crNpcRapido[id] = !window._crNpcRapido[id];
+  window._crNpcAberto[id] = true;
+  renderNPCsMundo();
+}
+function crNpcHp(id, delta) {
+  const n = crNpcAchar(id);
+  if (!n) return;
+  const max = n.hpMax || n.dadosCompletos?.hpMax || 20;
+  const atual = n.hpAtual !== undefined ? n.hpAtual : max;
+  n.hpAtual = Math.max(0, Math.min(max, atual + delta));
+  salvarCampanhasMaster();
+  renderNPCsMundo();
+}
+function alterarHpNPC(id, delta) { crNpcHp(id, delta); }
+function crNpcHpCampo(id, sinal) {
+  const el = document.getElementById(`crNpcHp_${id}`);
+  const v = parseInt(el?.value) || 0;
+  if (v <= 0) return el?.focus();
+  crNpcHp(id, sinal * v);
+}
+function crNpcRolarAtr(id, atr) {
+  const n = crNpcAchar(id);
+  if (!n) return;
+  const d = crNpcMundoDados(n);
+  rolarD20(`${atr.toUpperCase()} · ${n.nome}`, crMod(d.status[atr]));
+}
+function crNpcFicha(id) {
+  const n = crNpcAchar(id);
+  if (!n) return;
+  crAbrirFichaNpc({ ...(n.dadosCompletos || {}), nome: n.nome, imagem: n.imagem || n.dadosCompletos?.imagem });
+}
+// rolagens dos ataques do NPC do mundo
+(function () {
+  const orig = crFonte;
+  crFonte = function (ctx) {
+    if (typeof ctx === "string" && ctx.startsWith("npc:")) {
+      const n = crNpcAchar(ctx.slice(4));
+      return n ? crEfetivo(crNpcMundoDados(n), 0) : null;
+    }
+    return orig.apply(this, arguments);
+  };
+})();
+
+// NPC do mundo vai pro combate com ataques e habilidades em blocos
+function enviarNPCParaCombate(id) {
+  const n = crNpcAchar(id);
+  if (!n) return;
+  const d = crNpcMundoDados(n);
+  const copia = JSON.parse(JSON.stringify(d));
+  copia.instanciaId = Date.now() + Math.floor(Math.random() * 9999);
+  copia.monstroBaseId = n.id;
+  copia.origem = "npc_mundo";
+  copia.nome = n.nome || "NPC";
+  copia.tipo = d.classe || d.raca || "NPC";
+  copia.hpAtual = n.hpAtual !== undefined ? n.hpAtual : d.hpMax;
+  copia.faseAtual = 0; copia.usosGastos = {}; copia.recargaGasta = {}; copia.lendGastas = 0; copia.fasesOferecidas = [];
+  delete copia._tipo;
+  combatesMestre.push(copia);
+  salvarCombatesMestreStorage();
+  renderCombatesMestre();
+  if (typeof mostrarToastMundo === "function") mostrarToastMundo(`${copia.nome} entrou no combate`);
+}
+
+/* =====================================================================
+   FICHA DO JOGADOR VISTA PELO MESTRE (card flutuante) — layout novo
+   ===================================================================== */
+window._ffAba = window._ffAba || "poderes";
+window._ffAbertos = window._ffAbertos || {};
+
+function _ffPill(texto, tipo) {
+  return `<span class="ff-pill ${tipo || ""}">${escapeHtml(String(texto))}</span>`;
+}
+function _ffCargas(item) {
+  if (!item.temCargas) return "";
+  const gastas = (item.cargasGastas || []).filter(Boolean).length;
+  const max = item.maxCargas || 0;
+  return _ffPill(`${max - gastas}/${max}`, max - gastas === 0 ? "vazio" : "cargas");
+}
+function _ffLinha(chave, nome, extra, pills, desc) {
+  const aberto = !!window._ffAbertos[chave];
+  return `
+    <div class="ff-linha ${desc ? "tem-desc" : ""} ${aberto ? "aberta" : ""}" ${desc ? `onclick="window._ffAlternar(this, '${escapeHtml(chave).replace(/'/g, "")}')"` : ""}>
+      <div class="ff-linha-topo">
+        <strong>${escapeHtml(nome || "Sem nome")}</strong>
+        <span class="ff-linha-pills">${pills || ""}</span>
+      </div>
+      ${extra ? `<div class="ff-linha-extra">${extra}</div>` : ""}
+      ${desc ? `<p>${escapeHtml(desc)}</p>` : ""}
+    </div>`;
+}
+window._ffAlternar = function (el, chave) {
+  window._ffAbertos[chave] = !window._ffAbertos[chave];
+  el.classList.toggle("aberta", !!window._ffAbertos[chave]);
+};
+function _ffGrupo(titulo, conteudo, extraTopo) {
+  if (!conteudo) return "";
+  return `<div class="ff-grupo"><div class="ff-grupo-tit"><span>${titulo}</span>${extraTopo || ""}</div>${conteudo}</div>`;
+}
+function _ffBolinhas(arr, cls) {
+  return `<span class="ff-bolinhas">${(arr || []).map((m) => `<i class="${m ? "on" : ""} ${cls || ""}"></i>`).join("")}</span>`;
+}
+
+window._renderFichaFlutuanteConteudo = function (m, f) {
+  const vidaMax = parseInt(f.vidaMax) || 1;
+  const vidaAtual = f.vidaAtual ?? vidaMax;
+  const vidaTemp = parseInt(f.vidaTemp) || 0;
+  const pct = Math.max(0, Math.min(1, vidaAtual / vidaMax));
+  const pctTemp = Math.max(0, Math.min(1, vidaTemp / vidaMax));
+  const caido = vidaAtual <= 0;
+  const estado = caido ? "morto" : crHpEstado(pct);
+
+  const alvos = window._grupoMasterAlvos || [];
+  const cont = document.getElementById("fichaFlutuanteContador");
+  if (cont) cont.textContent = alvos.length > 1 ? `${window._fichaFlutuanteIndex + 1} / ${alvos.length}` : "";
+
+  /* ---- poderes ---- */
+  const todos = f.poderes || [];
+  const ehTal = (p) => p.circulo === "talento" || ((p.circulo ?? "") === "" && p.origem === "talento");
+  const ehPas = (p) => !ehTal(p) && (p.circulo === "passiva" || ((p.circulo ?? "") === "" && p.acao === "passiva"));
+  const linhaPoder = (p, i) => _ffLinha(`p-${m.uid}-${i}-${p.nome}`, p.nome, p.dano ? `🩸 ${escapeHtml(p.dano)}` : "", _ffCargas(p), p.desc);
+  const gerais = todos.map((p, i) => [p, i]).filter(([p]) => (p.circulo ?? "") === "" && !ehTal(p) && !ehPas(p)).map(([p, i]) => linhaPoder(p, i)).join("");
+  const talentos = todos.map((p, i) => [p, i]).filter(([p]) => ehTal(p)).map(([p, i]) => linhaPoder(p, i)).join("");
+  const passivas = todos.map((p, i) => [p, i]).filter(([p]) => ehPas(p)).map(([p, i]) => linhaPoder(p, i)).join("");
+  const gastos = f.gastosCirculos || {};
+  let magias = "";
+  for (let c = 0; c <= 9; c++) {
+    const lista = todos.map((p, i) => [p, i]).filter(([p]) => String(p.circulo) === String(c));
+    const esp = gastos[c] || [];
+    if (!lista.length && !esp.length) continue;
+    const livres = esp.filter((g) => !g).length;
+    magias += _ffGrupo(
+      c === 0 ? "Truques" : `Círculo ${c}`,
+      lista.map(([p, i]) => linhaPoder(p, i)).join("") || `<p class="ff-nada">Sem magias anotadas.</p>`,
+      esp.length ? `<span class="ff-espacos" title="Espaços livres">${_ffBolinhas(esp.map((g) => !g))}<small>${livres}/${esp.length}</small></span>` : "",
+    );
+  }
+  const nPoderes = todos.length;
+
+  /* ---- equipamento ---- */
+  const armas = (f.armas || []).map((a, i) => _ffLinha(`a-${m.uid}-${i}`, a.nome, a.dano ? `🩸 ${escapeHtml(a.dano)}` : "", _ffCargas(a), a.desc)).join("");
+  const armaduras = (f.armaduras || []).map((a, i) => _ffLinha(`d-${m.uid}-${i}`, a.nome, "", (a.ca ? _ffPill("CA " + a.ca) : "") + _ffCargas(a), a.desc)).join("");
+  const nEquip = (f.armas || []).length + (f.armaduras || []).length;
+
+  /* ---- mochila ---- */
+  const inv = (f.inventario || []).filter((i) => !i.dentroDe).map((it, i) => _ffLinha(`i-${m.uid}-${i}-${it.nome}`, it.nome, "", (it.qtd > 1 ? _ffPill("×" + it.qtd) : "") + (it.recipiente ? _ffPill("🎒") : ""), it.desc)).join("");
+  const moedas = f.moedas || {};
+  const moedasHtml = ["pl", "po", "pe", "pp", "pc"].filter((k) => parseInt(moedas[k]) > 0).map((k) => `<span class="ff-moeda m-${k}"><b>${parseInt(moedas[k])}</b>${k.toUpperCase()}</span>`).join("");
+  const nInv = (f.inventario || []).length;
+
+  /* ---- companheiros ---- */
+  const comps = (f.companheiros || []).map((c, i) => {
+    const max = parseInt(c.pvMax) || 0, at = c.pvAtual ?? max;
+    const tp = (typeof TIPOS_COMP !== "undefined" && TIPOS_COMP[c.tipo]) || ["🐾", ""];
+    return _ffLinha(`c-${m.uid}-${i}`, `${tp[0]} ${c.nome || ""}`, [tp[1], c.especie].filter(Boolean).map(escapeHtml).join(" · "), (max ? _ffPill(`❤️ ${at}/${max}`) : "") + (c.ca ? _ffPill("CA " + c.ca) : ""), c.notas || c.desc || "");
+  }).join("");
+
+  /* ---- estado ---- */
+  const concNome = f.concentracao ? ((f.poderes || []).find((p) => String(p.id) === String(f.concentracao))?.nome || "") : "";
+  const exaust = parseInt(f.exaustao) || 0;
+  const efeitos = ["Sem exaustão", "Desvantagem em testes de atributo", "Deslocamento pela metade", "Desvantagem em ataques e salvaguardas", "PV máximos pela metade", "Deslocamento 0", "Morte"];
+  const morte = f.morte || { sucessos: [false, false, false], falhas: [false, false, false] };
+  const temMorte = (morte.sucessos || []).some(Boolean) || (morte.falhas || []).some(Boolean) || caido;
+  const dominio = f.dominio || [];
+  const estadoHtml = `
+    <div class="ff-estado">
+      <div class="ff-estado-item ${exaust ? "ativo" : ""}">
+        <small>Exaustão</small>
+        <div class="ff-exaustao">${[1, 2, 3, 4, 5, 6].map((n) => `<i class="${n <= exaust ? "on" : ""}"></i>`).join("")}</div>
+        <span>${exaust ? `Nível ${exaust} · ${escapeHtml(efeitos[exaust] || "")}` : "Nenhuma"}</span>
+      </div>
+      <div class="ff-estado-item ${temMorte ? "ativo" : ""}">
+        <small>Testes de morte</small>
+        <div class="ff-morte">
+          <span>✓ ${_ffBolinhas(morte.sucessos, "suc")}</span>
+          <span>✕ ${_ffBolinhas(morte.falhas, "fal")}</span>
+        </div>
+      </div>
+      ${dominio.length ? `<div class="ff-estado-item"><small>Pontos de domínio</small><div>${_ffBolinhas(dominio)}</div><span>${dominio.filter(Boolean).length}/${dominio.length}</span></div>` : ""}
+      ${f.concentracao ? `<div class="ff-estado-item ativo"><small>Concentrando</small><span>🔮 ${escapeHtml(concNome || "um poder")}</span></div>` : ""}
+    </div>`;
+  const alertas = (exaust ? 1 : 0) + (caido ? 1 : 0) + (f.concentracao ? 1 : 0);
+
+  const abas = [
+    ["poderes", "Poderes", nPoderes],
+    ["equip", "Equip.", nEquip],
+    ["mochila", "Mochila", nInv],
+    ["estado", "Estado", alertas],
+  ];
+  if ((f.companheiros || []).length) abas.splice(3, 0, ["comps", "Pets", f.companheiros.length]);
+  if (!abas.some(([k]) => k === window._ffAba)) window._ffAba = "poderes";
+  const aba = window._ffAba;
+
+  let corpo = "";
+  if (aba === "poderes") corpo = _ffGrupo("Poderes", gerais) + _ffGrupo("Talentos", talentos) + _ffGrupo("Passivas", passivas) + (magias ? `<div class="ff-sep">✦ Magias ✦</div>${magias}` : "");
+  else if (aba === "equip") corpo = _ffGrupo("Armas", armas) + _ffGrupo("Armaduras", armaduras);
+  else if (aba === "mochila") corpo = (moedasHtml ? `<div class="ff-moedas">${moedasHtml}</div>` : "") + _ffGrupo("Itens", inv);
+  else if (aba === "comps") corpo = _ffGrupo("Companheiros", comps);
+  else corpo = estadoHtml;
+  if (!corpo.trim()) corpo = `<p class="ff-nada grande">Nada anotado aqui ainda.</p>`;
+
+  const atrs = [["forca", "FOR"], ["destreza", "DES"], ["constituicao", "CON"], ["inteligencia", "INT"], ["sabedoria", "SAB"], ["carisma", "CAR"]];
+  const iniciais = (f.nome || "?").replace(/\(.*?\)/g, "").split(/\s+/).filter((p) => /^[a-zà-ú]/i.test(p)).map((p) => p[0]).join("").slice(0, 2).toUpperCase() || "?";
+  const sub = [f.classe, f.nivel ? `Nv ${f.nivel}` : ""].filter(Boolean).map((x) => escapeHtml(String(x))).join(" · ");
+  const caixa = document.getElementById("fichaFlutuanteConteudo");
+  const scroll = caixa.scrollTop;
+
+  caixa.innerHTML = `
+    <div class="ff">
+      <div class="ff-topo">
+        <div class="ff-retrato">
+          <div class="ff-foto" style="${f.imagem ? `background-image:url('${escapeHtml(f.imagem)}');background-position:${f.imagemPosX ?? 50}% ${f.imagemPosY ?? 50}%` : `background:${_corAvatar(f.nome || "")}`}">${f.imagem ? "" : `<span>${escapeHtml(iniciais)}</span>`}</div>
+          <em class="cr-cc-escudo" title="Classe de armadura"><b>${escapeHtml(String(f.ca ?? "–"))}</b></em>
+        </div>
+        <div class="ff-id">
+          <h3>${escapeHtml(f.nome || "Sem nome")}</h3>
+          <small>${sub || "Aventureiro"}</small>
+          <span class="ff-jogador">🎲 ${escapeHtml(m.nickname || "Jogador")}</span>
+        </div>
+      </div>
+
+      <div class="ff-vida">
+        <div class="ff-vida-num">
+          <span class="cr-cc-hpnum est-${estado}">${caido ? "Caído" : `${vidaAtual}<small>/${vidaMax}</small>`}</span>
+          ${vidaTemp ? `<span class="ff-temp">🛡 +${vidaTemp} temp.</span>` : ""}
+        </div>
+        <div class="ff-barra">
+          <i style="width:${Math.round(pct * 100)}%;background:${crHpCor(pct)}" class="${estado === "critico" ? "pulsa" : ""}"></i>
+          ${vidaTemp ? `<b style="width:${Math.round(pctTemp * 100)}%"></b>` : ""}
+        </div>
+      </div>
+
+      <div class="ff-chips">
+        ${f.deslocamento ? `<span>👣 ${escapeHtml(String(f.deslocamento))}</span>` : ""}
+        ${f.bonusProf ? `<span>⭐ Prof. +${escapeHtml(String(f.bonusProf))}</span>` : ""}
+        ${parseInt(f.inspiracao) > 0 ? `<span class="ouro">✨ Inspiração ${escapeHtml(String(f.inspiracao))}</span>` : ""}
+        ${f.concentracao ? `<span class="roxo">🔮 ${escapeHtml(concNome || "um poder")}</span>` : ""}
+        ${exaust ? `<span class="vinho">😩 Exaustão ${exaust}</span>` : ""}
+      </div>
+
+      <div class="ff-atrs">${atrs.map(([k, r]) => { const v = parseInt(f[k]) || 10; return `<div><small>${r}</small><b>${crFmt(crMod(v))}</b><em>${v}</em></div>`; }).join("")}</div>
+
+      <div class="ff-abas">${abas.map(([k, r, n]) => `<button type="button" class="${aba === k ? "on" : ""}" onclick="window._ffTrocarAba('${k}')">${r}${n ? `<small>${n}</small>` : ""}</button>`).join("")}</div>
+      <div class="ff-corpo">${corpo}</div>
+    </div>`;
+  caixa.scrollTop = scroll;
+  window._ffUltimo = { m, f };
+};
+
+window._ffTrocarAba = function (aba) {
+  window._ffAba = aba;
+  const u = window._ffUltimo;
+  if (u) window._renderFichaFlutuanteConteudo(u.m, u.f);
+};
+
+/* =====================================================================
+   TROCAR DE ABA SEM A PÁGINA PULAR PRA CIMA
+   Quando a aba nova é mais curta, a página segura a altura que tinha e
+   vai soltando aos poucos conforme você rola pra cima.
+   ===================================================================== */
+(function () {
+  const raiz = () => document.scrollingElement || document.documentElement;
+  let preso = null; // container que está segurando a altura
+
+  // a página visível (ficha, grimório...) — é ela que cresce, então o fundo continua o mesmo
+  function paginaVisivel() {
+    const cands = ["masterIgnea", "ficha", "telaCampanhasMaster"].map((id) => document.getElementById(id)).filter((el) => el && el.offsetParent !== null);
+    return cands.sort((x, y) => y.offsetHeight - x.offsetHeight)[0] || null;
+  }
+  function segurarAltura() {
+    const pg = paginaVisivel();
+    if (!pg) return;
+    if (preso && preso !== pg) preso.style.minHeight = "";
+    const atual = parseFloat(pg.style.minHeight) || 0;
+    pg.style.minHeight = Math.max(pg.offsetHeight, atual) + "px";
+    preso = pg;
+  }
+  function soltarAos_poucos() {
+    if (!preso) return;
+    const pg = preso;
+    const precisa = window.scrollY + window.innerHeight;
+    const antes = parseFloat(pg.style.minHeight) || 0;
+    pg.style.minHeight = "";
+    const natural = pg.offsetHeight;
+    const real = raiz().scrollHeight;
+    if (precisa > real + 1) pg.style.minHeight = Math.min(antes || Infinity, natural + (precisa - real)) + "px";
+    else preso = null;
+  }
+  window.addEventListener("scroll", () => requestAnimationFrame(soltarAos_poucos), { passive: true });
+  window.crSegurarAltura = segurarAltura;
+
+  const nomes = ["trocarAba", "trocarAbaMaster", "trocarAbaMundo", "trocarVisaoPM", "crTrocarAba", "crNpcAba", "trocarTipoCriar", "window._ffTrocarAba"];
+  nomes.forEach((n) => {
+    const naJanela = n.startsWith("window.");
+    const chave = naJanela ? n.slice(7) : n;
+    let orig;
+    try { orig = naJanela ? window[chave] : eval(chave); } catch (e) { return; }
+    if (typeof orig !== "function" || orig._seguraAltura) return;
+    const novo = function () {
+      segurarAltura();
+      return orig.apply(this, arguments);
+    };
+    novo._seguraAltura = true;
+    if (naJanela) window[chave] = novo;
+    else {
+      try { eval(`${chave} = novo`); } catch (e) {}
+      window[chave] = novo;
+    }
+  });
+})();
+
+
+/* crédito no rodapé das páginas */
+(function () {
+  ["ficha", "masterIgnea"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el || el.querySelector(":scope > .credito-app")) return;
+    const c = document.createElement("div");
+    c.className = "credito-app";
+    c.innerHTML = "Criado por <b>Leonardo José dos Santos</b>";
+    el.appendChild(c);
+  });
+})();
+
+
+/* excluir pela ficha: apaga de verdade (nuvem + imagem) e a ficha some da tela */
+async function crExcluir() {
+  const c = window._crFichaAtual;
+  if (!c) return;
+  const idx = monstrosMestre.findIndex((m) => String(m.id) === String(c.id));
+  if (idx === -1) return;
+  const oQue = c._tipo === "item" ? "este item" : c._tipo === "npc" ? "este NPC" : "esta criatura";
+  if (!(await confirmBonito(`Excluir ${oQue}${c.nome ? ` ("${c.nome}")` : ""}? Não dá pra desfazer.`))) return;
+  const alvo = monstrosMestre[idx];
+  try {
+    if (window.usuarioAtual && window.deleteDoc) await window.deleteDoc(window.doc(window.db, "usuarios", window.usuarioAtual.uid, "monstros", String(c.id)));
+  } catch (e) {}
+  if (alvo.imagemDeleteUrl && String(alvo.imagemDeleteUrl).startsWith("https://")) {
+    try { fetch(alvo.imagemDeleteUrl, { method: "GET" }); } catch (e) {}
+  }
+  monstrosMestre.splice(idx, 1);
+  salvarMonstrosMestreStorage();
+  renderMonstrosMestre();
+  window._crFichaAtual = null;
+  fecharSheetMonstro();
+  if (typeof mostrarToastMundo === "function") mostrarToastMundo(`${c.nome || "Excluído"} foi excluído`);
+}
+window.crExcluir = crExcluir;
+
+// qualquer outro botão antigo de excluir também fecha a ficha quando a entrada some
+(function () {
+  const orig = excluirEntradaCompendio;
+  excluirEntradaCompendio = async function (tipo, id) {
+    const antes = monstrosMestre.length + JSON.stringify(campanhasMaster[campanhaAtualMaster] || {}).length;
+    const r = await orig.apply(this, arguments);
+    const depois = monstrosMestre.length + JSON.stringify(campanhasMaster[campanhaAtualMaster] || {}).length;
+    if (antes !== depois) {
+      try { fecharSheetMonstro(); } catch (e) {}
+      try { fecharPopup(); } catch (e) {}
+    }
+    return r;
+  };
+  window.excluirEntradaCompendio = excluirEntradaCompendio;
+})();
+
 function abrirImagemExpandida(btn) {
   const url = btn.getAttribute("data-img");
   if (!url) return;
@@ -15387,3 +20078,688 @@ window.addEventListener("resize", () => {
 });
 
 
+
+/* =====================================================================
+   SITE · JOGADOR NO PC (a partir de 1100px)
+   Barra fina de ícones, topo com título da aba, coluna de resumo fixa à
+   direita (vida, CA, condições, últimas rolagens, dados), formulários de
+   "adicionar" numa gaveta lateral e armas com Acerto/Dano no card.
+   No celular nada disso aparece (o CSS esconde).
+   ===================================================================== */
+(function () {
+  var WJ_NOMES_ABA = {
+    personagem: "Personagem", atributos: "Atributos", combate: "Combate", inventario: "Inventário",
+    poderes: "Poderes", veiculos: "Veículos", companheiros: "Companheiros", diario: "Diário",
+  };
+  // formulários que viram gaveta: caixa do form, título da gaveta e texto do botão
+  var WJ_GAVETAS = [
+    { box: "boxArmasForm", aba: "combate", titulo: "Nova arma", botao: "Nova arma", cheio: true },
+    { box: "boxArmadurasForm", aba: "combate", titulo: "Nova armadura", botao: "Nova armadura" },
+    { box: "boxItensForm", aba: "inventario", titulo: "Novo item", botao: "Novo item", cheio: true },
+    { box: "boxAliadosForm", aba: "personagem", titulo: "Novo aliado", botao: "Novo aliado" },
+    { box: "boxMapasForm", aba: "personagem", titulo: "Novo mapa", botao: "Novo mapa" },
+  ];
+  var desk = window.matchMedia ? window.matchMedia("(min-width: 1100px)") : { matches: false, addEventListener: function () {} };
+
+  function el(id) { return document.getElementById(id); }
+  function txt(v) { return typeof esc === "function" ? esc(v == null ? "" : String(v)) : String(v == null ? "" : v); }
+  function abaAtiva() {
+    // durante a animação a aba antiga ainda está marcada: vale a última pedida
+    if (window._wjAba && el(window._wjAba)) return window._wjAba;
+    var a = document.querySelector("#ficha .aba.active") || [].slice.call(document.querySelectorAll("#ficha .aba")).find(function (x) { return x.style.display === "block"; });
+    return a ? a.id : "personagem";
+  }
+  function n(id) { var v = parseInt((el(id) || {}).value); return isNaN(v) ? 0 : v; }
+
+  /* ---------- montar estrutura (topo, resumo, gaveta) ---------- */
+  function montar() {
+    var ficha = el("ficha");
+    if (!ficha || el("wjResumo")) return;
+    var topo = document.createElement("div");
+    topo.id = "wjTopo";
+    var primeiraAba = ficha.querySelector(".aba");
+    if (primeiraAba) primeiraAba.parentNode.insertBefore(topo, primeiraAba);
+    var resumo = document.createElement("aside");
+    resumo.id = "wjResumo";
+    ficha.appendChild(resumo);
+    var veu = document.createElement("div");
+    veu.id = "wjVeu";
+    veu.onclick = fecharGaveta;
+    document.body.appendChild(veu);
+    var gav = document.createElement("aside");
+    gav.id = "wjGaveta";
+    gav.innerHTML = '<div class="wj-gv-topo"><h2 id="wjGavetaTitulo"></h2><button type="button" class="wj-gv-x" onclick="wjFecharGaveta()" aria-label="Fechar">✕</button></div><div id="wjGavetaCorpo"></div>';
+    document.body.appendChild(gav);
+    // marca as seções que têm gaveta (no PC o form some de dentro da página)
+    WJ_GAVETAS.forEach(function (g) {
+      var box = el(g.box);
+      var sec = box && box.closest(".secao-toggle");
+      if (sec) sec.classList.add("wj-tem-gaveta");
+    });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") fecharGaveta(); });
+    // a engrenagem de escolher abas fica no pé da barra (o topo antigo some no PC)
+    var tabs = ficha.querySelector(".tabs");
+    if (tabs && !tabs.querySelector(".wj-cfg-abas")) {
+      var cfg = document.createElement("button");
+      cfg.type = "button";
+      cfg.className = "tab-btn wj-cfg-abas";
+      cfg.setAttribute("aria-label", "Escolher abas");
+      cfg.onclick = function () { if (typeof abrirConfigAbas === "function") abrirConfigAbas(); };
+      cfg.innerHTML = '⚙️<span class="tab-label">Abas da ficha</span>';
+      tabs.appendChild(cfg);
+    }
+    // depois de clicar em "Adicionar" dentro da gaveta: se o form limpou, deu certo e fecha
+    gav.addEventListener("click", function (e) {
+      var b = e.target.closest(".btn-adicionar, .inv-add-btn");
+      if (!b) return;
+      var corpo = el("wjGavetaCorpo");
+      var campo = corpo && corpo.querySelector('input:not([type="file"]):not([type="checkbox"]):not([type="number"])');
+      var antes = campo ? campo.value : "";
+      if (!campo || !antes) return;
+      // salvar pode demorar (envio de imagem): espera o formulário limpar, até 4 s
+      var t0 = Date.now();
+      (function olhar() {
+        if (!gavAberta) return;
+        if (!campo.value) return fecharGaveta();
+        if (Date.now() - t0 < 4000) setTimeout(olhar, 150);
+      })();
+    }, true); // captura: lê o nome antes do botão salvar e limpar
+    desk.addEventListener && desk.addEventListener("change", function () { if (!desk.matches) fecharGaveta(); renderTudo(); });
+  }
+
+  /* ---------- gaveta ---------- */
+  var gavAberta = null; // { box, marcador }
+  function abrirGaveta(boxId) {
+    var g = WJ_GAVETAS.find(function (x) { return x.box === boxId; });
+    var box = el(boxId);
+    if (!g || !box) return;
+    fecharGaveta();
+    var marcador = document.createComment("wj-gaveta");
+    box.parentNode.insertBefore(marcador, box);
+    el("wjGavetaCorpo").appendChild(box);
+    el("wjGavetaTitulo").textContent = g.titulo;
+    gavAberta = { box: box, marcador: marcador };
+    document.body.classList.add("wj-gaveta-aberta");
+    setTimeout(function () { var i = box.querySelector("input, textarea"); if (i) i.focus(); }, 260);
+  }
+  function fecharGaveta() {
+    if (!gavAberta) return;
+    var g = gavAberta;
+    gavAberta = null;
+    document.body.classList.remove("wj-gaveta-aberta");
+    if (g.marcador.parentNode) { g.marcador.parentNode.insertBefore(g.box, g.marcador); g.marcador.remove(); }
+  }
+  window.wjAbrirGaveta = abrirGaveta;
+  window.wjFecharGaveta = fecharGaveta;
+
+  /* ---------- topo ---------- */
+  function renderTopo() {
+    var topo = el("wjTopo");
+    if (!topo) return;
+    var aba = abaAtiva();
+    var badge = el("badgeInboxItens");
+    var nInbox = badge && badge.style.display !== "none" ? parseInt(badge.textContent) || 0 : 0;
+    var botoes = WJ_GAVETAS.filter(function (g) { return g.aba === aba && el(g.box); })
+      .map(function (g) { return '<button type="button" class="wj-btn ' + (g.cheio ? "cheio" : "") + '" onclick="wjAbrirGaveta(\'' + g.box + '\')">＋ ' + g.botao + "</button>"; }).join("");
+    if (aba === "atributos") botoes = '<button type="button" class="wj-btn" onclick="abrirBandejaDados()">🎲 Rolar dados</button>' + botoes;
+    topo.innerHTML =
+      '<h1>' + (WJ_NOMES_ABA[aba] || "") + "</h1>" +
+      '<button type="button" class="wj-btn ghost" onclick="abrirInboxItens()">📥 Itens recebidos' + (nInbox ? ' <b>' + nInbox + "</b>" : "") + "</button>" +
+      botoes;
+  }
+
+  /* ---------- resumo ---------- */
+  function fotoAtual() {
+    try {
+      if (typeof imagensPersonagem !== "undefined" && imagensPersonagem[0] && imagensPersonagem[0].url) return imagensPersonagem[0].url;
+      if (typeof imagemBase64 !== "undefined" && imagemBase64) return imagemBase64;
+    } catch (e) {}
+    var p = (typeof personagens !== "undefined" ? personagens : window.personagens || [])[personagemAtual];
+    return (p && p.imagem) || "";
+  }
+  function nomeConcentracao() {
+    if (typeof concentracaoAtiva === "undefined" || !concentracaoAtiva) return "";
+    var pd = (typeof poderes !== "undefined" ? poderes : []).find(function (x) { return String(x.id) === String(concentracaoAtiva); });
+    return pd ? pd.nome || "Poder" : String(concentracaoAtiva);
+  }
+  function pips(arr, acao, cls) {
+    return '<span class="wj-pips">' + arr.map(function (on, k) { return '<button type="button" class="' + (on ? "on " : "") + (cls || "") + '" onclick="' + acao(k) + '"></button>'; }).join("") + "</span>";
+  }
+  function secao(id, titulo, corpo, extra) {
+    if (!corpo) return "";
+    var fechada = !!(window._wjFechadas || {})[id];
+    return '<section class="wj-sec ' + (fechada ? "fechada" : "") + '"><button type="button" class="wj-sec-tit" onclick="wjAlternarSecao(\'' + id + '\')"><span>' + titulo + "</span>" + (extra || "") + '<i></i></button><div class="wj-sec-corpo">' + corpo + "</div></section>";
+  }
+  window.wjAlternarSecao = function (id) {
+    window._wjFechadas = window._wjFechadas || {};
+    window._wjFechadas[id] = !window._wjFechadas[id];
+    try { localStorage.setItem("wjFechadas", JSON.stringify(window._wjFechadas)); } catch (e) {}
+    renderResumo();
+  };
+  try { window._wjFechadas = JSON.parse(localStorage.getItem("wjFechadas") || "{}"); } catch (e) { window._wjFechadas = {}; }
+
+  function renderResumo() {
+    var box = el("wjResumo");
+    if (!box || personagemAtual === null || personagemAtual === undefined) return;
+    var rolagem = box.scrollTop;
+    var nome = (el("nome") || {}).value || "Sem nome";
+    var classe = (el("classe") || {}).value || "";
+    var nivel = (el("nivel") || {}).value || "";
+    var rs = el("racaSelect");
+    var raca = "";
+    if (rs && rs.value && rs.selectedIndex >= 0) raca = rs.options[rs.selectedIndex].text;
+    if (/escolh|selecione|personaliz|custom/i.test(raca)) raca = (typeof nomeRacaCustom !== "undefined" && nomeRacaCustom) || "";
+    var max = n("vidaMax") || 1;
+    var atual = typeof vidaAtual === "number" ? vidaAtual : max;
+    var temp = typeof vidaTemp === "number" ? vidaTemp : 0;
+    var pct = Math.max(0, Math.min(1, atual / max));
+    var pctTemp = Math.max(0, Math.min(1, temp / max));
+    var cor = pct > 0.5 ? "linear-gradient(90deg,#8e2a33,#c4505a)" : pct > 0.25 ? "linear-gradient(90deg,#9a6a22,#d09a40)" : "linear-gradient(90deg,#5e1219,#9a2626)";
+    var ca = (el("ca") || {}).value || "–";
+    var desloc = (el("deslocamento") || {}).value || "–";
+    var ini = typeof modAtributo === "function" ? modAtributo("destreza") : 0;
+    var prof = n("bonusProf");
+    var fmt = function (v) { return (v >= 0 ? "+" : "−") + Math.abs(v); };
+    var foto = fotoAtual();
+    var inicial = (nome.replace(/\(.*?\)/g, "").trim()[0] || "?").toUpperCase();
+
+    /* estado: inspiração, exaustão, concentração, morte */
+    var insp = n("inspiracao");
+    var exa = typeof exaustao !== "undefined" ? exaustao || 0 : 0;
+    var conc = nomeConcentracao();
+    var estado =
+      '<div class="wj-linha-est"><span>✨ Inspiração</span><span class="wj-cont"><button type="button" onclick="wjInsp(-1)">−</button><b>' + insp + '</b><button type="button" onclick="wjInsp(1)">+</button></span></div>' +
+      '<div class="wj-linha-est"><span>😩 Exaustão</span><span class="wj-exa">' + [1, 2, 3, 4, 5, 6].map(function (k) { return '<button type="button" class="' + (k <= exa ? "on" : "") + '" title="Nível ' + k + '" onclick="setExaustao(' + (k === exa ? k - 1 : k) + ')"></button>'; }).join("") + "</span></div>" +
+      (conc ? '<div class="wj-linha-est conc"><span>🔮 Concentrando</span><span class="wj-conc-nome">' + txt(conc) + '<button type="button" title="Parar de concentrar" onclick="encerrarConcentracao()">✕</button></span></div>' : "") +
+      (atual <= 0 && typeof morte !== "undefined" ? '<div class="wj-linha-est morte"><span>💀 Testes de morte</span><span class="wj-morte">✓ ' + pips(morte.sucessos || [], function (k) { return "toggleMorte('sucessos'," + k + ")"; }, "suc") + " ✕ " + pips(morte.falhas || [], function (k) { return "toggleMorte('falhas'," + k + ")"; }, "fal") + "</span></div>" : "");
+
+    /* atributos: clicar rola */
+    var siglas = [["forca", "FOR"], ["destreza", "DES"], ["constituicao", "CON"], ["inteligencia", "INT"], ["sabedoria", "SAB"], ["carisma", "CAR"]];
+    var atrs = '<div class="wj-atrs">' + siglas.map(function (s2) {
+      var v = typeof getAtributoFinal === "function" ? getAtributoFinal(s2[0]) : n(s2[0]);
+      return '<button type="button" title="Rolar ' + s2[1] + '" onclick="rolarAtributo(\'' + s2[0] + '\')"><small>' + s2[1] + "</small><b>" + fmt(Math.floor((v - 10) / 2)) + "</b></button>";
+    }).join("") + "</div>";
+
+    /* ataques rápidos */
+    var lista = typeof armas !== "undefined" ? armas : [];
+    var ataques = lista.slice(0, 6).map(function (a, i) {
+      var calc = typeof armaUsaCalculo === "function" && armaUsaCalculo(a);
+      var atk = calc ? calcAtaqueArma(a).total : (typeof modAtributo === "function" ? modAtributo("forca") : 0) + prof;
+      var sd = typeof separarDanoArma === "function" ? separarDanoArma(a) : { expr: a.dano || "", rolavel: !!a.dano };
+      return '<div class="wj-atk"><span class="wj-atk-nome">' + txt(a.nome || "Arma") + '</span><button type="button" class="atk" onclick="rolarAtaqueArma(' + i + ')">🎯 ' + fmt(atk) + "</button>" +
+        (a.dano && sd.rolavel ? '<button type="button" class="dn" onclick="rolarDanoArma(' + i + ')">🩸 ' + txt(sd.expr) + "</button>" : "") + "</div>";
+    }).join("");
+
+    /* recursos: cargas de poderes e armas, domínio e espaços de magia */
+    var rec = "";
+    (typeof poderes !== "undefined" ? poderes : []).forEach(function (pd, i) {
+      if (!pd.temCargas || !(pd.maxCargas > 0)) return;
+      var g = Array.isArray(pd.cargasGastas) ? pd.cargasGastas : Array(pd.maxCargas).fill(false);
+      var livres = Array.from({ length: pd.maxCargas }, function (_, k) { return !g[k]; });
+      rec += '<div class="wj-rec"><span>' + txt(pd.nome || "Poder") + "</span>" + pips(livres, function (k) { return "toggleCargaPoder(" + i + "," + k + ")"; }) + "</div>";
+    });
+    lista.forEach(function (a, i) {
+      if (!a.temCargas || !(a.maxCargas > 0)) return;
+      var livres = Array.from({ length: a.maxCargas }, function (_, k) { return !(a.cargasGastas || [])[k]; });
+      rec += '<div class="wj-rec"><span>⚔️ ' + txt(a.nome || "Arma") + "</span>" + pips(livres, function (k) { return "toggleCargaArma(" + i + "," + k + ")"; }) + "</div>";
+    });
+    if (typeof gastosCirculos !== "undefined") {
+      for (var c = 1; c <= 9; c++) {
+        var esp = gastosCirculos[c];
+        if (!Array.isArray(esp) || !esp.length) continue;
+        rec += '<div class="wj-rec"><span>Círculo ' + c + "</span>" + pips(esp.map(function (x) { return !x; }), (function (cc) { return function (k) { return "alternarEspaco(" + cc + "," + k + ")"; }; })(c), "mag") + "</div>";
+      }
+    }
+    if (typeof dominio !== "undefined" && Array.isArray(dominio) && dominio.some(Boolean)) {
+      rec += '<div class="wj-rec"><span>Domínio</span>' + pips(dominio, function (k) { return "toggleDominio(" + k + ")"; }, "dom") + "</div>";
+    }
+    if (rec) rec += '<div class="wj-descanso"><button type="button" onclick="descansoCurto()">☕ Descanso curto</button><button type="button" onclick="descansoLongo()">🌙 Descanso longo</button></div>';
+
+    /* bolsa */
+    var mo = typeof moedas !== "undefined" ? moedas : {};
+    var bolsa = ["pl", "po", "pe", "pp", "pc"].filter(function (k) { return parseInt(mo[k]) > 0; })
+      .map(function (k) { return '<span class="wj-moeda m-' + k + '"><b>' + parseInt(mo[k]) + "</b>" + k.toUpperCase() + "</span>"; }).join("");
+
+    /* rolagens */
+    var hist = (typeof historicoRolagens !== "undefined" ? historicoRolagens : []).slice(0, 3);
+    var rolHTML = hist.length
+      ? hist.map(function (r, k) {
+          var cls = r.nat === "crit" ? "cr" : r.nat === "falha" ? "fa" : r.tipo === "expr" ? "dn" : "";
+          return '<div class="wj-rol"><span class="wj-d20 ' + cls + '">' + txt(r.total) + "</span><div>" + txt(r.rotulo || "Rolagem") + "<small>" + txt(r.textoSimples || "") + (r.nat === "crit" ? " · crítico!" : r.nat === "falha" ? " · falha crítica" : "") + "</small></div></div>";
+        }).join("")
+      : '<p class="wj-vazio">Suas rolagens aparecem aqui.</p>';
+
+    box.innerHTML =
+      '<div class="wj-quem">' +
+        '<button type="button" class="wj-foto" title="Ver personagem" onclick="trocarAba(\'personagem\')" style="' + (foto ? "background-image:url('" + String(foto).replace(/'/g, "%27") + "')" : "") + '">' + (foto ? "" : "<span>" + txt(inicial) + "</span>") + "</button>" +
+        '<button type="button" class="wj-ca" title="Mudar CA" onclick="wjEditar(\'ca\')">' + txt(ca) + "</button>" +
+        "<div class=\"wj-quem-txt\"><h3>" + txt(nome) + "</h3><small>" + [classe, nivel ? "Nv " + nivel : "", raca].filter(Boolean).map(txt).join(" · ") + "</small></div>" +
+      "</div>" +
+      '<div class="wj-vida">' +
+        '<div class="wj-num"><button type="button" class="wj-hp" title="Mudar vida máxima" onclick="wjEditar(\'vidaMax\')"><b>' + atual + "<small>/" + max + "</small></b></button>" +
+          '<button type="button" class="wj-temp ' + (temp ? "" : "zero") + '" onclick="wjEditar(\'temp\')">🛡 ' + (temp ? "+" + temp + " temp." : "PV temporários") + "</button></div>" +
+        '<div class="wj-barra"><i style="width:' + Math.round(pct * 100) + "%;background:" + cor + '"></i>' + (temp ? '<em style="width:' + Math.round(pctTemp * 100) + '%"></em>' : "") + "</div>" +
+        '<div class="wj-hpbtns"><button type="button" class="d" onclick="wjVida(-1)">− Dano</button><input id="wjHpValor" type="number" min="0" placeholder="valor" onkeydown="if(event.key===\'Enter\')wjVida(-1)"><button type="button" class="c" onclick="wjVida(1)">+ Cura</button></div>' +
+      "</div>" +
+      '<div class="wj-stats">' +
+        '<button type="button" title="Mudar CA" onclick="wjEditar(\'ca\')"><small>CA</small><b>' + txt(ca) + "</b></button>" +
+        '<button type="button" title="Mudar deslocamento" onclick="wjEditar(\'deslocamento\')"><small>Desloc.</small><b>' + txt(desloc) + "</b></button>" +
+        '<button type="button" title="Rolar iniciativa" onclick="rolarD20(\'Iniciativa\', ' + ini + ')"><small>Inic. 🎲</small><b>' + fmt(ini) + "</b></button>" +
+        '<button type="button" title="Mudar proficiência" onclick="wjEditar(\'bonusProf\')"><small>Prof.</small><b>' + fmt(prof) + "</b></button>" +
+      "</div>" +
+      secao("estado", "Estado", estado) +
+      secao("atrs", "Testes rápidos", atrs) +
+      secao("ataques", "Ataques", ataques) +
+      secao("recursos", "Recursos", rec) +
+      secao("bolsa", "Bolsa", bolsa ? '<button type="button" class="wj-bolsa" onclick="trocarAba(\'inventario\')">' + bolsa + "</button>" : "") +
+      secao("rolagens", "Últimas rolagens", rolHTML, hist.length ? '<em class="wj-ver" onclick="event.stopPropagation(); wjHistorico()">ver todas</em>' : "") +
+      '<div class="wj-dados">' + [20, 12, 10, 8, 6, 4].map(function (d) { return '<button type="button" class="' + (d === 20 ? "d" : "") + '" onclick="wjDado(' + d + ')">d' + d + "</button>"; }).join("") +
+        '<button type="button" title="Bandeja de dados" onclick="abrirBandejaDados()">🎲</button></div>';
+    box.scrollTop = rolagem;
+  }
+
+  window.wjInsp = function (d) {
+    var i = el("inspiracao");
+    if (!i) return;
+    i.value = Math.max(0, (parseInt(i.value) || 0) + d);
+    salvarTudo();
+    renderResumo();
+  };
+  window.wjHistorico = function () {
+    var h = typeof historicoRolagens !== "undefined" ? historicoRolagens : [];
+    var html = '<div class="wj-hist">' + (h.length ? h.map(function (r) {
+      var cls = r.nat === "crit" ? "cr" : r.nat === "falha" ? "fa" : r.tipo === "expr" ? "dn" : "";
+      var hora = r.em ? new Date(r.em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
+      return '<div class="wj-rol"><span class="wj-d20 ' + cls + '">' + txt(r.total) + "</span><div>" + txt(r.rotulo || "Rolagem") + "<small>" + txt(r.textoSimples || "") + "</small></div><time>" + hora + "</time></div>";
+    }).join("") : '<p class="wj-vazio">Nenhuma rolagem ainda.</p>') + "</div>";
+    abrirPopup("Rolagens desta sessão", html, true, null);
+  };
+
+  window.wjVida = function (sinal) {
+    var i = el("wjHpValor");
+    var v = parseInt(i && i.value) || 0;
+    if (v <= 0) { if (i) i.focus(); return; }
+    if (sinal < 0 && typeof vidaTemp === "number" && vidaTemp > 0) {
+      var tira = Math.min(vidaTemp, v);
+      vidaTemp -= tira; v -= tira;
+      if (typeof atualizarTemp === "function") atualizarTemp();
+    }
+    if (v) alterarVida(sinal * v);
+    else salvarTudo();
+    renderResumo();
+  };
+  window.wjDado = function (d) {
+    if (d === 20) rolarD20("d20", 0);
+    else rolarDano("d" + d, "1d" + d);
+  };
+  window.wjEditar = async function (qual) {
+    var rot = { ca: "CA", deslocamento: "Deslocamento", vidaMax: "Vida máxima", temp: "PV temporários", bonusProf: "Bônus de proficiência" }[qual];
+    var atual = qual === "temp" ? (typeof vidaTemp === "number" ? vidaTemp : 0) : (el(qual) || {}).value;
+    var novo = await promptBonito(rot + ":", String(atual == null ? "" : atual));
+    if (novo == null) return;
+    if (qual === "temp") {
+      var t = Math.max(0, parseInt(novo) || 0);
+      alterarTemp(t - vidaTemp);
+    } else {
+      var inp = el(qual);
+      if (!inp) return;
+      inp.value = String(novo).trim();
+      if (qual === "vidaMax") { if (vidaAtual > get("vidaMax")) vidaAtual = get("vidaMax"); atualizarHP(); }
+      if (qual === "bonusProf" && typeof atualizarTudo === "function") atualizarTudo();
+      salvarTudo();
+    }
+    renderResumo();
+  };
+
+  /* ---------- armas: Acerto e Dano direto no card ---------- */
+  function pillsArmas() {
+    var ul = el("listaArmas");
+    if (!ul || typeof armas === "undefined") return;
+    [].slice.call(ul.querySelectorAll("li.arma-card")).forEach(function (li) {
+      var i = parseInt(li.dataset.index);
+      var a = armas[i];
+      if (!a || li.querySelector(".wj-rolar")) return;
+      var calc = typeof armaUsaCalculo === "function" && armaUsaCalculo(a);
+      var atk = calc ? calcAtaqueArma(a).total : (typeof modAtributo === "function" ? modAtributo("forca") : 0) + get("bonusProf");
+      var sd = typeof separarDanoArma === "function" ? separarDanoArma(a) : { expr: a.dano || "", tipo: "", rolavel: !!a.dano };
+      var div = document.createElement("div");
+      div.className = "wj-rolar";
+      div.innerHTML =
+        '<button type="button" class="atk" title="Rolar acerto" onclick="event.stopPropagation(); rolarAtaqueArma(' + i + ')">🎯 ' + (atk >= 0 ? "+" : "−") + Math.abs(atk) + "</button>" +
+        (a.dano ? '<button type="button" class="dano" title="Rolar dano" ' + (sd.rolavel ? 'onclick="event.stopPropagation(); rolarDanoArma(' + i + ')"' : "disabled") + ">🩸 " + txt(sd.expr) + (sd.tipo ? " <small>" + txt(sd.tipo) + "</small>" : "") + "</button>" : "");
+      var info = li.querySelector(".arma-info") || li;
+      var calcEl = info.querySelector(".arma-calc");
+      if (calcEl) calcEl.parentNode.insertBefore(div, calcEl.nextSibling);
+      else info.appendChild(div);
+    });
+  }
+
+
+  /* ---------- etiquetas nas armas e escudo da CA nas armaduras ---------- */
+  function tagsArmas() {
+    var ul = el("listaArmas");
+    if (!ul || typeof armas === "undefined") return;
+    [].slice.call(ul.querySelectorAll("li.arma-card")).forEach(function (li) {
+      var a = armas[parseInt(li.dataset.index)];
+      if (!a || li.querySelector(".wj-tags")) return;
+      var tags = [];
+      if (a.atributoAtaque && typeof NOMES_ATRIBUTO !== "undefined" && NOMES_ATRIBUTO[a.atributoAtaque]) tags.push(NOMES_ATRIBUTO[a.atributoAtaque]);
+      if (a.requerSintonia) tags.push('<span class="' + (a.sintonizado ? "ok" : "") + '">' + (a.sintonizado ? "Sintonizado" : "Requer sintonia") + "</span>");
+      (a.modificacoes || []).slice(0, 2).forEach(function (m) { if (m && m.nome) tags.push('<span class="magico">' + txt(m.nome) + "</span>"); });
+      if (!tags.length) return;
+      var div = document.createElement("div");
+      div.className = "wj-tags";
+      div.innerHTML = tags.map(function (t) { return t.indexOf("<span") === 0 ? t : "<span>" + txt(t) + "</span>"; }).join("");
+      var rol = li.querySelector(".wj-rolar");
+      if (rol) rol.parentNode.insertBefore(div, rol);
+    });
+  }
+  function escudosArmaduras() {
+    var ul = el("listaArmaduras");
+    if (!ul || typeof armaduras === "undefined") return;
+    [].slice.call(ul.querySelectorAll("li.armadura-card")).forEach(function (li, k) {
+      var a = armaduras[li.dataset.index != null ? parseInt(li.dataset.index) : k];
+      if (!a || li.querySelector(".wj-escudo")) return;
+      var info = li.querySelector(".armadura-info");
+      if (!info) return;
+      var s = document.createElement("span");
+      s.className = "wj-escudo";
+      s.textContent = a.ca || "–";
+      info.insertBefore(s, info.firstChild);
+    });
+  }
+
+  /* ---------- atualizar sem pesar ---------- */
+  var agendado = false;
+  function renderTudo() {
+    if (agendado) return;
+    agendado = true;
+    requestAnimationFrame(function () {
+      agendado = false;
+      try {
+        var f = el("ficha");
+        document.body.classList.toggle("wj-na-ficha", !!(f && f.offsetParent !== null && getComputedStyle(f).display !== "none"));
+        document.body.dataset.wjAba = abaAtiva();
+        renderTopo(); renderResumo();
+      } catch (e) { console.warn("wj", e); }
+    });
+  }
+  window.wjAtualizar = renderTudo;
+
+  function envolver(nome, depois) {
+    var orig = window[nome];
+    try { if (typeof orig !== "function") orig = eval(nome); } catch (e) {}
+    if (typeof orig !== "function" || orig._wj) return;
+    var novo = function () {
+      var r = orig.apply(this, arguments);
+      try { depois.apply(this, arguments); } catch (e) {}
+      return r;
+    };
+    novo._wj = true;
+    // mantém o que outros envoltórios marcaram
+    Object.keys(orig).forEach(function (k) { if (!(k in novo)) novo[k] = orig[k]; });
+    try { eval(nome + " = novo"); } catch (e) {}
+    window[nome] = novo;
+  }
+  ["atualizarHP", "atualizarTemp", "atualizarTudo", "salvarTudo", "registrarRolagem", "carregarPersonagem", "setExaustao", "alterarVida", "alterarTemp", "renderPoderes", "renderDominio", "atualizarMorte", "renderPainelMagias", "encerrarConcentracao", "voltarInicio"].forEach(function (n2) { envolver(n2, renderTudo); });
+  envolver("trocarAba", function (id) { if (id) window._wjAba = id; fecharGaveta(); renderTudo(); });
+  envolver("renderArmas", function () { pillsArmas(); tagsArmas(); });
+  envolver("renderArmaduras", escudosArmaduras);
+
+  function iniciar() {
+    montar();
+    renderTudo();
+    pillsArmas(); tagsArmas(); escudosArmaduras();
+    // o selo de "Itens recebidos" muda sozinho: acompanha
+    var badge = el("badgeInboxItens");
+    if (badge && window.MutationObserver) new MutationObserver(renderTudo).observe(badge, { attributes: true, childList: true, characterData: true, subtree: true });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar);
+  else iniciar();
+})();
+
+
+/* =====================================================================
+   SITE · ABA PERSONAGEM NO PC (a partir de 1100px)
+   Cartaz com a foto, modo leitura / modo edição com campos nomeados,
+   idiomas e proficiências em etiquetas, história, mapas e vínculos.
+   Os campos de verdade da ficha continuam onde estavam (escondidos no
+   PC): aqui só espelhamos e escrevemos de volta neles.
+   ===================================================================== */
+(function () {
+  function el(id) { return document.getElementById(id); }
+  function txt(v) { return typeof esc === "function" ? esc(v == null ? "" : String(v)) : String(v == null ? "" : v); }
+  function pAtual() { var L = typeof personagens !== "undefined" ? personagens : window.personagens || []; return L[personagemAtual]; }
+  function val(id) { var e = el(id); return e ? e.value : ""; }
+  window._wjPersEdit = false;
+  window._wjVincFiltro = window._wjVincFiltro || "todos";
+
+  /* escreve no campo original e avisa a ficha */
+  function escrever(id, v) {
+    var e = el(id);
+    if (!e) return;
+    e.value = v;
+    e.dispatchEvent(new Event("input", { bubbles: true }));
+    e.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  window.wjPersCampo = function (id, v) {
+    escrever(id, v);
+    if (id === "lorePersonagem" && typeof salvarLorePersonagem === "function") salvarLorePersonagem();
+    else salvarTudo();
+  };
+  window.wjPersExtra = function (campo, v) {
+    var p = pAtual();
+    if (!p) return;
+    p[campo] = v;
+    salvarTudo();
+  };
+
+  /* ---------- etiquetas (idiomas / proficiências) ---------- */
+  function lista(id) {
+    return val(id).split(/[,;\n]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+  }
+  window.wjPersTagAdd = function (id, inp) {
+    var v = (inp.value || "").replace(/,/g, " ").trim();
+    if (!v) return;
+    var L = lista(id);
+    if (L.indexOf(v) === -1) L.push(v);
+    wjPersCampo(id, L.join(", "));
+    render(true);
+    setTimeout(function () { var i = document.querySelector('#wjPers [data-tag-input="' + id + '"]'); if (i) i.focus(); }, 0);
+  };
+  window.wjPersTagRem = function (id, k) {
+    var L = lista(id);
+    L.splice(k, 1);
+    wjPersCampo(id, L.join(", "));
+    render(true);
+  };
+  function tagsHTML(id, vazio) {
+    var L = lista(id);
+    var ed = window._wjPersEdit;
+    var chips = L.map(function (t, k) {
+      return "<span>" + txt(t) + (ed ? '<button type="button" onclick="wjPersTagRem(\'' + id + "'," + k + ')" aria-label="Tirar">×</button>' : "") + "</span>";
+    }).join("");
+    if (ed) chips += '<input class="nova" data-tag-input="' + id + '" placeholder="＋ digite e Enter" onkeydown="if(event.key===\'Enter\'||event.key===\',\'){event.preventDefault();wjPersTagAdd(\'' + id + '\', this)}" onblur="wjPersTagAdd(\'' + id + '\', this)">';
+    return '<div class="wjp-pilulas">' + (chips || '<em class="wjp-vazio">' + vazio + "</em>") + "</div>";
+  }
+
+  /* ---------- fotos ---------- */
+  function fotos() { return typeof imagensPersonagem !== "undefined" ? imagensPersonagem : []; }
+  function fotoPrincipal() {
+    var F = fotos();
+    var i = typeof indiceCarrossel === "number" ? indiceCarrossel : 0;
+    if (F[i] && F[i].url) return F[i].url;
+    if (typeof imagemBase64 !== "undefined" && imagemBase64) return imagemBase64;
+    var p = pAtual();
+    return (p && p.imagem) || "";
+  }
+  window.wjPersFoto = function (i) {
+    indiceCarrossel = i;
+    if (typeof atualizarPreviewCarrossel === "function") atualizarPreviewCarrossel();
+    render(true);
+  };
+
+  /* ---------- vínculos ---------- */
+  var REL = { companheiro: ["🤝", "Companheiro", "alia"], inimigo: ["⚔️", "Inimigo", "inim"], neutro: ["⚖️", "Neutro", "neut"] };
+  window.wjPersFiltro = function (f) { window._wjVincFiltro = f; render(true); };
+
+  /* ---------- diário ---------- */
+  window.wjPersDiario = function () {
+    trocarAba("inventario");
+    setTimeout(function () {
+      var box = el("diario-box");
+      if (box && box.style.display === "none" && typeof toggleDiario === "function") toggleDiario();
+      if (box) box.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 350);
+  };
+
+  window.wjPersEditar = function (on) {
+    window._wjPersEdit = !!on;
+    if (!on) salvarTudo();
+    render(true);
+    if (on) setTimeout(function () { var i = document.querySelector("#wjPers .wjp-campos input"); if (i) i.focus(); }, 0);
+  };
+
+  /* ---------- montar ---------- */
+  function render(forcar) {
+    var aba = el("personagem");
+    if (!aba || personagemAtual === null || personagemAtual === undefined) return;
+    // editando: não redesenha a cada tecla (perderia o foco)
+    if (window._wjPersEdit && !forcar && document.activeElement && document.activeElement.closest && document.activeElement.closest("#wjPers")) return;
+    var box = el("wjPers");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "wjPers";
+      aba.insertBefore(box, aba.firstChild);
+    }
+    var p = pAtual() || {};
+    var ed = window._wjPersEdit;
+    var nome = val("nome") || "Sem nome";
+    var rs = el("racaSelect");
+    var raca = "";
+    if (rs && rs.value && rs.selectedIndex >= 0) raca = rs.options[rs.selectedIndex].text;
+    if (/escolh|selecione|personaliz|custom/i.test(raca)) raca = (typeof nomeRacaCustom !== "undefined" && nomeRacaCustom) || "";
+    var nivel = val("nivel");
+    var linha = [val("classe"), raca, nivel ? "Nível " + nivel : "", val("antecedentes")].filter(Boolean).map(txt).join(" · ");
+    var idade = val("idade"), altura = val("altura");
+    var tags = [];
+    if (idade) tags.push("🎂 " + txt(idade) + (/^\d+$/.test(idade.trim()) ? " anos" : ""));
+    if (altura) tags.push("📏 " + txt(altura));
+    if (p.wjTitulo) tags.push("⚔️ " + txt(p.wjTitulo));
+    var foto = fotoPrincipal();
+    var urlCss = foto ? "url('" + String(foto).replace(/'/g, "%27") + "')" : "none";
+    var F = fotos();
+    var iAt = typeof indiceCarrossel === "number" ? indiceCarrossel : 0;
+    var minis = F.map(function (f, i) {
+      return '<button type="button" class="' + (i === iAt ? "on" : "") + '" style="background-image:url(\'' + String(f.url || "").replace(/'/g, "%27") + '\')" onclick="wjPersFoto(' + i + ')" aria-label="Foto ' + (i + 1) + '"></button>';
+    }).join("") + '<button type="button" class="add" onclick="abrirPopupFotoPersonagem()" title="Fotos">＋</button>';
+    var badge = el("badgeInboxItens");
+    var nInbox = badge && badge.style.display !== "none" ? parseInt(badge.textContent) || 0 : 0;
+
+    var opcoesRaca = rs ? [].map.call(rs.options, function (o) { return '<option value="' + txt(o.value) + '"' + (o.value === rs.value ? " selected" : "") + ">" + txt(o.text) + "</option>"; }).join("") : "";
+    var campo = function (rot, id, extra) {
+      return '<label class="c ' + (extra || "") + '"><span>' + rot + '</span><input value="' + txt(val(id)) + '" oninput="wjPersCampo(\'' + id + '\', this.value)"></label>';
+    };
+    var heroiTxt = ed
+      ? '<div class="wjp-campos">' +
+          campo("Nome", "nome", "largo") + campo("Classe", "classe") +
+          '<label class="c"><span>Raça</span><select onchange="wjPersCampo(\'racaSelect\', this.value); setTimeout(function(){wjAtualizar && wjAtualizar()},50)">' + opcoesRaca + "</select></label>" +
+          campo("Nível", "nivel") + campo("Antecedente", "antecedentes") + campo("Idade", "idade") + campo("Altura", "altura") +
+          '<label class="c largo"><span>Título / quem é</span><input value="' + txt(p.wjTitulo || "") + '" placeholder="Ex: Mercenário de Valdris" oninput="wjPersExtra(\'wjTitulo\', this.value)"></label>' +
+          '<label class="c largo"><span>Frase / lema</span><input value="' + txt(p.wjFrase || "") + '" placeholder="Uma frase que resume o personagem" oninput="wjPersExtra(\'wjFrase\', this.value)"></label>' +
+        "</div>"
+      : '<h1 class="wjp-nome">' + txt(nome) + "</h1>" +
+        (linha ? '<p class="wjp-linha">' + linha + "</p>" : "") +
+        (tags.length ? '<div class="wjp-tags">' + tags.map(function (t) { return "<span>" + t + "</span>"; }).join("") + "</div>" : "") +
+        (p.wjFrase ? '<p class="wjp-frase">“' + txt(p.wjFrase) + "”</p>" : "");
+
+    /* história */
+    var lore = val("lorePersonagem");
+    var historia = ed
+      ? '<textarea class="wjp-lore" placeholder="História, origem, motivações do seu personagem..." oninput="wjPersCampo(\'lorePersonagem\', this.value)">' + txt(lore) + "</textarea>"
+      : lore ? '<p class="wjp-lore-txt">' + txt(lore).replace(/\n/g, "<br>") + "</p>" : '<p class="wjp-vazio">Ainda sem história. Toque em ✏️ Editar pra escrever.</p>';
+
+    /* mapas */
+    var M = typeof mapas !== "undefined" ? mapas : [];
+    var mapasHTML = M.map(function (m, i) {
+      return '<button type="button" class="wjp-mapa" style="' + (m.imagemUrl ? "background-image:url('" + String(m.imagemUrl).replace(/'/g, "%27") + "')" : "") + '" onclick="verMapa(' + i + ')">' + (m.imagemUrl ? "" : "<b>🗺</b>") + "<i>" + txt(m.nome || "Mapa") + "</i></button>";
+    }).join("") + '<button type="button" class="wjp-mapa add" onclick="wjAbrirGaveta(\'boxMapasForm\')" title="Novo mapa">＋</button>';
+
+    /* vínculos */
+    var A = Array.isArray(p.aliados) ? p.aliados : [];
+    var f = window._wjVincFiltro;
+    var cont = { todos: A.length, companheiro: 0, inimigo: 0, neutro: 0 };
+    A.forEach(function (a) { cont[a.tipo || "companheiro"] = (cont[a.tipo || "companheiro"] || 0) + 1; });
+    var chips = [["todos", "Todos"], ["companheiro", "🤝 Companheiros"], ["inimigo", "⚔️ Inimigos"], ["neutro", "⚖️ Neutros"]]
+      .map(function (c) { return '<button type="button" class="wjp-chip ' + (f === c[0] ? "on" : "") + '" onclick="wjPersFiltro(\'' + c[0] + '\')">' + c[1] + (cont[c[0]] ? " <small>" + cont[c[0]] + "</small>" : "") + "</button>"; }).join("");
+    var vinc = A.map(function (a, i) { return [a, i]; }).filter(function (x) { return f === "todos" || (x[0].tipo || "companheiro") === f; }).map(function (x) {
+      var a = x[0], i = x[1];
+      var r = REL[a.tipo] || REL.companheiro;
+      var ini = (a.nome || "?").split(/\s+/).filter(function (w) { return /^[a-zà-ú]/i.test(w) && !/^(o|a|os|as|de|da|do|das|dos|e)$/i.test(w); }).map(function (w) { return w[0]; }).join("").slice(0, 2).toUpperCase() || "?";
+      var cor = typeof _corAvatar === "function" ? _corAvatar(a.nome || "") : "#6b4a2b";
+      return '<button type="button" class="wjp-v ' + r[2] + '" onclick="abrirDetalhesAliado(' + i + ')">' +
+        '<span class="wjp-av" style="' + (a.imagem ? "background-image:url('" + String(a.imagem).replace(/'/g, "%27") + "')" : "background:" + cor) + '">' + (a.imagem ? "" : txt(ini)) + "</span>" +
+        "<span class=\"wjp-v-txt\"><strong>" + txt(a.nome || "Sem nome") + "</strong><small>" + [r[1], a.local].filter(Boolean).map(txt).join(" · ") + "</small>" + (a.desc ? "<em>" + txt(a.desc) + "</em>" : "") + "</span></button>";
+    }).join("") + '<button type="button" class="wjp-v add" onclick="wjAbrirGaveta(\'boxAliadosForm\')">＋ Novo vínculo</button>';
+
+    box.className = ed ? "editando" : "";
+    box.innerHTML =
+      '<section class="wjp-heroi">' +
+        '<div class="wjp-capa" style="background-image:' + urlCss + '"></div>' +
+        '<div class="wjp-foto-col">' +
+          '<button type="button" class="wjp-foto" style="background-image:' + urlCss + '" onclick="aoClicarFotoPersonagem()" title="Fotos do personagem">' + (foto ? "" : "<span>📷<small>Adicionar foto</small></span>") + "</button>" +
+          '<div class="wjp-minis">' + minis + "</div>" +
+        "</div>" +
+        '<div class="wjp-txt">' +
+          '<div class="wjp-topo"><span class="wjp-selo">Personagem</span>' +
+            '<button type="button" class="wj-btn ghost" onclick="abrirInboxItens()">📥 Itens recebidos' + (nInbox ? " <b>" + nInbox + "</b>" : "") + "</button>" +
+            (ed ? '<button type="button" class="wj-btn cheio" onclick="wjPersEditar(false)">✓ Salvar</button>' : '<button type="button" class="wj-btn" onclick="wjPersEditar(true)">✏️ Editar</button>') +
+          "</div>" + heroiTxt +
+        "</div>" +
+      "</section>" +
+      '<div class="wjp-duas">' +
+        '<div class="wjp-col">' +
+          '<div class="wjp-sec"><h2>Sobre</h2><span></span></div>' +
+          '<div class="wjp-card"><div class="wjp-rot">Idiomas</div>' + tagsHTML("idiomas", "Nenhum idioma anotado.") +
+            '<div class="wjp-rot" style="margin-top:14px">Proficiências</div>' + tagsHTML("proficienciasExtras", "Nenhuma proficiência anotada.") + "</div>" +
+          '<div class="wjp-card"><div class="wjp-rot">História <button type="button" class="wjp-link" onclick="wjPersDiario()">abrir diário →</button></div>' + historia + "</div>" +
+          '<div class="wjp-sec" style="margin-top:22px"><h2>Mapas</h2>' + (M.length ? "<small>" + M.length + "</small>" : "") + "<span></span></div>" +
+          '<div class="wjp-mapas">' + mapasHTML + "</div>" +
+        "</div>" +
+        '<div class="wjp-col">' +
+          '<div class="wjp-sec"><h2>Vínculos</h2>' + (A.length ? "<small>" + A.length + "</small>" : "") + "<span></span></div>" +
+          '<div class="wjp-chips">' + chips + "</div>" +
+          '<div class="wjp-vinc">' + vinc + "</div>" +
+        "</div>" +
+      "</div>";
+  }
+  window.wjPersRender = render;
+
+  function envolver(nome) {
+    var orig;
+    try { orig = eval(nome); } catch (e) { orig = window[nome]; }
+    if (typeof orig !== "function" || orig._wjp) return;
+    var novo = function () {
+      var r = orig.apply(this, arguments);
+      try { render(false); } catch (e) { console.warn("wjp", e); }
+      return r;
+    };
+    Object.keys(orig).forEach(function (k) { if (!(k in novo)) novo[k] = orig[k]; });
+    novo._wjp = true;
+    try { eval(nome + " = novo"); } catch (e) {}
+    window[nome] = novo;
+  }
+  ["carregarPersonagem", "renderAliados", "renderMapas", "atualizarPreviewCarrossel", "salvarTudo", "aoMudarRaca"].forEach(envolver);
+  // trocar de personagem sai do modo edição
+  (function () {
+    var orig;
+    try { orig = eval("carregarPersonagem"); } catch (e) {}
+    if (typeof orig !== "function") return;
+    var novo = function () { window._wjPersEdit = false; return orig.apply(this, arguments); };
+    Object.keys(orig).forEach(function (k) { novo[k] = orig[k]; });
+    try { eval("carregarPersonagem = novo"); } catch (e) {}
+    window.carregarPersonagem = novo;
+  })();
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { render(true); });
+  else render(true);
+})();
