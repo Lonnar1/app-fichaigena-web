@@ -12,7 +12,7 @@
   --wj-bg: #110b08; --wj-card: #211812; --wj-card2: #2a1f18;
   --wj-linha: rgba(216, 181, 106, 0.16); --wj-linha2: rgba(216, 181, 106, 0.32);
   --wj-ouro: #d8b56a; --wj-ouro2: #b8913f; --wj-txt: #efe4cc; --wj-sub: #a8977a; --wj-sub2: #7d6d55;
-  --wj-resumo: 340px; --wj-trilho: 76px;
+  --wj-resumo: 380px; --wj-trilho: 76px;
 }
 
 /* fora do PC, nada do layout novo aparece */
@@ -249,53 +249,57 @@
   #listaArmaduras .armadura-ca-preview { display: none; }
   #listaArmaduras .armadura-info p, #listaArmaduras .armadura-desc { font-size: 12.5px !important; color: var(--wj-sub) !important; margin: 2px 0 0 !important; }
 
-  /* ---------- combate: armas e armaduras à esquerda, painel de condição à direita ---------- */
-  #combate { display: grid !important; grid-template-columns: minmax(0, 1fr) 300px; column-gap: 26px; align-items: start; }
+  /* ---------- combate: só armas e armaduras; o resto mora no resumo da direita ---------- */
+  #combate { display: flex !important; flex-direction: column; }
   #combate.aba:not(.active)[style*="display: none"] { display: none !important; }
-  .wj-cb-main { grid-column: 1; min-width: 0; }
-  #listaArmas, #listaArmaduras { grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)) !important; }
-
-  .wj-cb-lado {
-    grid-column: 2; position: sticky; top: 18px; margin-top: 4px; padding: 6px 18px 16px;
-    background: linear-gradient(180deg, var(--wj-card2), var(--wj-card)); border: 1px solid var(--wj-linha); border-radius: 18px;
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.3);
-  }
-  .wj-cb-lado-cab {
-    padding: 12px 0 10px; font-family: var(--font-display, "Cinzel", serif); font-size: 15px; letter-spacing: 0.08em;
-    color: var(--wj-ouro); border-bottom: 1px solid var(--wj-linha);
-  }
-  .wj-cb-lado > .secao-toggle { margin: 0 !important; padding: 14px 0; border-bottom: 1px solid var(--wj-linha); }
-  .wj-cb-lado > .secao-toggle:last-child { border-bottom: 0; padding-bottom: 0; }
-  #ficha .wj-cb-lado .titulo-secao {
-    margin: 0 0 10px !important; font-family: inherit !important; font-size: 11px !important; font-weight: 700 !important;
-    letter-spacing: 0.12em !important; color: var(--wj-sub) !important; text-transform: uppercase;
-  }
-  #ficha .wj-cb-lado .titulo-secao::after { display: none !important; }
-  #ficha .wj-cb-lado .titulo-secao .setinha { margin-left: auto; font-size: 9px; opacity: 0.45; }
-  /* dentro do painel as caixas não são mais cartões */
-  #combate .wj-cb-lado .dominio-box, #combate .wj-cb-lado .exaustao-box, #combate .wj-cb-lado .morte-box, #combate .wj-cb-lado .resistencias-box {
-    margin: 0 !important; padding: 0 !important; min-height: 0; background: none !important; border: 0 !important; box-shadow: none !important;
-  }
-
-  /* domínio: bolinhas à esquerda, lápis à direita */
-  #combate .dominio-box { display: flex; align-items: center; gap: 10px; }
+  #listaArmas, #listaArmaduras { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important; }
+  /* exaustão e resistências: ficam no resumo */
+  #combate > .secao-toggle:has(#boxExaustao), #combate > .secao-toggle:has(#boxResistencias) { display: none !important; }
+  /* domínio: fica no resumo da direita */
+  #combate > .secao-toggle:has(#boxDominio) { display: none !important; }
+  #combate .dominio-box { display: flex; align-items: center; gap: 12px; max-width: 420px; margin: 0 !important; }
   #combate .dominio-topo { order: 2; margin: 0 0 0 auto !important; }
   #combate .dominio-topo > span { display: none; }
   #combate .dominio-topo .btn-editar-slots { width: 28px; height: 28px; padding: 0; font-size: 12px; border-radius: 8px; border: 1px solid var(--wj-linha); background: transparent; opacity: 0.6; }
-  #combate .dominio-topo .btn-editar-slots:hover { opacity: 1; border-color: var(--wj-linha2); }
-  #combate .dominio-checks { gap: 7px; }
-  #combate .dominio-check { width: 20px !important; height: 20px !important; border-width: 1.5px !important; }
+  #combate .dominio-check { width: 22px !important; height: 22px !important; }
 
-  /* exaustão: régua de 0 a 6 */
-  #combate .exaustao-checks { display: grid !important; grid-template-columns: repeat(7, 1fr); gap: 5px !important; }
-  #combate .exaustao-check { width: auto !important; height: 28px !important; border-radius: 8px !important; font-size: 12px; border-width: 1px !important; display: grid; place-items: center; }
-  #combate #exaustao-desc { font-size: 12.5px; color: var(--wj-sub); margin: 8px 0 0; line-height: 1.4; }
+  /* teste de morte: só quando a vida chega a 0, no topo da aba */
+  #combate > .secao-toggle:has(#boxMorte) { display: none !important; }
+  body.wj-caido #combate > .secao-toggle:has(#boxMorte) {
+    display: block !important; order: -1; margin: 4px 0 6px; padding: 16px 20px; border-radius: 16px;
+    border: 1px solid rgba(192, 68, 47, 0.55); box-shadow: 0 0 0 4px rgba(192, 68, 47, 0.08), 0 12px 30px rgba(0, 0, 0, 0.4);
+    background: radial-gradient(120% 140% at 0% 0%, rgba(160, 30, 30, 0.28), transparent 60%), linear-gradient(180deg, #2a1310, #180b09);
+    animation: wjCaido 0.35s ease;
+  }
+  @keyframes wjCaido { from { opacity: 0; transform: translateY(-6px); } }
+  body.wj-caido #combate .secao-toggle:has(#boxMorte) .titulo-secao {
+    margin: 0 0 12px !important; font-size: 12px !important; letter-spacing: 0.14em !important; color: #e8a090 !important; pointer-events: none;
+  }
+  body.wj-caido #combate .secao-toggle:has(#boxMorte) .titulo-secao::after, body.wj-caido #combate .secao-toggle:has(#boxMorte) .setinha { display: none !important; }
+  .wj-morte-sit {
+    font-style: normal; font-family: var(--font-display, "Cinzel", serif); font-size: 22px; letter-spacing: 0.06em; text-transform: none; color: #f0b4a4; margin-right: 6px;
+  }
+  .wj-morte-sit[data-s="Estável"] { color: #bfe0a8; }
+  .wj-morte-sit[data-s="Morto"] { color: #9a8a8a; }
+  body.wj-caido #combate .morte-box { display: flex !important; flex-wrap: wrap; gap: 10px 36px; margin: 0 !important; padding: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; }
+  body.wj-caido #combate .morte-linha { display: flex; align-items: center; gap: 12px; font-size: 14px; color: #d9c3b0; }
+  body.wj-caido #combate .morte-checks { gap: 9px; }
+  body.wj-caido #combate .morte-check { width: 24px; height: 24px; border-width: 2px; }
 
-  /* teste de morte */
-  #combate .morte-linha { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 3px 0; font-size: 13px; color: var(--wj-sub); }
-  #combate .morte-checks { gap: 8px; }
-
-  #combate .resistencias-box textarea { min-height: 84px; font-size: 13px; background: rgba(0, 0, 0, 0.22) !important; border: 1px solid var(--wj-linha) !important; border-radius: 12px !important; }
+  /* ---------- resumo: resistências e lápis do domínio ---------- */
+  .wj-resist { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 0; }
+  .wj-resist span { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--wj-linha); color: var(--wj-sub); }
+  .wj-resist-ed {
+    padding: 2px 8px; min-height: 0; margin: 0; border-radius: 999px; border: 1px dashed var(--wj-linha2); background: transparent; color: var(--wj-sub2);
+    font-size: 12px; cursor: pointer; box-shadow: none; text-transform: none; letter-spacing: 0; opacity: 0.7;
+  }
+  .wj-resist-ed:hover { opacity: 1; color: var(--wj-ouro); }
+  .wj-resist-ed.vazio { border-style: dashed; }
+  .wj-rec-ed { margin: 0 0 0 6px; padding: 0 4px; min-height: 0; border: 0; background: none; color: var(--wj-sub2); font-size: 12px; cursor: pointer; box-shadow: none; opacity: 0.6; }
+  .wj-rec-ed:hover { opacity: 1; color: var(--wj-ouro); }
+  .wj-resist-pop p { margin: 0 0 8px; font-size: 13px; color: var(--wj-sub); }
+  .wj-resist-pop textarea { width: 100%; min-height: 90px; box-sizing: border-box; }
+  .wj-resist-pop .wj-resist-ok { width: 100%; margin-top: 10px; }
 
   /* ---------- atributos ---------- */
   #atributos .attr-card {
@@ -573,10 +577,4 @@
 @media (min-width: 1100px) {
   #wjPers button { font-family: inherit; text-transform: none; letter-spacing: normal; }
   #wjPers .wjp-mapa i { text-transform: none !important; letter-spacing: normal !important; }
-}
-
-/* combate no celular: os blocos do PC não existem pro layout */
-@media (max-width: 1099px) {
-  .wj-cb-main, .wj-cb-lado { display: contents; }
-  .wj-cb-lado-cab { display: none; }
 }
