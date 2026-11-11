@@ -2272,3 +2272,82 @@ body #listaCampanhasMaster .campanha-card-conteudo p {
 
 /* os "vizinhos" do lado da ficha só aparecem quando tem o que mostrar */
 #sheetPeekPrev:empty, #sheetPeekNext:empty { display: none !important; }
+
+/* =====================================================================
+   FORJAR no PC: índice das seções à esquerda (fixo enquanto rola),
+   formulário à direita, e tudo na mesma largura
+   ===================================================================== */
+@media (min-width: 1100px) {
+  #abaMaster-criar .criar-form-panel > .ctg-mestre-box,
+  .cr-editor.cr-inline { max-width: 1000px; width: 100%; margin-left: auto; margin-right: auto; box-sizing: border-box; }
+  #abaMaster-criar .criar-form-panel > .ctg-mestre-box { margin-bottom: 18px; }
+  /* tipos (Monstro, Boss…) na mesma largura do formulário, divididos por igual */
+  #abaMaster-criar .criar-tipo-grid { display: flex !important; flex-wrap: nowrap; gap: 8px; max-width: 1000px; width: 100%; margin-left: auto; margin-right: auto; box-sizing: border-box; }
+  #abaMaster-criar .criar-tipo-grid .criar-tipo-btn { flex: 1 1 0; min-width: 0; padding-left: 6px !important; padding-right: 6px !important; text-align: center; justify-content: center; white-space: nowrap; }
+  #abaMaster-criar .criar-form-titulo { text-align: center; }
+
+  /* Em branco · Do catálogo · Colar texto */
+  .ctg-mestre-box .ctg-seg { padding: 4px; border-radius: 14px; background: var(--gi-ivory-2); border: 1px solid var(--gi-borda); }
+  #masterIgnea #abaMaster-criar .ctg-mestre-box .ctg-seg button {
+    padding: 9px 10px !important; border-radius: 10px !important; font: 600 15px "EB Garamond", Georgia, serif !important; color: var(--gi-muted) !important;
+  }
+  #masterIgnea #abaMaster-criar .ctg-mestre-box .ctg-seg button:hover:not(.on) { color: var(--gi-burg) !important; background: rgba(123, 30, 40, 0.05) !important; }
+  #masterIgnea #abaMaster-criar .ctg-mestre-box .ctg-seg button.on { color: #F8F4E3 !important; background: #7B1E28 !important; box-shadow: 0 4px 12px rgba(123, 30, 40, 0.25) !important; }
+
+  /* duas colunas: índice + seções */
+  .cr-editor.cr-inline { display: grid; grid-template-columns: 172px minmax(0, 1fr); column-gap: 24px; align-items: start; padding-bottom: 40px; }
+  .cr-editor.cr-inline > * { grid-column: 2; }
+  .cr-inline .cr-ed-atalhos {
+    grid-column: 1; grid-row: 1 / span 30; position: sticky; top: 20px; flex-direction: column; gap: 2px; overflow: visible;
+    margin: 0; padding: 14px 10px; border-radius: 16px; background: var(--gi-ivory-card); border: 1px solid var(--gi-borda);
+  }
+  .cr-inline .cr-ed-atalhos::before {
+    content: "Seções"; display: block; padding: 0 8px 8px; margin-bottom: 4px; border-bottom: 1px solid var(--gi-borda-leve);
+    font-family: "Cinzel", serif; font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gi-muted-2);
+  }
+  #masterIgnea .cr-inline .cr-ed-atalhos button {
+    width: 100% !important; text-align: left; padding: 9px 10px !important; border: 0 !important; border-radius: 10px !important;
+    color: var(--gi-charcoal-2) !important; font: 500 15px "EB Garamond", Georgia, serif !important;
+  }
+  #masterIgnea .cr-inline .cr-ed-atalhos button:hover { background: var(--gi-burg-soft) !important; color: var(--gi-burg) !important; }
+
+  /* cartões das seções */
+  .cr-inline .cr-sec { margin-bottom: 14px; border-radius: 16px; box-shadow: 0 6px 18px rgba(90, 60, 30, 0.06); }
+  .cr-inline .cr-sec > summary { padding: 15px 18px; font-size: 15px; }
+  .cr-inline .cr-sec-corpo { padding: 0 18px 18px; gap: 10px; }
+
+  /* foto: moldura de pergaminho em vez do quadrado cinza */
+  .cr-inline .cr-ed-img-prev {
+    width: 132px; min-height: 132px; border-radius: 14px; background-color: var(--gi-ivory-2); border: 1.5px dashed var(--gi-borda-burg); transition: background-color 0.2s, border-color 0.2s;
+  }
+  .cr-inline .cr-ed-img-prev:hover { background-color: var(--gi-burg-soft); border-color: var(--gi-burg); }
+  .cr-inline .cr-ed-img-prev span { color: var(--gi-burg); }
+  .cr-inline .cr-ed-img-prev small { font-size: 12px; color: var(--gi-muted); margin-top: 2px; }
+
+  /* botão de criar sempre à mão */
+  .cr-inline .cr-ed-rodape {
+    position: sticky !important; bottom: 14px; z-index: 4; margin-top: 6px; padding: 14px 0 0 !important;
+    background: linear-gradient(180deg, rgba(248, 244, 227, 0), var(--gi-ivory) 45%) !important;
+  }
+}
+
+/* =====================================================================
+   GRIMÓRIO no PC: busca e filtros na mesma largura do resto,
+   e os seletores de duas abas com a letra do Grimório
+   ===================================================================== */
+@media (min-width: 1100px) {
+  #abaMaster-compendio .compendio-controles { max-width: none; width: 100%; display: flex; flex-direction: row; gap: 10px; }
+  #abaMaster-compendio .compendio-controles > * { margin: 0 !important; min-width: 0; }
+  #abaMaster-compendio .compendio-controles > input { flex: 2 1 0; }
+  #abaMaster-compendio .compendio-controles > select { flex: 1 1 0; }
+
+  #masterIgnea #abaMaster-compendio .rg-seg { padding: 4px; border-radius: 14px; background: var(--gi-ivory-2); border: 1px solid var(--gi-borda); }
+  #masterIgnea #abaMaster-compendio .rg-seg button { padding: 9px 10px !important; border-radius: 10px !important; font: 600 15px "EB Garamond", Georgia, serif !important; }
+  #masterIgnea #abaMaster-compendio .rg-seg button:hover:not(.on) { color: #7B1E28 !important; background: rgba(123, 30, 40, 0.05) !important; }
+  #masterIgnea #abaMaster-compendio .rg-seg button.on { box-shadow: 0 4px 12px rgba(123, 30, 40, 0.25) !important; }
+}
+@media (min-width: 1100px) {
+  /* abas de Lore e Mundo na largura toda, como os tipos do Forjar */
+  #masterIgnea .mundo-tabs { display: flex !important; flex-wrap: nowrap; gap: 8px; width: 100%; justify-content: stretch; }
+  #masterIgnea .mundo-tabs .mundo-tab-btn { flex: 1 1 0; min-width: 0; margin: 0 !important; text-align: center; white-space: nowrap; }
+}
