@@ -14,10 +14,17 @@
 
 
     <title>Ficha Ígnea</title>
-    <link rel="stylesheet" href="css/web-jornada.css?v=20261104zb" />
-    <link rel="stylesheet" href="css/web-grimorio.css?v=20261104zb" />
-    <link rel="stylesheet" href="css/web-novidades.css?v=20261104zb" />
-    <link rel="stylesheet" href="css/web-jogador.css?v=20261104zb" />
+    <link rel="stylesheet" href="css/web-jornada.css?v=20261111w" />
+    <link rel="stylesheet" href="css/web-grimorio.css?v=20261111w" />
+    <link rel="stylesheet" href="css/web-novidades.css?v=20261111w" />
+    <link rel="stylesheet" href="css/web-jogador.css?v=20261111w" />
+    <link rel="stylesheet" href="css/11-catalogo.css?v=20261111w" />
+    <link rel="stylesheet" href="css/12-regras.css?v=20261111w" />
+    <link rel="stylesheet" href="css/13-sobre.css?v=20261111sb4" />
+    <link rel="stylesheet" href="css/14-progressao.css?v=20261111w" />
+    <link rel="stylesheet" href="css/15-atributos.css?v=20261111w" />
+    <link rel="stylesheet" href="css/16-estilo.css?v=20261111w" />
+    <link rel="stylesheet" href="css/17-site-ponte.css?v=20261111w" />
    <link
    
   href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700&family=MedievalSharp&display=swap"
@@ -926,6 +933,15 @@
         <div class="status-attr"><label>SAB</label><input id="bossSab" type="number" value="10" oninput="atualizarModsMaster('boss')"><span id="bossModSab">+0</span></div>
         <div class="status-attr"><label>CAR</label><input id="bossCar" type="number" value="10" oninput="atualizarModsMaster('boss')"><span id="bossModCar">+0</span></div>
       </div>
+      <div class="criar-campos-duplos">
+        <input id="bossVelocidade" placeholder="Velocidade (ex: 9m, voo 18m)">
+        <input id="bossSaves" placeholder="Testes de Resistência (ex: DES +5, CON +7)">
+      </div>
+      <div class="criar-campos-duplos">
+        <input id="bossSentidos" placeholder="Sentidos (ex: Visão no escuro 18m, Perc. passiva 14)">
+        <input id="bossIdiomas" placeholder="Idiomas (ex: Comum, Abissal)">
+      </div>
+
       <textarea id="bossLore" placeholder="Lore / história"></textarea>
       <textarea id="bossFases" placeholder="Fases (ex: Fase 1 — 100% HP...)"></textarea>
       <textarea id="bossMecanicas" placeholder="Mecânicas especiais"></textarea>
@@ -950,7 +966,9 @@
 
       <textarea id="bossFraquezas" placeholder="Fraquezas"></textarea>
       <textarea id="bossReacoes" placeholder="Reações lendárias"></textarea>
-      <textarea id="bossResistencias" placeholder="Resistências / Imunidades / Vulnerabilidades"></textarea>
+      <textarea id="bossResistencias" placeholder="Resistências a dano (ex: fogo, contundente não mágico)"></textarea>
+      <textarea id="bossImunidades" placeholder="Imunidades a dano / condição (ex: veneno, envenenado)"></textarea>
+      <textarea id="bossVulnerabilidades" placeholder="Vulnerabilidades (ex: radiante)"></textarea>
       <input id="bossPontoEncontro" placeholder="Ponto de encontro">
       <label class="master-upload" style="display:block; margin-bottom:8px;">📷 Imagem do boss<input id="bossImagemInput" type="file" accept="image/*" onchange="previewImagemBoss()"></label>
       <img id="previewBoss" class="preview-monstro" src="" style="display:none;">
@@ -1234,7 +1252,7 @@
             <div class="select-wrapper">
               <select id="racaSelect" onchange="aoMudarRaca()">
                 <option value="" selected>Selecionar raça</option>
-                <option value="custom">Raças personalizadas</option>
+                <option value="custom">✍️ Raças personalizadas</option>
               </select>
             </div>
 
@@ -2384,7 +2402,27 @@
       </div>
     </div>
 
-    <script src="script.js?v=20261104zb"></script>
+    <script src="script.js?v=20261111w"></script>
+    <script src="javascript/web-ponte.js?v=20261111w"></script>
+    <script src="javascript/catalogo-dados.js?v=20261111w"></script>
+    <script src="javascript/catalogo-magias.js?v=20261111w"></script>
+    <script src="javascript/catalogo-magicos.js?v=20261111w"></script>
+    <script src="javascript/catalogo-monstros.js?v=20261111w"></script>
+    <script src="javascript/catalogo.js?v=20261111w"></script>
+    <script src="javascript/regras-dados.js?v=20261111w"></script>
+    <script src="javascript/regras.js?v=20261111w"></script>
+    <script src="javascript/sobre.js?v=20261111sb4"></script>
+    <script src="javascript/classes-dados.js?v=20261111w"></script>
+    <script src="javascript/regras-mesa.js?v=20261111w"></script>
+    <script src="javascript/leitor-texto.js?v=20261111w"></script>
+    <script src="javascript/leitor-monstro.js?v=20261111w"></script>
+    <script src="javascript/leitor-poder.js?v=20261111w"></script>
+    <script src="javascript/leitor-item.js?v=20261111w"></script>
+    <script src="javascript/leitor-origem.js?v=20261111w"></script>
+    <script src="javascript/dominios.js?v=20261111w"></script>
+    <script src="javascript/progressao.js?v=20261111w"></script>
+    <script src="javascript/atributos.js?v=20261111w"></script>
+    <script src="javascript/devil-trigger.js?v=20261111w"></script>
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker
