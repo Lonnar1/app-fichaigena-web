@@ -14,7 +14,7 @@
     // Deixe "" pra usar só o email. A chave é pública por natureza, pode ficar aqui.
     chaveRelatos: "7aea3d1f-e082-4d46-b050-066fc944fcac",
     papel: "Criador da Ficha Ígnea",
-    foto: "img/equipe/leonardo.jpg",
+    foto: "img/equipe/Leonardo.jpg",
     texto: [
       "Oi! Eu sou o Leonardo, e a Ficha Ígnea é o meu projeto.",
       "Criei o app pra deixar a ficha do jogador e a campanha do mestre mais fáceis de levar pra mesa: tudo num lugar só, sem papelada e sem precisar abrir livro no meio da sessão.",
@@ -26,17 +26,17 @@
       // "papel" aparece no cartão; "obrigado" aparece quando toca no cartão
       pessoas: [
         {
-          nome: "Vinicius Edney", foto: "img/equipe/vini.jpg", insta: "underbed_arts",
+          nome: "Vinicius Edney", foto: "img/equipe/Vini.jpg", insta: "underbed_arts",
           papel: "Criador de Classe",
           obrigado: "A gente se conhece desde criança e sempre falou que um dia ia fazer algo grande junto. Ainda não é tão grande assim, mas vai ser. Ele e o Gi criaram o Essstilo e os Domínios, e ele sempre acreditou nisso aqui. Valeu, Vini.",
         },
         {
-          nome: "Giovany Queiroz", foto: "img/equipe/giovany.jpg", insta: "zoriieuq",
+          nome: "Giovany Queiroz", foto: "img/equipe/Giovany.jpg", insta: "zoriieuq",
           papel: "Caçador de Bug",
           obrigado: "Se tem bug, o Gi acha. Já achou um monte e eu tenho certeza que ainda vai achar mais kkkk. Junto com o Vini, criou o Essstilo e os Domínios. Valeu, Gi!",
         },
         {
-          nome: "Bruna Yukari", foto: "img/equipe/yukari.jpg", insta: "yukarii_123",
+          nome: "Bruna Yukari", foto: "img/equipe/Yukari.jpg", insta: "yukarii_123",
           papel: "Tester Definitiva",
           obrigado: "Me apoiou desde quando isso aqui era só um começo de ideia, e ficou mais feliz que eu com cada coisinha que deu certo. Obrigado, Bruna, de verdade.",
         },
