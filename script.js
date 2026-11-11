@@ -20317,7 +20317,28 @@ window.addEventListener("resize", () => {
       '<div class="wj-linha-est"><span>✨ Inspiração</span><span class="wj-cont"><button type="button" onclick="wjInsp(-1)">−</button><b>' + insp + '</b><button type="button" onclick="wjInsp(1)">+</button></span></div>' +
       '<div class="wj-linha-est"><span>😩 Exaustão</span><span class="wj-exa">' + [1, 2, 3, 4, 5, 6].map(function (k) { return '<button type="button" class="' + (k <= exa ? "on" : "") + '" title="Nível ' + k + '" onclick="setExaustao(' + (k === exa ? k - 1 : k) + ')"></button>'; }).join("") + "</span></div>" +
       (conc ? '<div class="wj-linha-est conc"><span>🔮 Concentrando</span><span class="wj-conc-nome">' + txt(conc) + '<button type="button" title="Parar de concentrar" onclick="encerrarConcentracao()">✕</button></span></div>' : "") +
-      (atual <= 0 && typeof morte !== "undefined" ? '<div class="wj-linha-est morte"><span>💀 Testes de morte</span><span class="wj-morte">✓ ' + pips(morte.sucessos || [], function (k) { return "toggleMorte('sucessos'," + k + ")"; }, "suc") + " ✕ " + pips(morte.falhas || [], function (k) { return "toggleMorte('falhas'," + k + ")"; }, "fal") + "</span></div>" : "");
+      (atual <= 0 && typeof morte !== "undefined" && abaAtiva() !== "combate" ? '<div class="wj-linha-est morte"><span>💀 Testes de morte</span><span class="wj-morte">✓ ' + pips(morte.sucessos || [], function (k) { return "toggleMorte('sucessos'," + k + ")"; }, "suc") + " ✕ " + pips(morte.falhas || [], function (k) { return "toggleMorte('falhas'," + k + ")"; }, "fal") + "</span></div>" : "");
+
+    /* caído: o teste de morte aparece no topo do Combate */
+    var caido = atual <= 0;
+    document.body.classList.toggle("wj-caido", caido);
+    if (caido && typeof morte !== "undefined") {
+      var nSuc = (morte.sucessos || []).filter(Boolean).length, nFal = (morte.falhas || []).filter(Boolean).length;
+      var sit = nFal >= 3 ? "Morto" : nSuc >= 3 ? "Estável" : "Caído";
+      var tit = document.querySelector("#combate .secao-toggle:has(#boxMorte) .titulo-secao");
+      if (tit) {
+        var tag = tit.querySelector(".wj-morte-sit");
+        if (!tag) { tag = document.createElement("em"); tag.className = "wj-morte-sit"; tit.insertBefore(tag, tit.firstChild); }
+        tag.textContent = sit;
+        tag.dataset.s = sit;
+      }
+    }
+
+    /* resistências: etiquetas embaixo dos números */
+    var resTxt = (el("resistencias") || {}).value || "";
+    var resItens = resTxt.split(/[,;\n]+/).map(function (x) { return x.trim(); }).filter(Boolean);
+    var resist = '<div class="wj-resist">' + resItens.map(function (r) { return '<span>🛡 ' + txt(r) + "</span>"; }).join("") +
+      '<button type="button" class="wj-resist-ed ' + (resItens.length ? "" : "vazio") + '" onclick="wjEditarResist()">' + (resItens.length ? "✎" : "＋ Resistências") + "</button></div>";
 
     /* atributos: clicar rola */
     var siglas = [["forca", "FOR"], ["destreza", "DES"], ["constituicao", "CON"], ["inteligencia", "INT"], ["sabedoria", "SAB"], ["carisma", "CAR"]];
@@ -20356,8 +20377,15 @@ window.addEventListener("resize", () => {
         rec += '<div class="wj-rec"><span>Círculo ' + c + "</span>" + pips(esp.map(function (x) { return !x; }), (function (cc) { return function (k) { return "alternarEspaco(" + cc + "," + k + ")"; }; })(c), "mag") + "</div>";
       }
     }
-    if (typeof dominio !== "undefined" && Array.isArray(dominio) && dominio.some(Boolean)) {
-      rec += '<div class="wj-rec"><span>Domínio</span>' + pips(dominio, function (k) { return "toggleDominio(" + k + ")"; }, "dom") + "</div>";
+    // Domínio aparece num lugar só: aqui no resumo quando a ficha usa, senão fica a caixa do Combate
+    var pr = (personagens[personagemAtual] || {}).progressao || {};
+    var mesaDom = false;
+    try { var rm = typeof window.regrasDaFicha === "function" ? window.regrasDaFicha() : null; mesaDom = !!(rm && rm.r && rm.r.dominios); } catch (e) {}
+    var temDom = typeof dominio !== "undefined" && Array.isArray(dominio) && dominio.length > 0;
+    var usaDom = temDom; // no PC o Domínio mora sempre aqui no resumo
+    document.body.classList.toggle("wj-dom-resumo", usaDom);
+    if (usaDom) {
+      rec += '<div class="wj-rec"><span>Domínio<button type="button" class="wj-rec-ed" title="Quantos pontos" onclick="editarQuantidadePontosDominio()">✎</button></span>' + pips(dominio, function (k) { return "toggleDominio(" + k + ")"; }, "dom") + "</div>";
     }
     if (rec) rec += '<div class="wj-descanso"><button type="button" onclick="descansoCurto()">☕ Descanso curto</button><button type="button" onclick="descansoLongo()">🌙 Descanso longo</button></div>';
 
@@ -20393,6 +20421,7 @@ window.addEventListener("resize", () => {
         '<button type="button" title="Rolar iniciativa" onclick="rolarD20(\'Iniciativa\', ' + ini + ')"><small>Inic. 🎲</small><b>' + fmt(ini) + "</b></button>" +
         '<button type="button" title="Mudar proficiência" onclick="wjEditar(\'bonusProf\')"><small>Prof.</small><b>' + fmt(prof) + "</b></button>" +
       "</div>" +
+      resist +
       secao("estado", "Estado", estado) +
       secao("atrs", "Testes rápidos", atrs) +
       secao("ataques", "Ataques", ataques) +
@@ -20403,6 +20432,20 @@ window.addEventListener("resize", () => {
         '<button type="button" title="Bandeja de dados" onclick="abrirBandejaDados()">🎲</button></div>';
     box.scrollTop = rolagem;
   }
+
+  window.wjEditarResist = function () {
+    var atual = (el("resistencias") || {}).value || "";
+    abrirPopup("Resistências", '<div class="wj-resist-pop"><p>Separe por vírgula. Cada uma vira uma etiqueta.</p><textarea id="wjResistTxt" placeholder="Ex: fogo, veneno, dano não mágico">' + txt(atual) + '</textarea><button type="button" class="wj-resist-ok" onclick="wjSalvarResist()">Salvar</button></div>', true);
+    setTimeout(function () { var t = el("wjResistTxt"); if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }, 60);
+  };
+  window.wjSalvarResist = function () {
+    var t = el("wjResistTxt"), r = el("resistencias");
+    if (!t || !r) return;
+    r.value = t.value.trim();
+    salvarTudo();
+    fecharPopup();
+    renderResumo();
+  };
 
   window.wjInsp = function (d) {
     var i = el("inspiracao");
